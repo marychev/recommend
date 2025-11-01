@@ -1,0 +1,271 @@
+"""
+API эндпоинты для генерации рекомендаций
+"""
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, status, Path
+
+from app.models.schemas import RecommendationRequest, RecommendationResponse, RecommendedTrack, Track
+from app.db.clickhouse import get_clickhouse_client
+from app.config import settings
+
+router = APIRouter()
+
+
+@router.post(
+    "/recommendations",
+    response_model=RecommendationResponse,
+    summary="Получить рекомендации",
+    description="Генерирует персонализированные рекомендации треков для пользователя"
+)
+async def get_recommendations(request: RecommendationRequest):
+    """
+    Генерация персонализированных рекомендаций для пользователя
+    
+    Используется алгоритм Collaborative Filtering на основе матрицы user-item.
+    
+    Пример запроса:
+    ```json
+    {
+        "user_id": 1001,
+        "top_n": 10,
+        "exclude_listened": true
+    }
+    ```
+    
+    Алгоритм:
+    1. Находит пользователей с похожими музыкальными вкусами
+    2. Находит треки, которые понравились похожим пользователям
+    3. Исключает треки, которые пользователь уже слушал (опционально)
+    4. Ранжирует треки по релевантности
+    """
+    clickhouse = get_clickhouse_client()
+    
+    try:
+        # Проверяем существование пользователя
+        user_check = clickhouse.execute(
+            "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
+            parameters={"user_id": request.user_id}
+        )
+        if user_check.result_rows[0][0] == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Пользователь с ID {request.user_id} не найден"
+            )
+        
+        # Проверяем минимальное количество взаимодействий
+        interaction_count = clickhouse.execute(
+            "SELECT count() FROM user_track_interactions WHERE user_id = {user_id:UInt32}",
+            parameters={"user_id": request.user_id}
+        )
+        
+        if interaction_count.result_rows[0][0] < settings.min_interactions_for_recommendations:
+            # Если недостаточно данных, возвращаем популярные треки
+            return await get_popular_recommendations(request)
+        
+        # Collaborative Filtering: находим похожих пользователей
+        similar_users_query = """
+        WITH user_tracks AS (
+            SELECT track_id, implicit_rating
+            FROM user_track_matrix
+            WHERE user_id = {user_id:UInt32} AND implicit_rating > 0
+        )
+        SELECT 
+            m2.user_id,
+            sum(m2.implicit_rating * ut.implicit_rating) / 
+                (sqrt(sum(m2.implicit_rating * m2.implicit_rating)) * 
+                 sqrt(sum(ut.implicit_rating * ut.implicit_rating))) as similarity
+        FROM user_track_matrix m2
+        INNER JOIN user_tracks ut ON m2.track_id = ut.track_id
+        WHERE m2.user_id != {user_id:UInt32}
+          AND m2.implicit_rating > 0
+        GROUP BY m2.user_id
+        HAVING similarity > 0.1
+        ORDER BY similarity DESC
+        LIMIT 50
+        """
+        
+        similar_users = clickhouse.execute(similar_users_query, parameters={"user_id": request.user_id})
+        
+        if not similar_users.result_rows:
+            # Если не найдено похожих пользователей, возвращаем популярные треки
+            return await get_popular_recommendations(request)
+        
+        # Получаем ID похожих пользователей
+        similar_user_ids = [row[0] for row in similar_users.result_rows]
+        similar_user_ids_str = ','.join(map(str, similar_user_ids))
+        
+        # Находим треки, которые понравились похожим пользователям
+        exclude_clause = ""
+        if request.exclude_listened:
+            exclude_clause = f"""
+            AND t.track_id NOT IN (
+                SELECT DISTINCT track_id 
+                FROM user_track_interactions 
+                WHERE user_id = {request.user_id}
+            )
+            """
+        
+        recommendations_query = f"""
+        SELECT 
+            t.track_id,
+            t.title,
+            t.artist,
+            t.album,
+            t.genre,
+            t.duration_seconds,
+            t.release_year,
+            t.created_at,
+            sum(m.implicit_rating) as total_score
+        FROM user_track_matrix m
+        INNER JOIN tracks t ON m.track_id = t.track_id
+        WHERE m.user_id IN ({similar_user_ids_str})
+          AND m.implicit_rating > 0
+          {exclude_clause}
+        GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
+                 t.duration_seconds, t.release_year, t.created_at
+        ORDER BY total_score DESC
+        LIMIT {{top_n:UInt32}}
+        """
+        
+        result = clickhouse.execute(
+            recommendations_query, 
+            parameters={"top_n": request.top_n}
+        )
+        
+        if not result.result_rows:
+            # Если нет рекомендаций, возвращаем популярные треки
+            return await get_popular_recommendations(request)
+        
+        # Формируем ответ
+        recommendations = []
+        max_score = result.result_rows[0][8] if result.result_rows else 1.0
+        
+        for row in result.result_rows:
+            track = Track(
+                track_id=row[0],
+                title=row[1],
+                artist=row[2],
+                album=row[3],
+                genre=row[4],
+                duration_seconds=row[5],
+                release_year=row[6],
+                created_at=row[7]
+            )
+            
+            # Нормализуем score от 0 до 1
+            normalized_score = row[8] / max_score if max_score > 0 else 0.0
+            
+            recommendations.append(RecommendedTrack(
+                track=track,
+                score=round(normalized_score, 3),
+                reason="Пользователи с похожими вкусами также слушают этот трек"
+            ))
+        
+        return RecommendationResponse(
+            user_id=request.user_id,
+            recommendations=recommendations,
+            generated_at=datetime.now(),
+            algorithm="collaborative_filtering"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при генерации рекомендаций: {str(e)}"
+        )
+
+
+async def get_popular_recommendations(request: RecommendationRequest) -> RecommendationResponse:
+    """
+    Получение рекомендаций на основе популярных треков
+    (используется для холодного старта)
+    """
+    clickhouse = get_clickhouse_client()
+    
+    exclude_clause = ""
+    if request.exclude_listened:
+        exclude_clause = f"""
+        AND t.track_id NOT IN (
+            SELECT DISTINCT track_id 
+            FROM user_track_interactions 
+            WHERE user_id = {request.user_id}
+        )
+        """
+    
+    query = f"""
+    SELECT 
+        t.track_id,
+        t.title,
+        t.artist,
+        t.album,
+        t.genre,
+        t.duration_seconds,
+        t.release_year,
+        t.created_at,
+        count(*) as play_count
+    FROM user_track_interactions i
+    INNER JOIN tracks t ON i.track_id = t.track_id
+    WHERE i.action_type = 'play'
+      AND i.timestamp >= now() - INTERVAL 30 DAY
+      {exclude_clause}
+    GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
+             t.duration_seconds, t.release_year, t.created_at
+    ORDER BY play_count DESC
+    LIMIT {{top_n:UInt32}}
+    """
+    
+    result = clickhouse.execute(query, parameters={"top_n": request.top_n})
+    
+    recommendations = []
+    max_score = result.result_rows[0][8] if result.result_rows else 1.0
+    
+    for row in result.result_rows:
+        track = Track(
+            track_id=row[0],
+            title=row[1],
+            artist=row[2],
+            album=row[3],
+            genre=row[4],
+            duration_seconds=row[5],
+            release_year=row[6],
+            created_at=row[7]
+        )
+        
+        normalized_score = row[8] / max_score if max_score > 0 else 0.0
+        
+        recommendations.append(RecommendedTrack(
+            track=track,
+            score=round(normalized_score, 3),
+            reason="Популярный трек на платформе"
+        ))
+    
+    return RecommendationResponse(
+        user_id=request.user_id,
+        recommendations=recommendations,
+        generated_at=datetime.now(),
+        algorithm="popular_based"
+    )
+
+
+@router.get(
+    "/recommendations/{user_id}",
+    response_model=RecommendationResponse,
+    summary="Получить рекомендации (GET)",
+    description="Генерирует рекомендации для пользователя (упрощенный метод через GET)"
+)
+async def get_recommendations_simple(
+    user_id: int = Path(..., description="ID пользователя", examples=[1001])
+):
+    """
+    Упрощенный метод получения рекомендаций через GET запрос
+    с параметрами по умолчанию
+    """
+    request = RecommendationRequest(
+        user_id=user_id,
+        top_n=settings.top_n_recommendations,
+        exclude_listened=True
+    )
+    return await get_recommendations(request)
+
