@@ -16,9 +16,12 @@
 
 ### Конфигурация и качество
 - 🔌 **[PORTS.md](PORTS.md)** - Справочник по портам сервисов
+- 📊 **[DB_INIT.md](DB_INIT.md)** - Инициализация базы данных (идемпотентно)
+- 🚨 **[API_ERROR_500.md](API_ERROR_500.md)** - Решение ошибки 500 Internal Server Error
 - 🆘 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем
 - ✨ **[CODE_QUALITY.md](CODE_QUALITY.md)** - Качество кода и рефакторинг
 - 🔄 **[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)** - Итоги рефакторинга
+- 🔐 **[GIT_SETUP.md](GIT_SETUP.md)** - Настройка Git и GitHub
 
 ## 🗂️ Структура документации
 
@@ -38,14 +41,13 @@ docs/
 ### Я хочу...
 
 **...запустить проект**
-1. Читайте [README.md](../README.md)
-2. См. [PORTS.md](PORTS.md) для понимания портов
-3. Запустите `docker-compose up -d`
+1. Запустите `make quickstart` (самый простой способ!)
+2. Или читайте [README.md](../README.md) для других вариантов
+3. См. [MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md) для всех команд
 
 **...запустить тесты**
 1. Читайте [RUN_TESTS.md](RUN_TESTS.md)
-2. Запустите `bash scripts/docker-reset-clickhouse.sh`
-3. Запустите `pytest tests/clickhouse/ -v`
+2. Запустите `make test` или `pytest tests/clickhouse/ -v`
 
 **...понять архитектуру**
 1. Читайте [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md)
@@ -71,7 +73,9 @@ docs/
 
 ### Скрипты
 - `scripts/seed_data.py` - Генерация тестовых данных
+- `scripts/safe_db_init.sh` - Безопасная инициализация БД (идемпотентно)
 - `scripts/docker-reset-clickhouse.sh` - Пересоздание ClickHouse контейнера
+- `scripts/check_services.sh` - Проверка доступности сервисов
 
 ### Конфигурация
 - `clickhouse-config/users.xml` - Пользователи ClickHouse

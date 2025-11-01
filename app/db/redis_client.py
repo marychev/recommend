@@ -1,6 +1,3 @@
-"""
-Подключение к Redis
-"""
 from typing import Optional
 import redis.asyncio as redis
 
@@ -8,8 +5,6 @@ from app.config import settings
 
 
 class RedisClient:
-    """Клиент для работы с Redis"""
-    
     def __init__(self):
         self.redis: Optional[redis.Redis] = None
     
@@ -45,11 +40,39 @@ class RedisClient:
         return False
 
 
-# Глобальный экземпляр клиента
 redis_client = RedisClient()
 
 
 def get_redis_client() -> RedisClient:
-    """Получение клиента Redis"""
     return redis_client
 
+
+async def connect_redis() -> bool:
+    redis_connected = False
+    try:
+        print(
+            f"\n🔴 Подключение к Redis "
+            f"({settings.redis_host}:{settings.redis_port})..."
+        )
+        redis = get_redis_client()
+        await redis.connect()
+        redis_connected = True
+        print("   ✅ Redis подключен успешно!")
+    except Exception as exc:
+        print(f"   ⚠️ Не удалось подключиться к Redis: {exc}")
+        print("   💡 Запустите: docker-compose up -d redis")
+    
+    return redis_connected
+
+
+async def shutdown_redis() -> None:
+    """ Отключение от Redis """
+    try:
+        redis = get_redis_client()
+        if await redis.is_connected():
+            await redis.disconnect()
+    except Exception as exc:
+        print(f"⚠️ Ошибка при отключении от Redis: {exc}")
+
+    print("✓ Приложение остановлено")
+    print("="*60)

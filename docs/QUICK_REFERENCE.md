@@ -1,53 +1,47 @@
 # ⚡ Быстрая справка
 
-Команды и ссылки для быстрого доступа.
+Самые частые команды для быстрого доступа.
 
-## 🚀 Команды запуска
+> 💡 **Для полного списка команд**: `make help` или см. [MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md)
+
+## 🚀 Основные команды
 
 ```bash
-# Запустить все сервисы (Docker)
-docker-compose up -d
-
-# Запустить только ClickHouse
-docker-compose up -d clickhouse
-
-# Запустить приложение
-python -m app.main
-
-# Запустить с авторелоадом
-uvicorn app.main:app --reload
+make quickstart    # Запустить всё сразу (рекомендуется)
+make up           # Запустить все сервисы
+make down         # Остановить все
+make restart      # Перезапустить
+make ps           # Статус контейнеров
+make logs-api     # Логи API
+make help         # Все доступные команды
 ```
 
-## 🧪 Команды тестирования
+## 🔍 Диагностика
 
 ```bash
-# Пересоздать ClickHouse с правильной конфигурацией
-bash scripts/docker-reset-clickhouse.sh
-
-# Все тесты
-pytest -v
-
-# Только ClickHouse тесты
-pytest tests/clickhouse/ -v
-
-# Только API тесты
-pytest tests/test_api.py -v
-
-# С покрытием
-pytest --cov=app --cov-report=html
-
-# Конкретный тест
-pytest tests/clickhouse/test_connection.py::TestClickHouseConnection::test_connection_success -v
+make diagnose     # Полная диагностика системы
+make api-status   # Проверить API
+make health       # Health check
+make logs-errors  # Показать ошибки
 ```
 
-## 📊 Утилиты
+## 🗄️ База данных
 
 ```bash
-# Генерация тестовых данных
-python scripts/seed_data.py
+make db-init      # Инициализация БД (идемпотентно)
+make db-tables    # Список таблиц
+make db-stats     # Статистика
+make seed-quick   # Быстрые тестовые данные
+make seed         # Полные тестовые данные (10k записей)
+```
 
-# Проверка состояния
-curl http://localhost:8000/api/v1/health
+## 🧪 Тестирование
+
+```bash
+make test              # Все тесты
+make test-coverage     # С покрытием кода
+make test-api          # Только API
+make test-clickhouse   # Только ClickHouse
 ```
 
 ## 🔗 URL-адреса
@@ -93,36 +87,38 @@ docker-compose ps
 
 ## 🐛 Быстрые исправления
 
+### API возвращает 500 ошибку
+```bash
+make seed-quick        # Создать тестовые данные
+make logs-errors       # Посмотреть ошибки
+```
+
 ### ClickHouse не подключается
 ```bash
-bash scripts/docker-reset-clickhouse.sh
+make fix-clickhouse    # Автоматическое исправление
+make db-reset          # Полный сброс БД
+```
+
+### Docker образ устарел
+```bash
+make rebuild-api       # Пересобрать только API
+make rebuild           # Пересобрать всё
 ```
 
 ### Нужно очистить все
 ```bash
-docker-compose down
-docker volume prune -f
-docker-compose up -d
+make clean-all         # Полная очистка (включая volumes)
 ```
-
-### Забыли порт
-См. [PORTS.md](PORTS.md) - ClickHouse использует порт **8123** (не 9000!)
 
 ## 📚 Документация
 
-```bash
-# Главная
-cat README.md
-
-# Документация
-cat docs/INDEX.md
-
-# Тесты
-cat docs/RUN_TESTS.md
-
-# Порты
-cat docs/PORTS.md
-```
+- **[README.md](../README.md)** - Главная страница
+- **[INDEX.md](INDEX.md)** - Навигация по документам
+- **[MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md)** - Полное руководство по командам
+- **[API_ERROR_500.md](API_ERROR_500.md)** - Решение ошибки 500
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем
+- **[RUN_TESTS.md](RUN_TESTS.md)** - Запуск тестов
+- **[PORTS.md](PORTS.md)** - Справочник портов
 
 ## 🎯 API Примеры
 
@@ -155,35 +151,18 @@ curl http://localhost:8000/api/v1/recommendations/1
 ## 🔄 Git команды
 
 ```bash
-# Статус
-git status
-
-# Commit (не больше 8 слов!)
-git commit -m "Add recommendation system"
-
-# Push
-git push origin main
+git status                              # Статус
+git commit -m "Fix bug"                 # Commit (≤8 слов!) [[memory:7077760]]
+git push origin main                    # Push
 ```
 
-## 💾 Backup
+## 💡 Полезные ссылки
 
-```bash
-# ClickHouse данные
-docker run --rm --volumes-from music_recommend_clickhouse \
-  -v $(pwd)/backup:/backup ubuntu tar cvf /backup/clickhouse.tar /var/lib/clickhouse
-
-# Redis snapshot
-docker exec music_recommend_redis redis-cli SAVE
-```
-
-## 📖 Полезные ссылки
-
-- [FastAPI Docs](https://fastapi.tiangolo.com/)
-- [ClickHouse Docs](https://clickhouse.com/docs/)
-- [Pytest Docs](https://docs.pytest.org/)
-- [Docker Docs](https://docs.docker.com/)
+- **[FastAPI Docs](https://fastapi.tiangolo.com/)** - Документация FastAPI
+- **[ClickHouse Docs](https://clickhouse.com/docs/)** - Документация ClickHouse
+- **[Swagger UI](http://localhost:8000/docs)** - Интерактивная API документация
 
 ---
 
-**Сохраните эту страницу в закладки!** 📌
+**💡 Совет**: Начните с `make quickstart` - это самый простой способ запустить проект!
 

@@ -38,12 +38,12 @@ async def create_track(track: TrackCreate):
     
     try:
         # Генерируем ID
-        result = clickhouse.execute("SELECT max(track_id) as max_id FROM tracks")
-        max_id = result.result_rows[0][0] if result.result_rows else 0
+        result = await clickhouse.execute_raw("SELECT max(track_id) as max_id FROM tracks")
+        max_id = result[0][0] if result and result[0][0] else 0
         new_id = (max_id or 0) + 1
         
         # Вставляем трек
-        clickhouse.insert(
+        await clickhouse.insert(
             "tracks",
             [[
                 new_id,
@@ -91,20 +91,20 @@ async def get_track(
     clickhouse = get_clickhouse_client()
     
     try:
-        result = clickhouse.execute(
+        result = await clickhouse.execute_raw(
             """SELECT track_id, title, artist, album, genre, 
                       duration_seconds, release_year, created_at 
                FROM tracks WHERE track_id = {track_id:UInt32}""",
             parameters={"track_id": track_id}
         )
         
-        if not result.result_rows:
+        if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Трек с ID {track_id} не найден"
             )
         
-        row = result.result_rows[0]
+        row = result[0]
         return Track(
             track_id=row[0],
             title=row[1],
@@ -160,10 +160,10 @@ async def list_tracks(
             LIMIT {limit} OFFSET {offset}
         """
         
-        result = clickhouse.execute(query)
+        result = await clickhouse.execute_raw(query)
         
         tracks = []
-        for row in result.result_rows:
+        for row in result:
             tracks.append(Track(
                 track_id=row[0],
                 title=row[1],
@@ -203,18 +203,18 @@ async def get_track_statistics(
     
     try:
         # Проверяем существование трека
-        track_check = clickhouse.execute(
+        track_check = await clickhouse.execute_raw(
             "SELECT count(), duration_seconds FROM tracks WHERE track_id = {track_id:UInt32} GROUP BY duration_seconds",
             parameters={"track_id": track_id}
         )
         
-        if not track_check.result_rows:
+        if not track_check:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Трек с ID {track_id} не найден"
             )
         
-        track_duration = track_check.result_rows[0][1]
+        track_duration = track_check[0][1]
         
         # Получаем статистику
         stats_query = """
@@ -227,8 +227,8 @@ async def get_track_statistics(
         WHERE track_id = {track_id:UInt32}
         """
         
-        stats_result = clickhouse.execute(stats_query, parameters={"track_id": track_id})
-        stats_row = stats_result.result_rows[0] if stats_result.result_rows else (0, 0, 0, 0.0)
+        stats_result = await clickhouse.execute_raw(stats_query, parameters={"track_id": track_id})
+        stats_row = stats_result[0] if stats_result else (0, 0, 0, 0.0)
         
         # Рассчитываем средний процент прослушивания
         avg_listen_percentage = 0.0
@@ -283,10 +283,10 @@ async def get_popular_tracks(
         ORDER BY popular.play_count DESC
         """
         
-        result = clickhouse.execute(query)
+        result = await clickhouse.execute_raw(query)
         
         tracks = []
-        for row in result.result_rows:
+        for row in result:
             tracks.append(Track(
                 track_id=row[0],
                 title=row[1],
@@ -304,4 +304,3 @@ async def get_popular_tracks(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при получении популярных треков: {str(e)}"
         )
-

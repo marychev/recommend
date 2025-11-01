@@ -34,36 +34,59 @@ Music Recommendation System - это полнофункциональная ре
 
 ## 🚀 Быстрый старт
 
-### Вариант 1: Docker Compose (рекомендуется) 🐳
+### Вариант 1: Makefile (самый быстрый) ⚡
+
+```bash
+# Один способ запустить всё сразу! 🎉
+make quickstart
+
+# Или по отдельности:
+make up          # Запустить все сервисы
+make db-init     # Создать таблицы
+make health      # Проверить статус
+
+# Посмотреть все доступные команды
+make help
+
+# 📖 Полное руководство по командам
+См. docs/MAKEFILE_GUIDE.md
+```
+
+### Вариант 2: Docker Compose 🐳
 
 ```bash
 # 1. Клонируйте репозиторий
 git clone <repository_url>
 cd recommend
 
-# 2. Запустите все сервисы одной командой
-docker-compose up -d
+# 2. Создайте .env файл (опционально - есть дефолтные значения)
+cp .env.example .env  # или используйте значения по умолчанию
 
-# 3. Откройте Swagger UI
+# 3. Используйте make команды
+make quickstart  # Запускает всё автоматически!
+
+# Или вручную:
+docker compose up -d    # Запустить сервисы
+make db-init            # Создать таблицы (идемпотентно)
+
+# 4. Откройте Swagger UI
 http://localhost:8000/docs
-
-# 🎉 Готово! Система запущена!
 ```
 
-### Вариант 2: Локальная разработка 💻
+### Вариант 3: Локальная разработка 💻
 
 ```bash
 # 1. Установите зависимости
 pip install -r requirements.txt
 
-# 2. Запустите ClickHouse в Docker
-docker-compose up -d clickhouse
+# 2. Запустите только инфраструктуру
+make up-infra           # Запустить ClickHouse, Redis, Kafka
 
-# 3. Создайте таблицы
-docker exec -i music_recommend_clickhouse clickhouse-client < app/db/clickhouse_schemas.sql
+# 3. Инициализируйте БД
+make db-init
 
-# 4. Запустите приложение
-python -m app.main
+# 4. Запустите API локально
+make run-api            # или python -m app.main
 
 # 5. Откройте API
 http://localhost:8000/docs
@@ -93,18 +116,19 @@ http://localhost:8000/docs
 
 ### 📖 Основная документация
 - 🏠 [Главная страница](README.md) ⬅️ Вы здесь
-- 🚀 [Быстрый старт](START_HERE.md)
-- 📊 [Статус проекта](PROJECT_STATUS.md)
 - 📑 [Навигация по docs](docs/INDEX.md)
+- 📝 [Руководство по Makefile](docs/MAKEFILE_GUIDE.md)
+- ⚡ [Быстрая справка](docs/QUICK_REFERENCE.md)
 
 </td>
 <td width="50%">
 
 ### 🔧 Техническая документация
 - 🧪 [Запуск тестов](docs/RUN_TESTS.md)
+- 🚨 [Решение ошибки 500](docs/API_ERROR_500.md)
+- 📊 [Инициализация БД](docs/DB_INIT.md)
+- 🆘 [Решение проблем](docs/TROUBLESHOOTING.md)
 - 🔌 [Справочник портов](docs/PORTS.md)
-- ⚡ [Быстрая справка](docs/QUICK_REFERENCE.md)
-- 📋 [Техническое задание](docs/TECHNICAL_REQUIREMENTS.md)
 
 </td>
 </tr>
@@ -265,25 +289,43 @@ pytest --cov=app --cov-report=html
 
 ### Переменные окружения (.env)
 
+**Docker Compose автоматически читает файл `.env`** из корня проекта! 🎉
+
+Создайте файл `.env` с таким содержимым:
+
 ```env
-# ClickHouse (⚠️ Порт 8123 для HTTP!)
+# ClickHouse Configuration (⚠️ Порт 8123 для HTTP!)
 CLICKHOUSE_HOST=localhost
 CLICKHOUSE_PORT=8123
+CLICKHOUSE_USER=default
+CLICKHOUSE_PASSWORD=
 CLICKHOUSE_DATABASE=music_recommend
 
-# Kafka
+# Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_TOPIC_EVENTS=user_track_events
+KAFKA_CONSUMER_GROUP=recommend_consumer
 
-# Redis
+# Redis Configuration
 REDIS_HOST=localhost
 REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
 
-# API
+# API Configuration
+API_HOST=0.0.0.0
 API_PORT=8000
+API_RELOAD=True
+
+# ML Model Configuration
+MIN_INTERACTIONS_FOR_RECOMMENDATIONS=5
+TOP_N_RECOMMENDATIONS=10
 ```
 
 > ⚠️ **Важно**: ClickHouse использует порт **8123** для HTTP, а не 9000!  
 > См. [docs/PORTS.md](docs/PORTS.md) для подробной информации
+> 
+> 💡 **Совет**: Файл `.env` автоматически используется как при запуске через Docker Compose, так и при локальном запуске `python -m app.main`
 
 ### Скрипты
 
@@ -418,9 +460,15 @@ recommend/
 ├── ⚙️ clickhouse-config/            # Конфигурация ClickHouse
 │   └── users.xml                    # Пользователи без пароля (dev)
 │
-├── 🐳 docker-compose.yml            # Docker Compose
+├── 🐳 docker-compose.yml            # Docker Compose конфигурация
+├── 📝 Makefile                       # Команды для управления проектом
 ├── 📦 requirements.txt              # Python зависимости
-└── 📖 README.md                     # Этот файл
+├── 📖 README.md                     # Этот файл
+└── 📚 docs/                          # Документация
+    ├── MAKEFILE_GUIDE.md            # Руководство по Makefile
+    ├── API_ERROR_500.md             # Решение ошибки 500
+    ├── DB_INIT.md                   # Инициализация БД
+    └── ... другие документы
 ```
 
 ---
@@ -558,21 +606,26 @@ Coverage: 92% ✅
 
 ### Команды
 
+**С помощью Makefile (рекомендуется):**
 ```bash
-# Запустить все
-docker-compose up -d
+make quickstart      # 🚀 Запустить всё сразу!
+make up              # Запустить все сервисы
+make down            # Остановить все
+make ps              # Статус контейнеров
+make logs-api        # Логи API
+make diagnose        # Диагностика проблем
+make help            # Все команды
+```
 
-# Остановить все
-docker-compose down
+> 📖 **Полный список команд**: [docs/MAKEFILE_GUIDE.md](docs/MAKEFILE_GUIDE.md)
 
-# Логи
-docker-compose logs -f
-
-# Статус
-docker-compose ps
-
-# Перезапустить сервис
-docker-compose restart clickhouse
+**Или напрямую через Docker Compose:**
+```bash
+docker compose up -d            # Запустить все
+docker compose down             # Остановить все
+docker compose ps               # Статус
+docker compose logs -f api      # Логи API
+docker compose restart api      # Перезапустить API
 ```
 
 ---

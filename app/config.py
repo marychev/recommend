@@ -1,32 +1,23 @@
-"""
-Конфигурация приложения
-"""
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Настройки приложения"""
-
-    # ClickHouse
     clickhouse_host: str = "localhost"
-    clickhouse_port: int = 8123  # HTTP порт для clickhouse-connect
+    clickhouse_port: int = 8123  # HTTP порт для aiochclient
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
     clickhouse_database: str = "music_recommend"
 
-    # Kafka
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_events: str = "user_track_events"
     kafka_consumer_group: str = "recommend_consumer"
 
-    # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: str = ""
 
-    # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_reload: bool = True

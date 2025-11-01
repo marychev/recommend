@@ -4,18 +4,17 @@ import pytest
 class TestDBSchema:
     """Тесты схемы базы данных"""
     
-    def test_db_exists(self, clickhouse_client):
+    async def test_db_exists(self, clickhouse_client):
         """Тест существования базы данных"""
         from app.config import settings
         
-        result = clickhouse_client.execute(
-            "SELECT name FROM system.databases WHERE name = {db:String}",
-            parameters={"db": settings.clickhouse_database}
+        result = await clickhouse_client.execute_raw(
+            f"SELECT name FROM system.databases WHERE name = '{settings.clickhouse_database}'"
         )
         
-        assert len(result.result_rows) == 1
+        assert len(result) == 1
     
-    def test_tables_exist(self, clickhouse_client, create_test_schema):
+    async def test_tables_exist(self, clickhouse_client, create_test_schema):
         """Тест существования всех необходимых таблиц"""
         from app.config import settings
         
@@ -27,18 +26,18 @@ class TestDBSchema:
         ]
         
         for table in expected_tables:
-            result = clickhouse_client.execute(
+            result = await clickhouse_client.execute_raw(
                 f"EXISTS TABLE {settings.clickhouse_database}.{table}"
             )
-            assert result.result_rows[0][0] == 1, f"Таблица {table} не существует"
+            assert result[0][0] == 1, f"Таблица {table} не существует"
     
-    def test_users_table_structure(self, clickhouse_client, create_test_schema):
+    async def test_users_table_structure(self, clickhouse_client, create_test_schema):
         """Тест структуры таблицы users"""
-        result = clickhouse_client.execute(
+        result = await clickhouse_client.execute_raw(
             "DESCRIBE TABLE users"
         )
         
-        columns = {row[0]: row[1] for row in result.result_rows}
+        columns = {row[0]: row[1] for row in result}
         
         assert "user_id" in columns
         assert "username" in columns
@@ -50,13 +49,13 @@ class TestDBSchema:
         assert "UInt32" in columns["user_id"]
         assert "String" in columns["username"]
     
-    def test_tracks_table_structure(self, clickhouse_client, create_test_schema):
+    async def test_tracks_table_structure(self, clickhouse_client, create_test_schema):
         """Тест структуры таблицы tracks"""
-        result = clickhouse_client.execute(
+        result = await clickhouse_client.execute_raw(
             "DESCRIBE TABLE tracks"
         )
         
-        columns = {row[0]: row[1] for row in result.result_rows}
+        columns = {row[0]: row[1] for row in result}
         
         assert "track_id" in columns
         assert "title" in columns
@@ -69,17 +68,17 @@ class TestDBSchema:
         assert "UInt32" in columns["track_id"]
         assert "String" in columns["title"]
     
-    def test_interactions_table_structure(
+    async def test_interactions_table_structure(
         self, 
         clickhouse_client, 
         create_test_schema
     ):
         """Тест структуры таблицы user_track_interactions"""
-        result = clickhouse_client.execute(
+        result = await clickhouse_client.execute_raw(
             "DESCRIBE TABLE user_track_interactions"
         )
         
-        columns = {row[0]: row[1] for row in result.result_rows}
+        columns = {row[0]: row[1] for row in result}
         
         assert "user_id" in columns
         assert "track_id" in columns

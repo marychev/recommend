@@ -1,53 +1,77 @@
 """
-Фикстуры для тестов ClickHouse
+Фикстуры для тестов ClickHouse (Async версия с aiochclient)
 """
 import pytest
+import pytest_asyncio
+from aiohttp import ClientSession
+from aiochclient import ChClient
 from app.db.clickhouse import ClickHouseClient
 from app.config import settings
 
 
-@pytest.fixture(scope="session")
-def clickhouse_client():
-    """
-    Создает клиент ClickHouse для тестов
-    """
-    # Сохраняем оригинальную БД
-    original_db = settings.clickhouse_database
-    test_db = "music_recommend_test"
+# Модульная фикстура для создания тестовой БД (один раз для всей сессии)
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_database():
+    """Создает тестовую БД перед всеми тестами"""
+    import asyncio
     
-    # Сначала подключаемся к default БД для создания тестовой
+    async def create_db():
+        test_db = "music_recommend_test"
+        async with ClientSession() as session:
+            url = f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
+            client = ChClient(
+                session,
+                url=url,
+                user=settings.clickhouse_user,
+                password=settings.clickhouse_password
+            )
+            await client.execute(f"CREATE DATABASE IF NOT EXISTS {test_db}")
+            print(f"\n✓ Тестовая БД '{test_db}' готова")
+    
+    asyncio.run(create_db())
+    yield
+    
+    # Очистка после всех тестов
+    async def drop_db():
+        test_db = "music_recommend_test"
+        async with ClientSession() as session:
+            url = f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
+            client = ChClient(
+                session,
+                url=url,
+                user=settings.clickhouse_user,
+                password=settings.clickhouse_password
+            )
+            await client.execute(f"DROP DATABASE IF EXISTS {test_db}")
+            print(f"\n✓ Тестовая БД '{test_db}' удалена")
+    
+    asyncio.run(drop_db())
+
+
+@pytest_asyncio.fixture(scope="function")
+async def clickhouse_client():
+    """
+    Создает асинхронный клиент ClickHouse для тестов
+    """
     client = ClickHouseClient()
     
+    original_db = settings.clickhouse_database
+    
     try:
-        # Подключаемся без указания БД
-        settings.clickhouse_database = "default"
-        client.connect()
-        
-        # Создаем тестовую БД
-        client.client.command(f"CREATE DATABASE IF NOT EXISTS {test_db}")
-        print(f"✓ Тестовая база данных '{test_db}' создана")
-        
-        # Переподключаемся к тестовой БД
-        client.disconnect()
-        settings.clickhouse_database = test_db
-        client.connect()
+        # Используем тестовую БД
+        settings.clickhouse_database = "music_recommend_test"
+        await client.connect()
         
         yield client
         
     finally:
-        # Очищаем тестовую БД после всех тестов
-        try:
-            client.client.command(f"DROP DATABASE IF EXISTS {test_db}")
-            print(f"✓ Тестовая база данных '{test_db}' удалена")
-        except Exception as e:
-            print(f"⚠ Не удалось удалить тестовую БД: {e}")
-        
-        client.disconnect()
+        if client.client:
+            await client.disconnect()
         settings.clickhouse_database = original_db
 
 
-@pytest.fixture(scope="function")
-def clean_tables(clickhouse_client):
+@pytest_asyncio.fixture(scope="function")
+async def clean_tables(clickhouse_client):
     """
     Очищает таблицы перед каждым тестом
     """
@@ -55,7 +79,7 @@ def clean_tables(clickhouse_client):
     
     for table in tables:
         try:
-            clickhouse_client.client.command(f"TRUNCATE TABLE IF EXISTS {table}")
+            await clickhouse_client.client.execute(f"TRUNCATE TABLE IF EXISTS {table}")
         except Exception:
             pass
     
@@ -64,18 +88,18 @@ def clean_tables(clickhouse_client):
     # Очистка после теста
     for table in tables:
         try:
-            clickhouse_client.client.command(f"TRUNCATE TABLE IF EXISTS {table}")
+            await clickhouse_client.client.execute(f"TRUNCATE TABLE IF EXISTS {table}")
         except Exception:
             pass
 
 
-@pytest.fixture(scope="session")
-def create_test_schema(clickhouse_client):
+@pytest_asyncio.fixture(scope="function")
+async def create_test_schema(clickhouse_client):
     """
     Создает схему БД для тестов
     """
     # Создаем таблицу пользователей
-    clickhouse_client.client.command("""
+    await clickhouse_client.client.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id UInt32,
             username String,
@@ -88,7 +112,7 @@ def create_test_schema(clickhouse_client):
     """)
     
     # Создаем таблицу треков
-    clickhouse_client.client.command("""
+    await clickhouse_client.client.execute("""
         CREATE TABLE IF NOT EXISTS tracks (
             track_id UInt32,
             title String,
@@ -103,7 +127,7 @@ def create_test_schema(clickhouse_client):
     """)
     
     # Создаем таблицу взаимодействий
-    clickhouse_client.client.command("""
+    await clickhouse_client.client.execute("""
         CREATE TABLE IF NOT EXISTS user_track_interactions (
             user_id UInt32,
             track_id UInt32,
@@ -124,7 +148,7 @@ def create_test_schema(clickhouse_client):
     """)
     
     # Создаем таблицу матрицы
-    clickhouse_client.client.command("""
+    await clickhouse_client.client.execute("""
         CREATE TABLE IF NOT EXISTS user_track_matrix (
             user_id UInt32,
             track_id UInt32,
@@ -136,8 +160,6 @@ def create_test_schema(clickhouse_client):
     """)
     
     yield
-    
-    # Схема будет удалена вместе с БД в clickhouse_client fixture
 
 
 @pytest.fixture
@@ -179,4 +201,3 @@ def sample_interactions():
         [2, 3, "skip", 30, now],
         [3, 2, "play", 200, now],
     ]
-

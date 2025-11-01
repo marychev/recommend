@@ -13,7 +13,6 @@ router = APIRouter()
 
 async def process_event_async(event: UserTrackInteraction):
     """
-    Асинхронная обработка события (в фоне)
     TODO: Отправка события в Kafka для дальнейшей обработки
     """
     # Здесь будет отправка в Kafka
@@ -33,7 +32,6 @@ async def create_event(
 ):
     """
     Создание события взаимодействия пользователя с треком
-    
     События обрабатываются асинхронно через Kafka и сохраняются в ClickHouse.
     
     Пример запроса:
@@ -58,22 +56,22 @@ async def create_event(
     
     try:
         # Проверяем существование пользователя
-        user_check = clickhouse.execute(
+        user_check = await clickhouse.execute_raw(
             "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
             parameters={"user_id": event.user_id}
         )
-        if user_check.result_rows[0][0] == 0:
+        if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {event.user_id} не найден"
             )
         
         # Проверяем существование трека
-        track_check = clickhouse.execute(
+        track_check = await clickhouse.execute_raw(
             "SELECT count() FROM tracks WHERE track_id = {track_id:UInt32}",
             parameters={"track_id": event.track_id}
         )
-        if track_check.result_rows[0][0] == 0:
+        if track_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Трек с ID {event.track_id} не найден"
@@ -83,7 +81,7 @@ async def create_event(
         timestamp = event.timestamp if event.timestamp else datetime.now()
         
         # Сохраняем событие в ClickHouse
-        clickhouse.insert(
+        await clickhouse.insert(
             "user_track_interactions",
             [[
                 event.user_id,
@@ -92,8 +90,7 @@ async def create_event(
                 event.listen_duration_seconds,
                 timestamp
             ]],
-            column_names=["user_id", "track_id", "action_type", 
-                         "listen_duration_seconds", "timestamp"]
+            column_names=["user_id", "track_id", "action_type", "listen_duration_seconds", "timestamp"]
         )
         
         interaction = UserTrackInteraction(
@@ -106,7 +103,6 @@ async def create_event(
         
         # Добавляем задачу в фон для отправки в Kafka
         background_tasks.add_task(process_event_async, interaction)
-        
         return interaction
         
     except HTTPException:
@@ -136,17 +132,17 @@ async def get_user_events(
     
     try:
         # Проверяем существование пользователя
-        user_check = clickhouse.execute(
+        user_check = await clickhouse.execute_raw(
             "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
             parameters={"user_id": user_id}
         )
-        if user_check.result_rows[0][0] == 0:
+        if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {user_id} не найден"
             )
         
-        result = clickhouse.execute(
+        result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
             FROM user_track_interactions
@@ -158,7 +154,7 @@ async def get_user_events(
         )
         
         events = []
-        for row in result.result_rows:
+        for row in result:
             events.append(UserTrackInteraction(
                 user_id=row[0],
                 track_id=row[1],
@@ -196,17 +192,17 @@ async def get_track_events(
     
     try:
         # Проверяем существование трека
-        track_check = clickhouse.execute(
+        track_check = await clickhouse.execute_raw(
             "SELECT count() FROM tracks WHERE track_id = {track_id:UInt32}",
             parameters={"track_id": track_id}
         )
-        if track_check.result_rows[0][0] == 0:
+        if track_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Трек с ID {track_id} не найден"
             )
         
-        result = clickhouse.execute(
+        result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
             FROM user_track_interactions
@@ -218,7 +214,7 @@ async def get_track_events(
         )
         
         events = []
-        for row in result.result_rows:
+        for row in result:
             events.append(UserTrackInteraction(
                 user_id=row[0],
                 track_id=row[1],
@@ -236,4 +232,3 @@ async def get_track_events(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при получении событий: {str(e)}"
         )
-

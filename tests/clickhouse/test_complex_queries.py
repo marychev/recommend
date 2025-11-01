@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 class TestComplexQueries:
     """Тесты сложных запросов"""
     
-    def test_join_users_and_interactions(
+    async def test_join_users_and_interactions(
         self, 
         clickhouse_client, 
         create_test_schema, 
@@ -19,12 +19,12 @@ class TestComplexQueries:
     ):
         """Тест JOIN запроса пользователей и взаимодействий"""
         # Подготовка данных
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "users", 
             sample_users, 
             column_names=["user_id", "username", "email", "age", "country"]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "tracks", 
             sample_tracks, 
             column_names=[
@@ -32,7 +32,7 @@ class TestComplexQueries:
                 "genre", "duration_seconds", "release_year"
             ]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
             column_names=[
@@ -42,7 +42,7 @@ class TestComplexQueries:
         )
         
         # JOIN запрос
-        result = clickhouse_client.execute("""
+        result = await clickhouse_client.execute_raw("""
             SELECT 
                 u.username,
                 count() as interaction_count
@@ -52,10 +52,10 @@ class TestComplexQueries:
             ORDER BY interaction_count DESC
         """)
         
-        assert len(result.result_rows) == 3
-        assert result.result_rows[0][1] == 2  # max interactions
+        assert len(result) == 3
+        assert result[0][1] == 2  # max interactions
     
-    def test_join_tracks_and_interactions(
+    async def test_join_tracks_and_interactions(
         self, 
         clickhouse_client, 
         create_test_schema, 
@@ -66,12 +66,12 @@ class TestComplexQueries:
     ):
         """Тест JOIN запроса треков и взаимодействий"""
         # Подготовка данных
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "users", 
             sample_users, 
             column_names=["user_id", "username", "email", "age", "country"]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "tracks", 
             sample_tracks, 
             column_names=[
@@ -79,7 +79,7 @@ class TestComplexQueries:
                 "genre", "duration_seconds", "release_year"
             ]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
             column_names=[
@@ -89,7 +89,7 @@ class TestComplexQueries:
         )
         
         # JOIN запрос
-        result = clickhouse_client.execute("""
+        result = await clickhouse_client.execute_raw("""
             SELECT 
                 t.title,
                 t.artist,
@@ -102,12 +102,12 @@ class TestComplexQueries:
         """)
         
         # 2 уникальных трека: Track 1 (2 раза), Track 2 (1 раз)
-        assert len(result.result_rows) == 2
+        assert len(result) == 2
         # Проверяем что Track 1 имеет больше прослушиваний
-        assert result.result_rows[0][2] == 2  # Track 1 - 2 plays
-        assert result.result_rows[1][2] == 1  # Track 2 - 1 play
+        assert result[0][2] == 2  # Track 1 - 2 plays
+        assert result[1][2] == 1  # Track 2 - 1 play
     
-    def test_window_functions(
+    async def test_window_functions(
         self, 
         clickhouse_client, 
         create_test_schema, 
@@ -118,12 +118,12 @@ class TestComplexQueries:
     ):
         """Тест оконных функций"""
         # Подготовка данных
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "users", 
             sample_users, 
             column_names=["user_id", "username", "email", "age", "country"]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "tracks", 
             sample_tracks, 
             column_names=[
@@ -131,7 +131,7 @@ class TestComplexQueries:
                 "genre", "duration_seconds", "release_year"
             ]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
             column_names=[
@@ -141,7 +141,7 @@ class TestComplexQueries:
         )
         
         # Запрос с оконной функцией
-        result = clickhouse_client.execute("""
+        result = await clickhouse_client.execute_raw("""
             SELECT 
                 user_id,
                 track_id,
@@ -150,5 +150,5 @@ class TestComplexQueries:
             ORDER BY user_id, rn
         """)
         
-        assert len(result.result_rows) == len(sample_interactions)
+        assert len(result) == len(sample_interactions)
 

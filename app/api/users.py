@@ -36,12 +36,12 @@ async def create_user(user: UserCreate):
     
     try:
         # Генерируем ID (в реальности нужно использовать автоинкремент или UUID)
-        result = clickhouse.execute("SELECT max(user_id) as max_id FROM users")
-        max_id = result.result_rows[0][0] if result.result_rows else 0
+        result = await clickhouse.execute_raw("SELECT max(user_id) as max_id FROM users")
+        max_id = result[0][0] if result and result[0][0] else 0
         new_id = (max_id or 0) + 1
         
         # Вставляем пользователя
-        clickhouse.insert(
+        await clickhouse.insert(
             "users",
             [[
                 new_id,
@@ -78,24 +78,21 @@ async def create_user(user: UserCreate):
 async def get_user(
     user_id: int = Path(..., description="ID пользователя", examples=[1001])
 ):
-    """
-    Получение информации о пользователе по ID
-    """
     clickhouse = get_clickhouse_client()
     
     try:
-        result = clickhouse.execute(
+        result = await clickhouse.execute_raw(
             "SELECT user_id, username, email, age, country, created_at FROM users WHERE user_id = {user_id:UInt32}",
             parameters={"user_id": user_id}
         )
         
-        if not result.result_rows:
+        if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {user_id} не найден"
             )
         
-        row = result.result_rows[0]
+        row = result[0]
         return User(
             user_id=row[0],
             username=row[1],
@@ -129,7 +126,7 @@ async def list_users(
     clickhouse = get_clickhouse_client()
     
     try:
-        result = clickhouse.execute(
+        result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, username, email, age, country, created_at 
             FROM users 
@@ -139,7 +136,7 @@ async def list_users(
         )
         
         users = []
-        for row in result.result_rows:
+        for row in result:
             users.append(User(
                 user_id=row[0],
                 username=row[1],
@@ -177,12 +174,12 @@ async def get_user_statistics(
     
     try:
         # Проверяем существование пользователя
-        user_check = clickhouse.execute(
+        user_check = await clickhouse.execute_raw(
             "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
             parameters={"user_id": user_id}
         )
         
-        if user_check.result_rows[0][0] == 0:
+        if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {user_id} не найден"
@@ -198,8 +195,8 @@ async def get_user_statistics(
         WHERE user_id = {user_id:UInt32}
         """
         
-        stats_result = clickhouse.execute(stats_query, parameters={"user_id": user_id})
-        stats_row = stats_result.result_rows[0] if stats_result.result_rows else (0, 0, 0.0)
+        stats_result = await clickhouse.execute_raw(stats_query, parameters={"user_id": user_id})
+        stats_row = stats_result[0] if stats_result else (0, 0, 0.0)
         
         # Получаем любимый жанр
         genre_query = """
@@ -212,8 +209,8 @@ async def get_user_statistics(
         LIMIT 1
         """
         
-        genre_result = clickhouse.execute(genre_query, parameters={"user_id": user_id})
-        favorite_genre = genre_result.result_rows[0][0] if genre_result.result_rows else None
+        genre_result = await clickhouse.execute_raw(genre_query, parameters={"user_id": user_id})
+        favorite_genre = genre_result[0][0] if genre_result else None
         
         return UserStatistics(
             user_id=user_id,
@@ -229,4 +226,3 @@ async def get_user_statistics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при получении статистики: {str(e)}"
         )
-

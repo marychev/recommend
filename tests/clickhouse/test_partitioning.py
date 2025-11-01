@@ -4,7 +4,7 @@ import pytest
 class TestPartitioning:
     """Тесты партиционирования"""
     
-    def test_interactions_partitioning(
+    async def test_interactions_partitioning(
         self, 
         clickhouse_client, 
         create_test_schema,
@@ -17,12 +17,12 @@ class TestPartitioning:
         from app.config import settings
         
         # Вставляем пользователей и треки
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "users", 
             sample_users, 
             column_names=["user_id", "username", "email", "age", "country"]
         )
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "tracks", 
             sample_tracks, 
             column_names=[
@@ -40,7 +40,7 @@ class TestPartitioning:
             [1, 2, "like", None, one_month_ago],
         ]
         
-        clickhouse_client.insert(
+        await clickhouse_client.insert(
             "user_track_interactions",
             interactions,
             column_names=[
@@ -50,7 +50,7 @@ class TestPartitioning:
         )
         
         # Проверяем количество партиций
-        result = clickhouse_client.execute(f"""
+        result = await clickhouse_client.execute_raw(f"""
             SELECT count(DISTINCT partition) as partition_count
             FROM system.parts
             WHERE database = '{settings.clickhouse_database}'
@@ -59,5 +59,5 @@ class TestPartitioning:
         """)
         
         # Должно быть как минимум 1 партиция
-        assert result.result_rows[0][0] >= 1
+        assert result[0][0] >= 1
 

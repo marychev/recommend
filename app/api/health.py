@@ -35,7 +35,7 @@ async def health_check():
 
     # Проверяем ClickHouse (с попыткой переподключения)
     clickhouse_status = "disconnected"
-    if clickhouse.is_connected():
+    if await clickhouse.is_connected():
         clickhouse_status = "connected"
     else:
         # Попытка переподключения
@@ -43,8 +43,8 @@ async def health_check():
             print(
                 "⚠️  ClickHouse disconnected, попытка переподключения..."
             )
-            clickhouse.connect()
-            if clickhouse.is_connected():
+            await clickhouse.connect()
+            if await clickhouse.is_connected():
                 clickhouse_status = "connected"
                 print("   ✅ ClickHouse переподключен!")
         except Exception as exc:

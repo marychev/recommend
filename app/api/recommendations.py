@@ -42,32 +42,30 @@ async def get_recommendations(request: RecommendationRequest):
     
     try:
         # Проверяем существование пользователя
-        user_check = clickhouse.execute(
-            "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": request.user_id}
+        user_check = await clickhouse.execute(
+            f"SELECT count() FROM users WHERE user_id = {request.user_id}"
         )
-        if user_check.result_rows[0][0] == 0:
+        if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {request.user_id} не найден"
             )
         
         # Проверяем минимальное количество взаимодействий
-        interaction_count = clickhouse.execute(
-            "SELECT count() FROM user_track_interactions WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": request.user_id}
+        interaction_count = await clickhouse.execute(
+            f"SELECT count() FROM user_track_interactions WHERE user_id = {request.user_id}"
         )
         
-        if interaction_count.result_rows[0][0] < settings.min_interactions_for_recommendations:
+        if interaction_count[0][0] < settings.min_interactions_for_recommendations:
             # Если недостаточно данных, возвращаем популярные треки
             return await get_popular_recommendations(request)
         
         # Collaborative Filtering: находим похожих пользователей
-        similar_users_query = """
+        similar_users_query = f"""
         WITH user_tracks AS (
             SELECT track_id, implicit_rating
             FROM user_track_matrix
-            WHERE user_id = {user_id:UInt32} AND implicit_rating > 0
+            WHERE user_id = {request.user_id} AND implicit_rating > 0
         )
         SELECT 
             m2.user_id,
@@ -76,7 +74,7 @@ async def get_recommendations(request: RecommendationRequest):
                  sqrt(sum(ut.implicit_rating * ut.implicit_rating))) as similarity
         FROM user_track_matrix m2
         INNER JOIN user_tracks ut ON m2.track_id = ut.track_id
-        WHERE m2.user_id != {user_id:UInt32}
+        WHERE m2.user_id != {request.user_id}
           AND m2.implicit_rating > 0
         GROUP BY m2.user_id
         HAVING similarity > 0.1
@@ -84,14 +82,14 @@ async def get_recommendations(request: RecommendationRequest):
         LIMIT 50
         """
         
-        similar_users = clickhouse.execute(similar_users_query, parameters={"user_id": request.user_id})
+        similar_users = await clickhouse.execute(similar_users_query)
         
-        if not similar_users.result_rows:
+        if not similar_users:
             # Если не найдено похожих пользователей, возвращаем популярные треки
             return await get_popular_recommendations(request)
         
         # Получаем ID похожих пользователей
-        similar_user_ids = [row[0] for row in similar_users.result_rows]
+        similar_user_ids = [row[0] for row in similar_users]
         similar_user_ids_str = ','.join(map(str, similar_user_ids))
         
         # Находим треки, которые понравились похожим пользователям
@@ -124,23 +122,20 @@ async def get_recommendations(request: RecommendationRequest):
         GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
                  t.duration_seconds, t.release_year, t.created_at
         ORDER BY total_score DESC
-        LIMIT {{top_n:UInt32}}
+        LIMIT {request.top_n}
         """
         
-        result = clickhouse.execute(
-            recommendations_query, 
-            parameters={"top_n": request.top_n}
-        )
+        result = await clickhouse.execute(recommendations_query)
         
-        if not result.result_rows:
+        if not result:
             # Если нет рекомендаций, возвращаем популярные треки
             return await get_popular_recommendations(request)
         
         # Формируем ответ
         recommendations = []
-        max_score = result.result_rows[0][8] if result.result_rows else 1.0
+        max_score = result[0][8] if result else 1.0
         
-        for row in result.result_rows:
+        for row in result:
             track = Track(
                 track_id=row[0],
                 title=row[1],
@@ -213,15 +208,15 @@ async def get_popular_recommendations(request: RecommendationRequest) -> Recomme
     GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
              t.duration_seconds, t.release_year, t.created_at
     ORDER BY play_count DESC
-    LIMIT {{top_n:UInt32}}
+    LIMIT {request.top_n}
     """
     
-    result = clickhouse.execute(query, parameters={"top_n": request.top_n})
+    result = await clickhouse.execute(query)
     
     recommendations = []
-    max_score = result.result_rows[0][8] if result.result_rows else 1.0
+    max_score = result[0][8] if result else 1.0
     
-    for row in result.result_rows:
+    for row in result:
         track = Track(
             track_id=row[0],
             title=row[1],
@@ -268,4 +263,3 @@ async def get_recommendations_simple(
         exclude_listened=True
     )
     return await get_recommendations(request)
-

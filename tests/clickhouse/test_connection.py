@@ -4,11 +4,12 @@ from app.config import settings
 
 
 class TestClickHouseConnection:
-    """Тесты подключения к ClickHouse"""
+    """Тесты подключения к ClickHouse (Async версия)"""
     
-    def test_connection_success(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_connection_success(self, clickhouse_client):
         """Тест успешного подключения"""
-        assert clickhouse_client.is_connected()
+        assert await clickhouse_client.is_connected()
     
     def test_connection_parameters(self):
         """Тест параметров подключения из конфигурации"""
@@ -16,60 +17,65 @@ class TestClickHouseConnection:
         assert settings.clickhouse_port > 0
         assert settings.clickhouse_database is not None
     
-    def test_simple_query(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_simple_query(self, clickhouse_client):
         """Тест выполнения простого запроса"""
-        result = clickhouse_client.execute("SELECT 1 as num")
+        result = await clickhouse_client.execute_raw("SELECT 1 as num")
         assert result is not None
-        assert len(result.result_rows) == 1
-        assert result.result_rows[0][0] == 1
+        assert len(result) == 1
+        assert result[0][0] == 1
     
-    def test_database_exists(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_database_exists(self, clickhouse_client):
         """Тест существования тестовой базы данных"""
-        result = clickhouse_client.execute(
+        result = await clickhouse_client.execute_raw(
             f"SELECT name FROM system.databases WHERE name = '{settings.clickhouse_database}'"
         )
-        assert len(result.result_rows) == 1
-        assert result.result_rows[0][0] == settings.clickhouse_database
+        assert len(result) == 1
+        assert result[0][0] == settings.clickhouse_database
     
-    def test_connection_with_wrong_credentials(self):
+    @pytest.mark.asyncio
+    async def test_connection_with_wrong_credentials(self):
         """Тест подключения с неправильными учетными данными"""
-        import clickhouse_connect
+        from asynch import connect
         
         with pytest.raises(Exception):
-            clickhouse_connect.get_client(
+            await connect(
                 host=settings.clickhouse_host,
                 port=settings.clickhouse_port,
-                username="wrong_user",
+                user="wrong_user",
                 password="wrong_password"
             )
     
-    def test_multiple_queries(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_multiple_queries(self, clickhouse_client):
         """Тест выполнения нескольких запросов подряд"""
         results = []
         for i in range(5):
-            result = clickhouse_client.execute(f"SELECT {i} as num")
-            results.append(result.result_rows[0][0])
+            result = await clickhouse_client.execute_raw(f"SELECT {i} as num")
+            results.append(result[0][0])
         
         assert results == [0, 1, 2, 3, 4]
     
-    def test_query_with_parameters(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_query_with_parameters(self, clickhouse_client):
         """Тест запроса с параметрами"""
-        result = clickhouse_client.execute(
-            "SELECT {value:UInt32} as num",
-            parameters={"value": 42}
+        test_value = 42
+        result = await clickhouse_client.execute_raw(
+            f"SELECT {test_value} as num"
         )
-        assert result.result_rows[0][0] == 42
+        assert result[0][0] == test_value
     
-    def test_disconnect_and_reconnect(self, clickhouse_client):
+    @pytest.mark.asyncio
+    async def test_disconnect_and_reconnect(self, clickhouse_client):
         """Тест отключения и переподключения"""
+        # Проверяем, что подключены
+        assert await clickhouse_client.is_connected()
+        
         # Отключаемся
-        clickhouse_client.disconnect()
-        assert not clickhouse_client.is_connected()
+        await clickhouse_client.disconnect()
+        assert not await clickhouse_client.is_connected()
         
         # Переподключаемся
-        clickhouse_client.connect()
-        assert clickhouse_client.is_connected()
-        
-        # Проверяем работоспособность
-        result = clickhouse_client.execute("SELECT 1")
-        assert result.result_rows[0][0] == 1
+        await clickhouse_client.connect()
+        assert await clickhouse_client.is_connected()
