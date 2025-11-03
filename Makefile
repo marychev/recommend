@@ -124,6 +124,7 @@ install: ## Установить зависимости Python
 
 run-api: ## Запустить API локально (не в Docker)
 	@echo "$(GREEN)🚀 Запуск API локально...$(NC)"
+	fuser -k 8000/tcp
 	python -m app.main
 
 stop-api: ## Остановить локально запущенный API

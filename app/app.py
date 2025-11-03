@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.helpers.lifespan import lifespan 
+from app.utils.lifespan import lifespan 
 
 
 # Создание приложения FastAPI

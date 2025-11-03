@@ -82,8 +82,7 @@ async def get_user(
     
     try:
         result = await clickhouse.execute_raw(
-            "SELECT user_id, username, email, age, country, created_at FROM users WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": user_id}
+            f"SELECT user_id, username, email, age, country, created_at FROM users WHERE user_id = {user_id}"
         )
         
         if not result:
@@ -175,8 +174,7 @@ async def get_user_statistics(
     try:
         # Проверяем существование пользователя
         user_check = await clickhouse.execute_raw(
-            "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": user_id}
+            f"SELECT count() FROM users WHERE user_id = {user_id}"
         )
         
         if user_check[0][0] == 0:
@@ -186,30 +184,30 @@ async def get_user_statistics(
             )
         
         # Получаем статистику
-        stats_query = """
+        stats_query = f"""
         SELECT 
             count() as total_interactions,
             uniq(track_id) as unique_tracks,
             sum(listen_duration_seconds) / 3600.0 as total_listen_hours
         FROM user_track_interactions
-        WHERE user_id = {user_id:UInt32}
+        WHERE user_id = {user_id}
         """
         
-        stats_result = await clickhouse.execute_raw(stats_query, parameters={"user_id": user_id})
+        stats_result = await clickhouse.execute_raw(stats_query)
         stats_row = stats_result[0] if stats_result else (0, 0, 0.0)
         
         # Получаем любимый жанр
-        genre_query = """
+        genre_query = f"""
         SELECT t.genre, count() as cnt
         FROM user_track_interactions i
         JOIN tracks t ON i.track_id = t.track_id
-        WHERE i.user_id = {user_id:UInt32} AND t.genre != ''
+        WHERE i.user_id = {user_id} AND t.genre != ''
         GROUP BY t.genre
         ORDER BY cnt DESC
         LIMIT 1
         """
         
-        genre_result = await clickhouse.execute_raw(genre_query, parameters={"user_id": user_id})
+        genre_result = await clickhouse.execute_raw(genre_query)
         favorite_genre = genre_result[0][0] if genre_result else None
         
         return UserStatistics(

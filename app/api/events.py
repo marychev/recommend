@@ -57,8 +57,7 @@ async def create_event(
     try:
         # Проверяем существование пользователя
         user_check = await clickhouse.execute_raw(
-            "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": event.user_id}
+            f"SELECT count() FROM users WHERE user_id = {event.user_id}"
         )
         if user_check[0][0] == 0:
             raise HTTPException(
@@ -68,8 +67,7 @@ async def create_event(
         
         # Проверяем существование трека
         track_check = await clickhouse.execute_raw(
-            "SELECT count() FROM tracks WHERE track_id = {track_id:UInt32}",
-            parameters={"track_id": event.track_id}
+            f"SELECT count() FROM tracks WHERE track_id = {event.track_id}"
         )
         if track_check[0][0] == 0:
             raise HTTPException(
@@ -133,8 +131,7 @@ async def get_user_events(
     try:
         # Проверяем существование пользователя
         user_check = await clickhouse.execute_raw(
-            "SELECT count() FROM users WHERE user_id = {user_id:UInt32}",
-            parameters={"user_id": user_id}
+            f"SELECT count() FROM users WHERE user_id = {user_id}"
         )
         if user_check[0][0] == 0:
             raise HTTPException(
@@ -146,11 +143,10 @@ async def get_user_events(
             f"""
             SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
             FROM user_track_interactions
-            WHERE user_id = {{user_id:UInt32}}
+            WHERE user_id = {user_id}
             ORDER BY timestamp DESC
             LIMIT {limit} OFFSET {offset}
-            """,
-            parameters={"user_id": user_id}
+            """
         )
         
         events = []
@@ -193,8 +189,7 @@ async def get_track_events(
     try:
         # Проверяем существование трека
         track_check = await clickhouse.execute_raw(
-            "SELECT count() FROM tracks WHERE track_id = {track_id:UInt32}",
-            parameters={"track_id": track_id}
+            f"SELECT count() FROM tracks WHERE track_id = {track_id}"
         )
         if track_check[0][0] == 0:
             raise HTTPException(
@@ -206,11 +201,10 @@ async def get_track_events(
             f"""
             SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
             FROM user_track_interactions
-            WHERE track_id = {{track_id:UInt32}}
+            WHERE track_id = {track_id}
             ORDER BY timestamp DESC
             LIMIT {limit} OFFSET {offset}
-            """,
-            parameters={"track_id": track_id}
+            """
         )
         
         events = []

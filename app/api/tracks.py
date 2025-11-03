@@ -92,10 +92,9 @@ async def get_track(
     
     try:
         result = await clickhouse.execute_raw(
-            """SELECT track_id, title, artist, album, genre, 
+            f"""SELECT track_id, title, artist, album, genre, 
                       duration_seconds, release_year, created_at 
-               FROM tracks WHERE track_id = {track_id:UInt32}""",
-            parameters={"track_id": track_id}
+               FROM tracks WHERE track_id = {track_id}"""
         )
         
         if not result:
@@ -204,8 +203,7 @@ async def get_track_statistics(
     try:
         # Проверяем существование трека
         track_check = await clickhouse.execute_raw(
-            "SELECT count(), duration_seconds FROM tracks WHERE track_id = {track_id:UInt32} GROUP BY duration_seconds",
-            parameters={"track_id": track_id}
+            f"SELECT count(), duration_seconds FROM tracks WHERE track_id = {track_id} GROUP BY duration_seconds"
         )
         
         if not track_check:
@@ -217,17 +215,17 @@ async def get_track_statistics(
         track_duration = track_check[0][1]
         
         # Получаем статистику
-        stats_query = """
+        stats_query = f"""
         SELECT 
             countIf(action_type = 'play') as total_plays,
             uniq(user_id) as unique_listeners,
             countIf(action_type = 'like') as total_likes,
             avg(listen_duration_seconds) as avg_listen_duration
         FROM user_track_interactions
-        WHERE track_id = {track_id:UInt32}
+        WHERE track_id = {track_id}
         """
         
-        stats_result = await clickhouse.execute_raw(stats_query, parameters={"track_id": track_id})
+        stats_result = await clickhouse.execute_raw(stats_query)
         stats_row = stats_result[0] if stats_result else (0, 0, 0, 0.0)
         
         # Рассчитываем средний процент прослушивания
