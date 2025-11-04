@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     clickhouse_host: str = "localhost"
-    clickhouse_port: int = 8123  # HTTP порт для aiochclient
+    clickhouse_port: int = 8123
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
     clickhouse_database: str = "music_recommend"
@@ -26,10 +26,7 @@ class Settings(BaseSettings):
     min_interactions_for_recommendations: int = 5
     top_n_recommendations: int = 10
 
-    model_config = ConfigDict(
-        env_file=".env",
-        case_sensitive=False
-    )
+    model_config = ConfigDict(env_file=".env", case_sensitive=False)
 
 
 settings = Settings()

@@ -1,0 +1,29 @@
+[flake8]
+max-line-length = 79
+
+# Игнорируемые ошибки:
+# E501 - line too long (обрабатывается black)
+# W503 - line break before binary operator
+# E203 - whitespace before ':' (конфликт с black)
+# E402 - module level import not at top of file
+extend-ignore = E501,W503,E203,E402
+
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    .pytest_cache,
+    .mypy_cache,
+    build,
+    dist,
+    *.egg-info,
+    migrations,
+    frontend
+
+max-complexity = 10
+show-source = True
+count = True
+statistics = True
+

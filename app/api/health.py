@@ -1,6 +1,7 @@
 """
 API эндпоинт для проверки состояния сервиса
 """
+
 from datetime import datetime
 from fastapi import APIRouter, status
 
@@ -20,7 +21,7 @@ router = APIRouter()
     description=(
         "Проверяет доступность API и подключенных сервисов "
         "(ClickHouse, Kafka, Redis)"
-    )
+    ),
 )
 async def health_check():
     """
@@ -41,40 +42,41 @@ async def health_check():
     else:
         # Попытка переподключения
         try:
-            print(
-                "⚠️  ClickHouse disconnected, попытка переподключения..."
-            )
+            print("⚠️  ClickHouse disconnected, попытка переподключения...")
             await clickhouse.connect()
             if await clickhouse.is_connected():
                 clickhouse_status = "connected"
                 print("   ✅ ClickHouse переподключен!")
         except Exception as exc:
             print(f"   ❌ Не удалось переподключиться: {exc}")
-    
+
     # Проверяем Kafka
     kafka_health = await check_kafka_health()
-    kafka_status = "connected" if kafka_health.get(
-        "status"
-    ) == "healthy" else "disconnected"
+    kafka_status = (
+        "connected"
+        if kafka_health.get("status") == "healthy"
+        else "disconnected"
+    )
 
     services = {
         "clickhouse": clickhouse_status,
         "redis": (
             "connected" if await redis.is_connected() else "disconnected"
         ),
-        "kafka": kafka_status
+        "kafka": kafka_status,
     }
 
     # Определяем общий статус
     # Kafka не критична, поэтому degraded только если CH или Redis недоступны
-    overall_status = "healthy" if (
-        clickhouse_status == "connected" and
-        services["redis"] == "connected"
-    ) else "degraded"
-
-    return HealthCheckResponse(
-        status=overall_status,
-        timestamp=datetime.now(),
-        services=services
+    overall_status = (
+        "healthy"
+        if (
+            clickhouse_status == "connected"
+            and services["redis"] == "connected"
+        )
+        else "degraded"
     )
 
+    return HealthCheckResponse(
+        status=overall_status, timestamp=datetime.now(), services=services
+    )

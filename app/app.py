@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.utils.lifespan import lifespan 
+from app.utils.lifespan import lifespan
 
 
 # Создание приложения FastAPI
@@ -29,7 +29,7 @@ API для рекомендательной системы музыкальны�
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS middleware
@@ -40,4 +40,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-

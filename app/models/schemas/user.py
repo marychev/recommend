@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class UserBase(BaseModel):
     """Базовая модель пользователя"""
+
     username: str = Field(
         ..., description="Имя пользователя", examples=["john_doe"]
     )
@@ -25,10 +26,11 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     """Модель пользователя с ID"""
+
     user_id: int = Field(
         ...,
         description="Уникальный идентификатор пользователя",
-        examples=[1001]
+        examples=[1001],
     )
     created_at: datetime = Field(..., description="Дата регистрации")
 

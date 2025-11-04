@@ -1,0 +1,43 @@
+[tool.black]
+line-length = 79
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | \.pytest_cache
+  | \.mypy_cache
+  | build
+  | dist
+  | frontend
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 79
+skip_glob = ["venv/*", ".venv/*", "frontend/*"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = [
+    "venv",
+    ".venv",
+    "frontend"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+

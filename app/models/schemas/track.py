@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class TrackBase(BaseModel):
     """Базовая модель трека"""
+
     title: str = Field(
         ..., description="Название трека", examples=["Bohemian Rhapsody"]
     )
@@ -27,6 +28,7 @@ class TrackCreate(TrackBase):
 
 class Track(TrackBase):
     """Модель трека с ID"""
+
     track_id: int = Field(
         ..., description="Уникальный идентификатор трека", examples=[12345]
     )

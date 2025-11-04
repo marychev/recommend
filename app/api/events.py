@@ -1,6 +1,7 @@
 """
 API эндпоинты для работы с событиями
 """
+
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
@@ -16,7 +17,7 @@ router = APIRouter()
 async def process_event_async(event: UserTrackInteraction):
     """
     Отправка события в Kafka для дальнейшей обработки
-    
+
     Kafka используется для:
     - Асинхронной обработки событий
     - Real-time аналитики
@@ -28,16 +29,18 @@ async def process_event_async(event: UserTrackInteraction):
         event_dict = {
             "user_id": event.user_id,
             "track_id": event.track_id,
-            "action_type": event.action_type.value if hasattr(
-                event.action_type, 'value'
-            ) else event.action_type,
+            "action_type": (
+                event.action_type.value
+                if hasattr(event.action_type, "value")
+                else event.action_type
+            ),
             "listen_duration_seconds": event.listen_duration_seconds,
-            "timestamp": event.timestamp
+            "timestamp": event.timestamp,
         }
-        
+
         # Отправляем в Kafka
         success = await send_event(event_dict)
-        
+
         if success:
             print(
                 f"✅ Событие отправлено в Kafka: "
@@ -58,16 +61,15 @@ async def process_event_async(event: UserTrackInteraction):
     response_model=UserTrackInteraction,
     status_code=status.HTTP_201_CREATED,
     summary="Отправить событие",
-    description="Принимает событие взаимодействия пользователя с треком"
+    description="Принимает событие взаимодействия пользователя с треком",
 )
 async def create_event(
-    event: UserTrackInteractionCreate,
-    background_tasks: BackgroundTasks
+    event: UserTrackInteractionCreate, background_tasks: BackgroundTasks
 ):
     """
     Создание события взаимодействия пользователя с треком
     События обрабатываются асинхронно через Kafka и сохраняются в ClickHouse.
-    
+
     Пример запроса:
     ```json
     {
@@ -77,7 +79,7 @@ async def create_event(
         "listen_duration_seconds": 180
     }
     ```
-    
+
     **Типы действий** (ActionType enum):
     - `play` (вес: +1.0) - Прослушивание трека
     - `like` (вес: +3.0) - Лайк трека
@@ -85,12 +87,12 @@ async def create_event(
     - `skip` (вес: -0.5) - Пропуск трека
     - `add_to_playlist` (вес: +2.0) - Добавление в плейлист
     - `share` (вес: +2.5) - Поделиться треком
-    
+
     > Веса используются для расчета неявного рейтинга в системе рекомендаций.
     > Получить все типы действий программно: `GET /events/action-types`
     """
     clickhouse = get_clickhouse_client()
-    
+
     try:
         # Проверяем существование пользователя
         user_check = await clickhouse.execute_raw(
@@ -99,9 +101,9 @@ async def create_event(
         if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {event.user_id} не найден"
+                detail=f"Пользователь с ID {event.user_id} не найден",
             )
-        
+
         # Проверяем существование трека
         track_check = await clickhouse.execute_raw(
             f"SELECT count() FROM tracks WHERE track_id = {event.track_id}"
@@ -109,46 +111,51 @@ async def create_event(
         if track_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {event.track_id} не найден"
+                detail=f"Трек с ID {event.track_id} не найден",
             )
-        
+
         # Устанавливаем timestamp если не указан
         timestamp = event.timestamp if event.timestamp else datetime.now()
-        
+
         # Сохраняем событие в ClickHouse
         await clickhouse.insert(
             "user_track_interactions",
-            [[
-                event.user_id,
-                event.track_id,
-                event.action_type.value,
-                event.listen_duration_seconds,
-                timestamp
-            ]],
+            [
+                [
+                    event.user_id,
+                    event.track_id,
+                    event.action_type.value,
+                    event.listen_duration_seconds,
+                    timestamp,
+                ]
+            ],
             column_names=[
-                "user_id", "track_id", "action_type",
-                "listen_duration_seconds", "timestamp"
-            ]
+                "user_id",
+                "track_id",
+                "action_type",
+                "listen_duration_seconds",
+                "timestamp",
+            ],
         )
-        
+
         interaction = UserTrackInteraction(
             user_id=event.user_id,
             track_id=event.track_id,
             action_type=event.action_type,
             listen_duration_seconds=event.listen_duration_seconds,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
-        
+
         # Добавляем задачу в фон для отправки в Kafka
         background_tasks.add_task(process_event_async, interaction)
         return interaction
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при создании события: {str(e)}"
+            detail=f"Ошибка при создании события: {str(e)}",
         )
 
 
@@ -156,18 +163,14 @@ async def create_event(
     "/events/user/{user_id}",
     response_model=List[UserTrackInteraction],
     summary="История событий пользователя",
-    description="Возвращает историю взаимодействий пользователя с треками"
+    description="Возвращает историю взаимодействий пользователя с треками",
 )
-async def get_user_events(
-    user_id: int,
-    limit: int = 100,
-    offset: int = 0
-):
+async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
     """
     Получение истории событий для конкретного пользователя
     """
     clickhouse = get_clickhouse_client()
-    
+
     try:
         # Проверяем существование пользователя
         user_check = await clickhouse.execute_raw(
@@ -176,9 +179,9 @@ async def get_user_events(
         if user_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {user_id} не найден"
+                detail=f"Пользователь с ID {user_id} не найден",
             )
-        
+
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,
@@ -189,25 +192,27 @@ async def get_user_events(
             LIMIT {limit} OFFSET {offset}
             """
         )
-        
+
         events = []
         for row in result:
-            events.append(UserTrackInteraction(
-                user_id=row[0],
-                track_id=row[1],
-                action_type=row[2],
-                listen_duration_seconds=row[3],
-                timestamp=row[4]
-            ))
-        
+            events.append(
+                UserTrackInteraction(
+                    user_id=row[0],
+                    track_id=row[1],
+                    action_type=row[2],
+                    listen_duration_seconds=row[3],
+                    timestamp=row[4],
+                )
+            )
+
         return events
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий: {str(e)}"
+            detail=f"Ошибка при получении событий: {str(e)}",
         )
 
 
@@ -215,18 +220,14 @@ async def get_user_events(
     "/events/track/{track_id}",
     response_model=List[UserTrackInteraction],
     summary="История событий трека",
-    description="Возвращает историю взаимодействий с треком"
+    description="Возвращает историю взаимодействий с треком",
 )
-async def get_track_events(
-    track_id: int,
-    limit: int = 100,
-    offset: int = 0
-):
+async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
     """
     Получение истории событий для конкретного трека
     """
     clickhouse = get_clickhouse_client()
-    
+
     try:
         # Проверяем существование трека
         track_check = await clickhouse.execute_raw(
@@ -235,9 +236,9 @@ async def get_track_events(
         if track_check[0][0] == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {track_id} не найден"
+                detail=f"Трек с ID {track_id} не найден",
             )
-        
+
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,
@@ -248,25 +249,27 @@ async def get_track_events(
             LIMIT {limit} OFFSET {offset}
             """
         )
-        
+
         events = []
         for row in result:
-            events.append(UserTrackInteraction(
-                user_id=row[0],
-                track_id=row[1],
-                action_type=row[2],
-                listen_duration_seconds=row[3],
-                timestamp=row[4]
-            ))
-        
+            events.append(
+                UserTrackInteraction(
+                    user_id=row[0],
+                    track_id=row[1],
+                    action_type=row[2],
+                    listen_duration_seconds=row[3],
+                    timestamp=row[4],
+                )
+            )
+
         return events
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий трека: {str(e)}"
+            detail=f"Ошибка при получении событий трека: {str(e)}",
         )
 
 
@@ -275,17 +278,16 @@ async def get_track_events(
     response_model=dict,
     summary="Получить типы действий",
     description=(
-        "Возвращает все доступные типы действий "
-        "с их описанием и весами"
-    )
+        "Возвращает все доступные типы действий " "с их описанием и весами"
+    ),
 )
 async def get_action_types():
     """
     Получение информации о всех типах действий
-    
+
     Возвращает словарь с типами действий, их описаниями и весами
     для расчета неявного рейтинга в системе рекомендаций.
-    
+
     **Пример ответа:**
     ```json
     {
@@ -299,7 +301,7 @@ async def get_action_types():
         }
     }
     ```
-    
+
     **Применение:**
     - Документация для разработчиков
     - Динамическое построение UI

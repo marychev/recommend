@@ -1,7 +1,3 @@
-"""
-Тесты для API эндпоинтов
-"""
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -10,7 +6,7 @@ client = TestClient(app)
 
 class TestRootEndpoint:
     """Тесты корневого эндпоинта"""
-    
+
     def test_root(self):
         """Тест корневого эндпоинта"""
         response = client.get("/")
@@ -19,12 +15,12 @@ class TestRootEndpoint:
         assert "message" in data
         assert "version" in data
         assert data["status"] == "running"
-    
+
     def test_root_response_structure(self):
         """Тест структуры ответа корневого эндпоинта"""
         response = client.get("/")
         data = response.json()
-        
+
         assert isinstance(data, dict)
         assert "docs" in data
         assert "redoc" in data
@@ -32,7 +28,7 @@ class TestRootEndpoint:
 
 class TestHealthCheck:
     """Тесты health check"""
-    
+
     def test_health_check(self):
         """Тест проверки состояния"""
         response = client.get("/api/v1/health")
@@ -41,15 +37,15 @@ class TestHealthCheck:
         assert "status" in data
         assert "timestamp" in data
         assert "services" in data
-    
+
     def test_health_check_services(self):
         """Тест наличия информации о сервисах"""
         response = client.get("/api/v1/health")
         data = response.json()
-        
+
         assert "services" in data
         services = data["services"]
-        
+
         # Проверяем наличие всех сервисов
         assert "clickhouse" in services
         assert "redis" in services
@@ -58,22 +54,22 @@ class TestHealthCheck:
 
 class TestDocumentation:
     """Тесты документации API"""
-    
+
     def test_docs_available(self):
         """Тест доступности Swagger UI"""
         response = client.get("/docs")
         assert response.status_code == 200
-    
+
     def test_redoc_available(self):
         """Тест доступности ReDoc"""
         response = client.get("/redoc")
         assert response.status_code == 200
-    
+
     def test_openapi_schema(self):
         """Тест доступности OpenAPI схемы"""
         response = client.get("/openapi.json")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "openapi" in data
         assert "info" in data
@@ -98,4 +94,3 @@ class TestDocumentation:
 # - test_get_track_events
 # - test_get_recommendations
 # - test_popular_tracks
-

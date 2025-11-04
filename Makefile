@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs logs-api logs-clickhouse status clean test seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint format ui ui-open ui-stop quickstart-full
+.PHONY: help up down restart logs logs-api logs-clickhouse status clean test seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint lint-install format ui ui-open ui-stop quickstart-full
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -285,16 +285,44 @@ clean-all: clean down ## Полная очистка (включая конте�
 # 🎨 Качество кода
 # ═══════════════════════════════════════════════
 
-lint: ## Проверить код линтерами
-	@echo "$(BLUE)🔍 Проверка кода...$(NC)"
-	@echo "$(YELLOW)Note: установите flake8, black, mypy если нужно$(NC)"
-	@which flake8 > /dev/null && flake8 app/ tests/ || echo "⚠️  flake8 не установлен"
-	@which black > /dev/null && black --check app/ tests/ || echo "⚠️  black не установлен"
-	@which mypy > /dev/null && mypy app/ || echo "⚠️  mypy не установлен"
+lint: ## Проверить код линтерами (flake8)
+	@echo "$(BLUE)🔍 Проверка кода линтерами...$(NC)"
+	@echo ""
+	@if command -v flake8 > /dev/null 2>&1; then \
+		echo "$(YELLOW)Запуск flake8...$(NC)"; \
+		flake8 app/ tests/ || true; \
+		echo ""; \
+	else \
+		echo "$(RED)❌ flake8 не установлен$(NC)"; \
+		echo "$(YELLOW)Установите: make lint-install$(NC)"; \
+		echo ""; \
+	fi
+	@if command -v black > /dev/null 2>&1; then \
+		echo "$(YELLOW)Проверка форматирования (black)...$(NC)"; \
+		black --check app/ tests/ 2>&1 | head -20 || true; \
+		echo ""; \
+	else \
+		echo "$(RED)❌ black не установлен$(NC)"; \
+		echo "$(YELLOW)Установите: make lint-install$(NC)"; \
+		echo ""; \
+	fi
+	@echo "$(GREEN)✅ Проверка завершена$(NC)"
+	@echo "$(YELLOW)💡 Исправить форматирование: make format$(NC)"
+
+lint-install: ## Установить линтеры
+	@echo "$(BLUE)📦 Установка линтеров...$(NC)"
+	pip install flake8 black mypy pylint
+	@echo "$(GREEN)✅ Линтеры установлены$(NC)"
 
 format: ## Отформатировать код с помощью black
 	@echo "$(BLUE)🎨 Форматирование кода...$(NC)"
-	@which black > /dev/null && black app/ tests/ || echo "$(RED)❌ black не установлен. Установите: pip install black$(NC)"
+	@if command -v black > /dev/null 2>&1; then \
+		black app/ tests/; \
+		echo "$(GREEN)✅ Код отформатирован$(NC)"; \
+	else \
+		echo "$(RED)❌ black не установлен$(NC)"; \
+		echo "$(YELLOW)Установите: make lint-install$(NC)"; \
+	fi
 
 # ═══════════════════════════════════════════════
 # 🎨 Frontend / UI

@@ -16,21 +16,23 @@ class ClickHouseClient:
         """Подключение к ClickHouse"""
         try:
             self.session = ClientSession()
-            
+
             # Формируем URL подключения
-            url = f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
-            
+            url = (
+                f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
+            )
+
             self.client = ChClient(
                 self.session,
                 url=url,
                 user=settings.clickhouse_user,
                 password=settings.clickhouse_password,
-                database=settings.clickhouse_database
+                database=settings.clickhouse_database,
             )
-            
+
             # Проверяем подключение
             await self.client.execute("SELECT 1")
-            
+
             print(
                 f"✓ Подключение к ClickHouse установлено: "
                 f"{settings.clickhouse_host}:{settings.clickhouse_port}"
@@ -61,11 +63,13 @@ class ClickHouseClient:
             return False
         return False
 
-    async def execute(self, query: str, parameters: Optional[dict] = None) -> List[dict]:
+    async def execute(
+        self, query: str, parameters: Optional[dict] = None
+    ) -> List[dict]:
         """Выполнение запроса с возвратом результатов в виде словарей"""
         if not self.client:
             raise RuntimeError("ClickHouse client not connected")
-        
+
         try:
             # aiochclient не поддерживает параметры напрямую, выполняем простой запрос
             result = await self.client.fetch(query)
@@ -73,11 +77,13 @@ class ClickHouseClient:
         except Exception as e:
             raise RuntimeError(f"Query execution failed: {e}")
 
-    async def execute_raw(self, query: str, parameters: Optional[dict] = None) -> List[tuple]:
+    async def execute_raw(
+        self, query: str, parameters: Optional[dict] = None
+    ) -> List[tuple]:
         """Выполнение запроса с возвратом сырых результатов (список кортежей)"""
         if not self.client:
             raise RuntimeError("ClickHouse client not connected")
-        
+
         try:
             # Получаем данные и преобразуем в список кортежей
             result = await self.client.fetch(query)
@@ -90,20 +96,20 @@ class ClickHouseClient:
         self,
         table: str,
         data: List[List[Any]],
-        column_names: Optional[List[str]] = None
+        column_names: Optional[List[str]] = None,
     ):
         """Вставка данных в таблицу"""
         if not self.client:
             raise RuntimeError("ClickHouse client not connected")
-        
+
         if not data:
             return
-        
+
         try:
             # Формируем запрос INSERT
             columns = f"({', '.join(column_names)})" if column_names else ""
             query = f"INSERT INTO {table} {columns} VALUES"
-            
+
             # aiochclient поддерживает прямую вставку данных
             await self.client.execute(query, *data)
         except Exception as e:
@@ -136,7 +142,7 @@ async def connect_clickhouse() -> bool:
         print("      docker-compose up -d clickhouse")
         print("      или")
         print("      bash scripts/docker-reset-clickhouse.sh")
-    
+
     return clickhouse_connected
 
 

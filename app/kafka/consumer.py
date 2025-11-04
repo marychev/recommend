@@ -15,95 +15,90 @@ logger = logging.getLogger(__name__)
 def deserialize_event(message: bytes) -> Dict[str, Any]:
     """
     Десериализовать событие из JSON байтов
-    
+
     Args:
         message: Байты сообщения
-    
+
     Returns:
         dict: Десериализованное событие
     """
-    event = json.loads(message.decode('utf-8'))
-    
+    event = json.loads(message.decode("utf-8"))
+
     # Конвертируем ISO string обратно в datetime
-    if 'timestamp' in event and isinstance(event['timestamp'], str):
+    if "timestamp" in event and isinstance(event["timestamp"], str):
         try:
-            event['timestamp'] = datetime.fromisoformat(
-                event['timestamp']
-            )
+            event["timestamp"] = datetime.fromisoformat(event["timestamp"])
         except ValueError:
-            logger.warning(
-                f"Не удалось распарсить timestamp: "
-                f"{event['timestamp']}"
-            )
-    
+            logger.warning("Failed to parse timestamp: %s", event["timestamp"])
+
     return event
 
 
 async def consume_events(
     handler: Callable[[Dict[str, Any]], Awaitable[None]],
     topic: str = None,
-    group_id: str = None
+    group_id: str = None,
 ):
     """
     Запустить consumer для обработки событий
-    
+
     Args:
         handler: Async функция-обработчик событий
         topic: Топик для подписки (по умолчанию из конфига)
         group_id: ID группы (по умолчанию из конфига)
-    
+
     Example:
         ```python
         async def process_event(event: dict):
             print(f"Обработка события: {event}")
-        
+
         await consume_events(process_event)
         ```
     """
     if topic is None:
         topic = settings.kafka_topic_events
-    
+
     consumer = None
-    
+
     try:
         consumer = await get_kafka_consumer(topic, group_id)
-        
-        logger.info(
-            f"🎧 Начинаем слушать события из Kafka: topic={topic}"
-        )
-        
+
+        logger.info(f"🎧 Начинаем слушать события из Kafka: topic={topic}")
+
         async for message in consumer:
             try:
                 # Десериализуем событие
                 event = deserialize_event(message.value)
-                
+
                 logger.debug(
                     f"📥 Получено событие из Kafka: "
                     f"user={event.get('user_id')}, "
                     f"track={event.get('track_id')}, "
                     f"action={event.get('action_type')}"
                 )
-                
+
                 # Обрабатываем событие
                 await handler(event)
-                
+
             except json.JSONDecodeError as e:
                 logger.error(
-                    f"❌ Ошибка десериализации события: {e}",
-                    extra={"message": message.value}
+                    "Event deserialization error: %s",
+                    e,
+                    extra={"message": message.value},
                 )
             except Exception as e:
                 logger.error(
-                    f"❌ Ошибка обработки события: {e}",
-                    extra={"event": event if 'event' in locals() else None}
+                    "Event processing error: %s",
+                    e,
+                    extra={"event": event if "event" in locals() else None},
                 )
                 # Продолжаем обработку остальных событий
-                
+
     except KafkaError as e:
-        logger.error(f"❌ Ошибка Kafka consumer: {e}")
+        logger.error("Kafka consumer error: %s", e)
         raise
     except Exception as e:
-        logger.error(f"❌ Неожиданная ошибка consumer: {e}")
+        logger.error("Unexpected consumer error: %s", e)
         raise
     finally:
         if consumer is not None:
@@ -111,14 +106,14 @@ async def consume_events(
 
 
 async def start_background_consumer(
-    handler: Callable[[Dict[str, Any]], Awaitable[None]]
+    handler: Callable[[Dict[str, Any]], Awaitable[None]],
 ):
     """
     Запустить consumer в фоновом режиме
-    
+
     Args:
         handler: Async функция-обработчик событий
-    
+
     Returns:
         asyncio.Task: Задача consumer
     """
@@ -131,7 +126,7 @@ async def start_background_consumer(
 async def example_event_handler(event: Dict[str, Any]):
     """
     Пример обработчика события
-    
+
     В реальности здесь может быть:
     - Обновление материализованных представлений
     - Расчет метрик в реальном времени
@@ -144,8 +139,7 @@ async def example_event_handler(event: Dict[str, Any]):
         f"track_id={event.get('track_id')}, "
         f"action={event.get('action_type')}"
     )
-    
+
     # Здесь ваша бизнес-логика
     # Например, обновление кэша рекомендаций
     # или расчет real-time метрик
-
