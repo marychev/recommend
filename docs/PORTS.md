@@ -34,12 +34,13 @@ CLICKHOUSE_PORT=9000
 
 | Сервис | Порт | Протокол | Использование |
 |--------|------|----------|---------------|
+| **Frontend UI** | 8080 | HTTP | Web интерфейс ⭐ |
+| **FastAPI** | 8000 | HTTP | REST API |
 | **ClickHouse HTTP** | 8123 | HTTP | Python app, тесты |
 | **ClickHouse Native** | 9000 | TCP | CLI клиент |
 | **Kafka** | 9092 | Kafka Protocol | Стриминг событий |
 | **Zookeeper** | 2181 | TCP | Kafka coordination |
 | **Redis** | 6379 | Redis Protocol | Кэш, очереди |
-| **FastAPI** | 8000 | HTTP | REST API |
 
 ## Примеры использования
 

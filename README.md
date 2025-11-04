@@ -2,15 +2,7 @@
 
 <div align="center">
 
-**Рекомендательная система музыкальных треков на основе машинного обучения**
-
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://img.shields.io/badge/tests-60%2B%20passed-success.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)](htmlcov/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-[Быстрый старт](#-быстрый-старт) • [Документация](docs/INDEX.md) • [API Docs](http://localhost:8000/docs) • [Тесты](docs/RUN_TESTS.md)
+[Документация](docs/INDEX.md) • [API Docs](http://localhost:8000/docs) • [Тесты](docs/RUN_TESTS.md)
 
 </div>
 
@@ -23,6 +15,7 @@ Music Recommendation System - это полнофункциональная ре
 ### ✨ Основные возможности
 
 - 🎯 **Персонализированные рекомендации** на основе Collaborative Filtering
+- 🎨 **Современный Web UI** для просмотра пользователей и рекомендаций ⭐ НОВОЕ!
 - 📊 **Аналитика в реальном времени** на ClickHouse (OLAP)
 - 🔄 **Стриминг событий** через Kafka
 - ⚡ **Быстрое кэширование** с Redis
@@ -37,43 +30,34 @@ Music Recommendation System - это полнофункциональная ре
 ### Вариант 1: Makefile (самый быстрый) ⚡
 
 ```bash
-# Один способ запустить всё сразу! 🎉
-make quickstart
+# 🎉 Запустить ВСЁ сразу (backend + frontend)!
+make quickstart-full
 
 # Или по отдельности:
-make up          # Запустить все сервисы
+make quickstart  # Только backend (API + БД)
+make ui          # Только Frontend UI
+
+# Или еще более детально:
+make up          # Запустить Docker сервисы
 make db-init     # Создать таблицы
-make health      # Проверить статус
+make ui          # Запустить Frontend
 
 # Посмотреть все доступные команды
 make help
-
-# 📖 Полное руководство по командам
-См. docs/MAKEFILE_GUIDE.md
 ```
 
-### Вариант 2: Docker Compose 🐳
+**Откройте:**
+- 🎨 **Web UI**: http://localhost:8080
+- 📖 **Swagger API**: http://localhost:8000/docs
 
+**Остановить:**
 ```bash
-# 1. Клонируйте репозиторий
-git clone <repository_url>
-cd recommend
-
-# 2. Создайте .env файл (опционально - есть дефолтные значения)
-cp .env.example .env  # или используйте значения по умолчанию
-
-# 3. Используйте make команды
-make quickstart  # Запускает всё автоматически!
-
-# Или вручную:
-docker compose up -d    # Запустить сервисы
-make db-init            # Создать таблицы (идемпотентно)
-
-# 4. Откройте Swagger UI
-http://localhost:8000/docs
+make ui-stop     # Остановить Frontend
+make down        # Остановить все сервисы
 ```
 
-### Вариант 3: Локальная разработка 💻
+
+### Вариант 2: Локальная разработка 💻
 
 ```bash
 # 1. Установите зависимости
@@ -199,32 +183,44 @@ http://localhost:8000/docs
 
 ---
 
+## 🎨 Web UI - Интерфейс пользователя
+
+### Возможности Frontend
+
+Frontend предоставляет удобный веб-интерфейс для работы с системой:
+
+✨ **Основные функции:**
+- 👥 **Список пользователей** - просмотр всех пользователей с поиском и пагинацией
+- 🔍 **Поиск** - быстрый поиск по имени или email
+- 👤 **Профиль пользователя** - детальная информация, возраст, страна
+- 📊 **Статистика** - взаимодействия, уникальные треки, время прослушивания, любимый жанр
+- 🎯 **Рекомендации** - генерация и просмотр персонализированных рекомендаций
+
+### Запуск Frontend
+
+**Вариант 1: Через Makefile (рекомендуется)**
+```bash
+make ui          # Запустить на порту 8080
+make ui-open     # Открыть в браузере
+make ui-stop     # Остановить
+```
+
+**Вариант 2: Вручную через HTTP сервер**
+```bash
+cd frontend
+python -m http.server 8080
+# Откройте: http://localhost:8080
+```
+
+**Вариант 3: Прямое открытие (без сервера)**
+```bash
+# Просто откройте в браузере
+frontend/index.html
+```
+
+---
+
 ## 📡 API Эндпоинты
-
-### 🏥 Health & Status
-- `GET /api/v1/health` - Проверка состояния сервисов
-
-### 👥 Users
-- `POST /api/v1/users` - Создать пользователя
-- `GET /api/v1/users/{user_id}` - Получить пользователя
-- `GET /api/v1/users` - Список пользователей
-- `GET /api/v1/users/{user_id}/statistics` - Статистика пользователя
-
-### 🎵 Tracks
-- `POST /api/v1/tracks` - Создать трек
-- `GET /api/v1/tracks/{track_id}` - Получить трек
-- `GET /api/v1/tracks` - Список треков (с фильтрами)
-- `GET /api/v1/tracks/{track_id}/statistics` - Статистика трека
-- `GET /api/v1/tracks/popular/top` - Популярные треки
-
-### 📊 Events
-- `POST /api/v1/events` - Отправить событие
-- `GET /api/v1/events/user/{user_id}` - История пользователя
-- `GET /api/v1/events/track/{track_id}` - История трека
-
-### ⭐ Recommendations
-- `POST /api/v1/recommendations` - Получить рекомендации
-- `GET /api/v1/recommendations/{user_id}` - Рекомендации (упрощенный метод)
 
 > 📖 **Полная документация API**: http://localhost:8000/docs (после запуска)
 
@@ -280,52 +276,8 @@ pytest --cov=app --cov-report=html
 - ✅ **Производительность** (10+ тестов) - Bulk insert, query speed
 - ✅ **Схема БД** (10+ тестов) - Структура, движки, партиции
 - ✅ **API** (10+ тестов) - Endpoints, валидация
-
-> 📖 Подробнее: [docs/RUN_TESTS.md](docs/RUN_TESTS.md)
-
 ---
 
-## 🔧 Конфигурация
-
-### Переменные окружения (.env)
-
-**Docker Compose автоматически читает файл `.env`** из корня проекта! 🎉
-
-Создайте файл `.env` с таким содержимым:
-
-```env
-# ClickHouse Configuration (⚠️ Порт 8123 для HTTP!)
-CLICKHOUSE_HOST=localhost
-CLICKHOUSE_PORT=8123
-CLICKHOUSE_USER=default
-CLICKHOUSE_PASSWORD=
-CLICKHOUSE_DATABASE=music_recommend
-
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_TOPIC_EVENTS=user_track_events
-KAFKA_CONSUMER_GROUP=recommend_consumer
-
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=
-
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-API_RELOAD=True
-
-# ML Model Configuration
-MIN_INTERACTIONS_FOR_RECOMMENDATIONS=5
-TOP_N_RECOMMENDATIONS=10
-```
-
-> ⚠️ **Важно**: ClickHouse использует порт **8123** для HTTP, а не 9000!  
-> См. [docs/PORTS.md](docs/PORTS.md) для подробной информации
-> 
-> 💡 **Совет**: Файл `.env` автоматически используется как при запуске через Docker Compose, так и при локальном запуске `python -m app.main`
 
 ### Скрипты
 
@@ -339,89 +291,6 @@ bash scripts/docker-reset-clickhouse.sh
 
 ---
 
-## 💡 Примеры использования
-
-### 1️⃣ Создание пользователя
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/users" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "email": "john@example.com",
-    "age": 25,
-    "country": "Russia"
-  }'
-```
-
-**Ответ:**
-```json
-{
-  "user_id": 1,
-  "username": "john_doe",
-  "email": "john@example.com",
-  "age": 25,
-  "country": "Russia",
-  "created_at": "2024-11-01T12:00:00"
-}
-```
-
-### 2️⃣ Создание трека
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/tracks" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Bohemian Rhapsody",
-    "artist": "Queen",
-    "genre": "Rock",
-    "duration_seconds": 354
-  }'
-```
-
-### 3️⃣ Отправка события (прослушивание)
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/events" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": 1,
-    "track_id": 1,
-    "action_type": "play",
-    "listen_duration_seconds": 180
-  }'
-```
-
-### 4️⃣ Получение рекомендаций
-
-```bash
-curl "http://localhost:8000/api/v1/recommendations/1"
-```
-
-**Ответ:**
-```json
-{
-  "user_id": 1,
-  "recommendations": [
-    {
-      "track": {
-        "track_id": 42,
-        "title": "Stairway to Heaven",
-        "artist": "Led Zeppelin",
-        "genre": "Rock"
-      },
-      "score": 0.85,
-      "reason": "Пользователи с похожими вкусами слушают этот трек"
-    }
-  ],
-  "algorithm": "collaborative_filtering",
-  "generated_at": "2024-11-01T12:00:00"
-}
-```
-
-> 💡 **Больше примеров**: См. [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
-
----
 
 ## 📂 Структура проекта
 
@@ -441,6 +310,14 @@ recommend/
 │   ├── models/schemas.py            # Pydantic модели
 │   ├── config.py                    # Конфигурация
 │   └── main.py                      # FastAPI приложение
+│
+├── 🎨 frontend/                     # Web UI ⭐ НОВОЕ!
+│   ├── index.html                   # Главная страница
+│   ├── styles.css                   # Современный темный дизайн
+│   ├── app.js                       # JavaScript логика
+│   ├── start.sh                     # Запуск (Linux/Mac)
+│   ├── start.bat                    # Запуск (Windows)
+│   └── README.md                    # Документация Frontend
 │
 ├── 🧪 tests/                        # Тесты (60+)
 │   ├── clickhouse/                  # ClickHouse тесты (50+)
@@ -550,6 +427,7 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 
 | Сервис | Порт | URL | Назначение |
 |--------|------|-----|------------|
+| **Frontend UI** | 8080 | http://localhost:8080 | Web интерфейс ⭐ |
 | FastAPI | 8000 | http://localhost:8000 | REST API |
 | Swagger UI | 8000 | http://localhost:8000/docs | Интерактивная документация |
 | ClickHouse HTTP | 8123 | http://localhost:8123 | Для приложения ✅ |

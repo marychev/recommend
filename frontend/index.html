@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Recommendation System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок -->
+        <header class="header">
+            <h1>🎵 Music Recommendation System</h1>
+            <p class="subtitle">Персонализированные музыкальные рекомендации</p>
+        </header>
+
+        <!-- Основной контент -->
+        <div class="main-content">
+            <!-- Левая панель: Список пользователей -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Пользователи</h2>
+                    <button id="refreshUsers" class="btn-icon" title="Обновить">
+                        🔄
+                    </button>
+                </div>
+                
+                <div class="search-box">
+                    <input 
+                        type="text" 
+                        id="searchUser" 
+                        placeholder="Поиск пользователя..."
+                        class="search-input"
+                    >
+                </div>
+
+                <div id="usersList" class="users-list">
+                    <div class="loading">Загрузка пользователей...</div>
+                </div>
+
+                <div class="pagination">
+                    <button id="prevPage" class="btn-secondary" disabled>← Назад</button>
+                    <span id="pageInfo">Страница 1</span>
+                    <button id="nextPage" class="btn-secondary">Вперед →</button>
+                </div>
+            </aside>
+
+            <!-- Правая панель: Информация о пользователе и рекомендации -->
+            <main class="content">
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">👤</div>
+                    <h3>Выберите пользователя</h3>
+                    <p>Выберите пользователя из списка слева, чтобы увидеть его профиль и рекомендации</p>
+                </div>
+
+                <div id="userDetails" class="user-details" style="display: none;">
+                    <!-- Профиль пользователя -->
+                    <section class="profile-card">
+                        <div class="profile-header">
+                            <div class="avatar">
+                                <span id="userAvatar">👤</span>
+                            </div>
+                            <div class="profile-info">
+                                <h2 id="userName">Имя пользователя</h2>
+                                <p id="userEmail" class="user-email">email@example.com</p>
+                                <div class="user-meta">
+                                    <span id="userAge" class="meta-item">🎂 25 лет</span>
+                                    <span id="userCountry" class="meta-item">🌍 Россия</span>
+                                    <span id="userSince" class="meta-item">📅 С 2024</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Статистика -->
+                    <section class="statistics-card">
+                        <h3>📊 Статистика</h3>
+                        <div id="userStatistics" class="statistics-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalInteractions">0</div>
+                                <div class="stat-label">Взаимодействий</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="uniqueTracks">0</div>
+                                <div class="stat-label">Уникальных треков</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="listenHours">0</div>
+                                <div class="stat-label">Часов прослушивания</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="favoriteGenre">—</div>
+                                <div class="stat-label">Любимый жанр</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Рекомендации -->
+                    <section class="recommendations-card">
+                        <div class="recommendations-header">
+                            <h3>🎯 Рекомендации</h3>
+                            <button id="generateRecommendations" class="btn-primary">
+                                Сгенерировать рекомендации
+                            </button>
+                        </div>
+                        
+                        <div id="recommendationsMeta" class="recommendations-meta" style="display: none;">
+                            <span id="algorithm" class="badge">—</span>
+                            <span id="generatedAt" class="timestamp">—</span>
+                        </div>
+
+                        <div id="recommendationsList" class="recommendations-list">
+                            <div class="empty-recommendations">
+                                <p>Нажмите "Сгенерировать рекомендации", чтобы получить персонализированные рекомендации</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

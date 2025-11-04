@@ -6,17 +6,51 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 
 from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
+from app.models.schemas.action_type import ActionType
 from app.db.clickhouse import get_clickhouse_client
+from app.kafka.producer import send_event
 
 router = APIRouter()
 
 
 async def process_event_async(event: UserTrackInteraction):
     """
-    TODO: Отправка события в Kafka для дальнейшей обработки
+    Отправка события в Kafka для дальнейшей обработки
+    
+    Kafka используется для:
+    - Асинхронной обработки событий
+    - Real-time аналитики
+    - Обновления материализованных представлений
+    - Расчета метрик в реальном времени
     """
-    # Здесь будет отправка в Kafka
-    print(f"📨 Событие отправлено в Kafka: user={event.user_id}, track={event.track_id}, action={event.action_type}")
+    try:
+        # Преобразуем Pydantic модель в словарь
+        event_dict = {
+            "user_id": event.user_id,
+            "track_id": event.track_id,
+            "action_type": event.action_type.value if hasattr(
+                event.action_type, 'value'
+            ) else event.action_type,
+            "listen_duration_seconds": event.listen_duration_seconds,
+            "timestamp": event.timestamp
+        }
+        
+        # Отправляем в Kafka
+        success = await send_event(event_dict)
+        
+        if success:
+            print(
+                f"✅ Событие отправлено в Kafka: "
+                f"user={event.user_id}, track={event.track_id}, "
+                f"action={event.action_type}"
+            )
+        else:
+            print(
+                f"⚠️  Не удалось отправить событие в Kafka "
+                f"(событие сохранено в ClickHouse)"
+            )
+    except Exception as e:
+        print(f"❌ Ошибка отправки в Kafka: {e}")
 
 
 @router.post(
@@ -44,13 +78,16 @@ async def create_event(
     }
     ```
     
-    Типы действий:
-    - `play` - Прослушивание трека
-    - `like` - Лайк трека
-    - `dislike` - Дизлайк трека
-    - `skip` - Пропуск трека
-    - `add_to_playlist` - Добавление в плейлист
-    - `share` - Поделиться треком
+    **Типы действий** (ActionType enum):
+    - `play` (вес: +1.0) - Прослушивание трека
+    - `like` (вес: +3.0) - Лайк трека
+    - `dislike` (вес: -3.0) - Дизлайк трека
+    - `skip` (вес: -0.5) - Пропуск трека
+    - `add_to_playlist` (вес: +2.0) - Добавление в плейлист
+    - `share` (вес: +2.5) - Поделиться треком
+    
+    > Веса используются для расчета неявного рейтинга в системе рекомендаций.
+    > Получить все типы действий программно: `GET /events/action-types`
     """
     clickhouse = get_clickhouse_client()
     
@@ -88,7 +125,10 @@ async def create_event(
                 event.listen_duration_seconds,
                 timestamp
             ]],
-            column_names=["user_id", "track_id", "action_type", "listen_duration_seconds", "timestamp"]
+            column_names=[
+                "user_id", "track_id", "action_type",
+                "listen_duration_seconds", "timestamp"
+            ]
         )
         
         interaction = UserTrackInteraction(
@@ -141,7 +181,8 @@ async def get_user_events(
         
         result = await clickhouse.execute_raw(
             f"""
-            SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
+            SELECT user_id, track_id, action_type,
+                   listen_duration_seconds, timestamp
             FROM user_track_interactions
             WHERE user_id = {user_id}
             ORDER BY timestamp DESC
@@ -199,7 +240,8 @@ async def get_track_events(
         
         result = await clickhouse.execute_raw(
             f"""
-            SELECT user_id, track_id, action_type, listen_duration_seconds, timestamp
+            SELECT user_id, track_id, action_type,
+                   listen_duration_seconds, timestamp
             FROM user_track_interactions
             WHERE track_id = {track_id}
             ORDER BY timestamp DESC
@@ -224,5 +266,44 @@ async def get_track_events(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий: {str(e)}"
+            detail=f"Ошибка при получении событий трека: {str(e)}"
         )
+
+
+@router.get(
+    "/events/action-types",
+    response_model=dict,
+    summary="Получить типы действий",
+    description=(
+        "Возвращает все доступные типы действий "
+        "с их описанием и весами"
+    )
+)
+async def get_action_types():
+    """
+    Получение информации о всех типах действий
+    
+    Возвращает словарь с типами действий, их описаниями и весами
+    для расчета неявного рейтинга в системе рекомендаций.
+    
+    **Пример ответа:**
+    ```json
+    {
+        "play": {
+            "description": "Прослушивание трека",
+            "weight": 1.0
+        },
+        "like": {
+            "description": "Лайк трека",
+            "weight": 3.0
+        }
+    }
+    ```
+    
+    **Применение:**
+    - Документация для разработчиков
+    - Динамическое построение UI
+    - Валидация на клиенте
+    - Расчет рейтингов
+    """
+    return ActionType.get_all_with_info()

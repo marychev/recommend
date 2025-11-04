@@ -37,6 +37,7 @@ class TestClickHouseConnection:
     @pytest.mark.asyncio
     async def test_connection_with_wrong_credentials(self):
         """Тест подключения с неправильными учетными данными"""
+        import asyncio
         from asynch import connect
         
         with pytest.raises(Exception):

@@ -7,6 +7,7 @@ from fastapi import APIRouter, status
 from app.models.schemas import HealthCheckResponse
 from app.db.clickhouse import get_clickhouse_client
 from app.db.redis_client import get_redis_client
+from app.kafka.client import check_kafka_health
 
 router = APIRouter()
 
@@ -49,18 +50,26 @@ async def health_check():
                 print("   ✅ ClickHouse переподключен!")
         except Exception as exc:
             print(f"   ❌ Не удалось переподключиться: {exc}")
+    
+    # Проверяем Kafka
+    kafka_health = await check_kafka_health()
+    kafka_status = "connected" if kafka_health.get(
+        "status"
+    ) == "healthy" else "disconnected"
 
     services = {
         "clickhouse": clickhouse_status,
         "redis": (
             "connected" if await redis.is_connected() else "disconnected"
         ),
-        "kafka": "not_implemented"
+        "kafka": kafka_status
     }
 
     # Определяем общий статус
-    overall_status = "healthy" if all(
-        s in ["connected", "not_implemented"] for s in services.values()
+    # Kafka не критична, поэтому degraded только если CH или Redis недоступны
+    overall_status = "healthy" if (
+        clickhouse_status == "connected" and
+        services["redis"] == "connected"
     ) else "degraded"
 
     return HealthCheckResponse(

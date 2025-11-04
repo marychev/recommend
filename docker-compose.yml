@@ -1,7 +1,6 @@
 version: '3.9'
 
 services:
-  # ClickHouse
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: music_recommend_clickhouse
@@ -22,7 +21,6 @@ services:
     networks:
       - music_recommend_network
 
-  # Kafka & Zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     container_name: music_recommend_zookeeper
@@ -50,7 +48,6 @@ services:
     networks:
       - music_recommend_network
 
-  # Redis
   redis:
     image: redis:7-alpine
     container_name: music_recommend_redis
@@ -62,7 +59,6 @@ services:
     networks:
       - music_recommend_network
 
-  # FastAPI приложение
   api:
     build: .
     container_name: music_recommend_api

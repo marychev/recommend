@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs logs-api logs-clickhouse status clean test seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint format
+.PHONY: help up down restart logs logs-api logs-clickhouse status clean test seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint format ui ui-open ui-stop quickstart-full
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -297,6 +297,43 @@ format: ## Отформатировать код с помощью black
 	@which black > /dev/null && black app/ tests/ || echo "$(RED)❌ black не установлен. Установите: pip install black$(NC)"
 
 # ═══════════════════════════════════════════════
+# 🎨 Frontend / UI
+# ═══════════════════════════════════════════════
+
+ui: ## Запустить Frontend UI на порту 8080
+	@echo "$(GREEN)🎨 Запуск Frontend UI...$(NC)"
+	@echo ""
+	@echo "$(BLUE)📡 Проверка доступности API...$(NC)"
+	@if curl -s http://localhost:8000/api/v1/health > /dev/null 2>&1; then \
+		echo "$(GREEN)✅ API доступен на http://localhost:8000$(NC)"; \
+	else \
+		echo "$(RED)⚠️  API недоступен!$(NC)"; \
+		echo "$(YELLOW)   Запустите API: make up-api$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)🌐 Запуск HTTP сервера на порту 8080...$(NC)"
+	@cd frontend && python -m http.server 8080 &
+	@sleep 2
+	@echo ""
+	@echo "$(GREEN)✅ Frontend UI запущен!$(NC)"
+	@echo ""
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)🎨 Откройте в браузере:$(NC)"
+	@echo "$(BLUE)   http://localhost:8080$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)💡 Остановить: make ui-stop$(NC)"
+
+ui-open: ## Открыть Frontend UI в браузере
+	@echo "$(BLUE)🌐 Открытие Frontend UI...$(NC)"
+	@python -m webbrowser http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || open http://localhost:8080 2>/dev/null || echo "Откройте: http://localhost:8080"
+
+ui-stop: ## Остановить Frontend HTTP сервер
+	@echo "$(RED)🛑 Остановка Frontend UI...$(NC)"
+	@pkill -f "python -m http.server 8080" || echo "Frontend UI не запущен"
+	@echo "$(GREEN)✅ Frontend UI остановлен$(NC)"
+
+# ═══════════════════════════════════════════════
 # 📖 Документация и информация
 # ═══════════════════════════════════════════════
 
@@ -310,6 +347,7 @@ info: ## Показать информацию о проекте
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)📍 URLs:$(NC)"
+	@echo "   Frontend:   http://localhost:8080"
 	@echo "   API:        http://localhost:8000"
 	@echo "   Swagger:    http://localhost:8000/docs"
 	@echo "   ReDoc:      http://localhost:8000/redoc"
@@ -327,12 +365,14 @@ info: ## Показать информацию о проекте
 	@echo "   app/config.py     - Настройки приложения"
 	@echo ""
 	@echo "$(YELLOW)🔧 Быстрые команды:$(NC)"
-	@echo "   make quickstart   - Запустить всё сразу"
-	@echo "   make diagnose     - Диагностика проблем"
-	@echo "   make logs-errors  - Показать ошибки"
-	@echo "   make seed-quick   - Создать тестовые данные"
-	@echo "   make api-status   - Проверить API"
-	@echo "   make help         - Все команды"
+	@echo "   make quickstart-full - Запустить всё (backend + UI)"
+	@echo "   make ui              - Запустить только Frontend"
+	@echo "   make quickstart      - Запустить только backend"
+	@echo "   make diagnose        - Диагностика проблем"
+	@echo "   make logs-errors     - Показать ошибки"
+	@echo "   make seed-quick      - Создать тестовые данные"
+	@echo "   make api-status      - Проверить API"
+	@echo "   make help            - Все команды"
 	@echo ""
 	@echo "$(YELLOW)🆘 Если API возвращает ошибку 500:$(NC)"
 	@echo "   1. make diagnose       # Диагностика"
@@ -345,7 +385,7 @@ info: ## Показать информацию о проекте
 # 🚀 Быстрый старт
 # ═══════════════════════════════════════════════
 
-quickstart: ## Быстрый старт проекта (все в одном)
+quickstart: ## Быстрый старт проекта (только backend)
 	@echo "$(GREEN)🚀 Быстрый старт Music Recommendation System$(NC)"
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
@@ -371,13 +411,35 @@ quickstart: ## Быстрый старт проекта (все в одном)
 	@echo "$(YELLOW)7️⃣  Проверка health check...$(NC)"
 	@make health
 	@echo ""
-	@echo "$(GREEN)✅ Готово! Система запущена!$(NC)"
+	@echo "$(GREEN)✅ Готово! Backend запущен!$(NC)"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo "$(BLUE)🌐 API:        http://localhost:8000$(NC)"
 	@echo "$(BLUE)📚 Swagger:    http://localhost:8000/docs$(NC)"
 	@echo "$(BLUE)📖 ReDoc:      http://localhost:8000/redoc$(NC)"
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)💡 Запустить Frontend UI: make ui$(NC)"
+
+quickstart-full: ## Быстрый старт (backend + frontend UI)
+	@echo "$(GREEN)🚀 Полный запуск системы (Backend + Frontend)$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@make quickstart
+	@echo ""
+	@echo "$(YELLOW)8️⃣  Запуск Frontend UI...$(NC)"
+	@make ui
+	@sleep 2
+	@echo ""
+	@echo "$(GREEN)✅ Система полностью запущена!$(NC)"
+	@echo ""
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)🌐 API:        http://localhost:8000$(NC)"
+	@echo "$(BLUE)📚 Swagger:    http://localhost:8000/docs$(NC)"
+	@echo "$(BLUE)🎨 Frontend:   http://localhost:8080$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)💡 Остановить UI:      make ui-stop$(NC)"
+	@echo "$(YELLOW)💡 Остановить все:     make down$(NC)"
 
 # По умолчанию показываем help
 .DEFAULT_GOAL := help
