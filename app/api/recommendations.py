@@ -2,6 +2,7 @@
 API эндпоинты для генерации рекомендаций
 """
 
+import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Path
 
@@ -13,7 +14,12 @@ from app.models.schemas import (
 )
 from app.db.clickhouse import get_clickhouse_client
 from app.config import settings
+from app.services.cache import (
+    get_cached_recommendations,
+    set_cached_recommendations,
+)
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -28,6 +34,7 @@ async def get_recommendations(request: RecommendationRequest):
     Генерация персонализированных рекомендаций для пользователя
 
     Используется алгоритм Collaborative Filtering на основе матрицы user-item.
+    Результаты кэшируются в Redis на 1 час.
 
     Пример запроса:
     ```json
@@ -39,11 +46,26 @@ async def get_recommendations(request: RecommendationRequest):
     ```
 
     Алгоритм:
-    1. Находит пользователей с похожими музыкальными вкусами
-    2. Находит треки, которые понравились похожим пользователям
-    3. Исключает треки, которые пользователь уже слушал (опционально)
-    4. Ранжирует треки по релевантности
+    1. Проверка кэша в Redis
+    2. Находит пользователей с похожими музыкальными вкусами
+    3. Находит треки, которые понравились похожим пользователям
+    4. Исключает треки, которые пользователь уже слушал (опционально)
+    5. Ранжирует треки по релевантности
+    6. Сохраняет результат в кэш
     """
+    # Проверяем кэш
+    cached = await get_cached_recommendations(
+        user_id=request.user_id,
+        top_n=request.top_n or 10,
+        exclude_listened=request.exclude_listened,
+    )
+
+    if cached:
+        logger.info(
+            "Recommendations served from cache: user_id=%s", request.user_id
+        )
+        return RecommendationResponse(**cached)
+
     clickhouse = get_clickhouse_client()
 
     try:
@@ -167,12 +189,29 @@ async def get_recommendations(request: RecommendationRequest):
                 )
             )
 
-        return RecommendationResponse(
+        response = RecommendationResponse(
             user_id=request.user_id,
             recommendations=recommendations,
             generated_at=datetime.now(),
             algorithm="collaborative_filtering",
         )
+
+        # Сохраняем в кэш
+        await set_cached_recommendations(
+            user_id=request.user_id,
+            top_n=request.top_n or 10,
+            exclude_listened=request.exclude_listened,
+            recommendations=response.model_dump(),
+        )
+
+        logger.info(
+            "Recommendations generated: user_id=%s, count=%s, algorithm=%s",
+            request.user_id,
+            len(recommendations),
+            "collaborative_filtering",
+        )
+
+        return response
 
     except HTTPException:
         raise
@@ -251,12 +290,29 @@ async def get_popular_recommendations(
             )
         )
 
-    return RecommendationResponse(
+    response = RecommendationResponse(
         user_id=request.user_id,
         recommendations=recommendations,
         generated_at=datetime.now(),
         algorithm="popular_based",
     )
+
+    # Сохраняем в кэш
+    await set_cached_recommendations(
+        user_id=request.user_id,
+        top_n=request.top_n or 10,
+        exclude_listened=request.exclude_listened,
+        recommendations=response.model_dump(),
+    )
+
+    logger.info(
+        "Recommendations generated: user_id=%s, count=%s, algorithm=%s",
+        request.user_id,
+        len(recommendations),
+        "popular_based",
+    )
+
+    return response
 
 
 @router.get(

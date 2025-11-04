@@ -86,14 +86,14 @@ make db-init
 docker compose restart api
 
 # Или пересобрать образ
-make rebuild-api
+make build && make restart
 ```
 
 ## 📊 Проверка после исправления
 
 ```bash
 # 1. Проверить статус
-make api-status
+make health
 
 # 2. Проверить health check
 make health
@@ -215,7 +215,7 @@ make logs-api      # Все логи API
 make seed-quick    # Быстрые тестовые данные
 make seed          # Полная генерация данных
 make db-stats      # Статистика БД
-make api-status    # Проверка API
+make health    # Проверка API
 make health        # Health check
 ```
 

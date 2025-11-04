@@ -2,7 +2,7 @@
 
 Самые частые команды для быстрого доступа.
 
-> 💡 **Для полного списка команд**: `make help` или см. [MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md)
+> 💡 **Для полного списка команд**: `make help` или см. [MAKEFILE.md](MAKEFILE.md)
 
 ## 🚀 Основные команды
 
@@ -20,7 +20,7 @@ make help         # Все доступные команды
 
 ```bash
 make diagnose     # Полная диагностика системы
-make api-status   # Проверить API
+make health       # Проверить API
 make health       # Health check
 make logs-errors  # Показать ошибки
 ```
@@ -39,8 +39,8 @@ make seed         # Полные тестовые данные (10k записе
 
 ```bash
 make test              # Все тесты
-make test-coverage     # С покрытием кода
-make test-api          # Только API
+make test              # Все тесты
+make test-clickhouse   # Только ClickHouse
 make test-clickhouse   # Только ClickHouse
 ```
 
@@ -101,8 +101,8 @@ make db-reset          # Полный сброс БД
 
 ### Docker образ устарел
 ```bash
-make rebuild-api       # Пересобрать только API
-make rebuild           # Пересобрать всё
+make build             # Собрать образы
+make restart           # Перезапустить всё
 ```
 
 ### Нужно очистить все
@@ -114,7 +114,7 @@ make clean-all         # Полная очистка (включая volumes)
 
 - **[README.md](../README.md)** - Главная страница
 - **[INDEX.md](INDEX.md)** - Навигация по документам
-- **[MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md)** - Полное руководство по командам
+- **[MAKEFILE.md](MAKEFILE.md)** - Полное руководство по командам
 - **[API_ERROR_500.md](API_ERROR_500.md)** - Решение ошибки 500
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем
 - **[RUN_TESTS.md](RUN_TESTS.md)** - Запуск тестов

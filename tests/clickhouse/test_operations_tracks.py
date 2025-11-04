@@ -1,7 +1,3 @@
-import pytest
-from datetime import datetime, timedelta
-
-
 class TestTracksOperations:
     """Тесты операций с таблицей треков"""
 

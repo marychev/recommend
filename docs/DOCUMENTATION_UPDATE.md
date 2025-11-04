@@ -16,7 +16,7 @@
 - **docs/QUICK_REFERENCE.md**
   - ✅ Полностью переработан - теперь действительно "быстрая" справка
   - ✅ Заменены старые команды `docker-compose` на `docker compose`
-  - ✅ Убрано дублирование с MAKEFILE_GUIDE.md
+  - ✅ Убрано дублирование (объединено в MAKEFILE.md)
   - ✅ Добавлены ссылки на новые документы (API_ERROR_500.md, DB_INIT.md)
   - ✅ Обновлены быстрые исправления на Makefile команды
 
@@ -28,7 +28,7 @@
 
 - **docs/API_ERROR_500.md** - подробное руководство по решению ошибки 500
 - **docs/DB_INIT.md** - инициализация БД (идемпотентность)
-- **docs/MAKEFILE_GUIDE.md** - полное руководство по Makefile командам
+- **docs/MAKEFILE.md** - полное руководство по Makefile командам
 
 #### 3. **Обновлен Makefile**
 
@@ -36,9 +36,9 @@
 - `make diagnose` - полная диагностика системы
 - `make logs-errors` - только ошибки из логов
 - `make seed-quick` - быстрые тестовые данные
-- `make api-status` - проверка API
-- `make rebuild-api` - пересборка только API
-- `make up-infra` - запуск только инфраструктуры
+- `make health` - проверка API
+- `make build` - пересборка образов
+- `make up-clickhouse`, `make up-kafka`, `make up-redis` - запуск инфраструктуры
 - `make up-api` - запуск только API
 
 #### 4. **Удалено дублирование**
@@ -52,7 +52,7 @@
 ```
 docs/
 ├── INDEX.md                    # Навигация по документам
-├── MAKEFILE_GUIDE.md          # Полное руководство по Makefile
+├── MAKEFILE.md                # Полное руководство по Makefile
 ├── QUICK_REFERENCE.md         # Быстрая справка (краткая)
 ├── API_ERROR_500.md           # Решение ошибки 500
 ├── DB_INIT.md                 # Инициализация БД
@@ -85,7 +85,7 @@ docs/
 - 🔍 **Диагностика**: `make diagnose` - показывает полную картину системы
 - 🚨 **Логи ошибок**: `make logs-errors` - только ошибки из логов
 - ⚡ **Быстрые данные**: `make seed-quick` - 3 пользователя, 3 трека за секунды
-- 📊 **Статус API**: `make api-status` - проверка доступности API
+- 📊 **Статус API**: `make health` - проверка доступности API
 
 ### 📝 Рекомендации по использованию
 
@@ -95,7 +95,7 @@ docs/
 3. Смотрите [QUICK_REFERENCE.md](QUICK_REFERENCE.md) для частых команд
 
 **Для разработчиков:**
-1. Изучите [MAKEFILE_GUIDE.md](MAKEFILE_GUIDE.md)
+1. Изучите [MAKEFILE.md](MAKEFILE.md)
 2. Используйте `make help` для списка команд
 3. При проблемах: `make diagnose`
 

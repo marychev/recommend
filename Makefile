@@ -63,28 +63,10 @@ ps: ## Показать статус контейнеров
 	@echo "$(BLUE)🐳 Статус контейнеров:$(NC)"
 	@docker compose ps
 
-status: ps ## Алиас для ps
-
 build: ## Собрать Docker образы
 	@echo "$(BLUE)🔨 Сборка Docker образов...$(NC)"
 	docker compose build
 	@echo "$(GREEN)✅ Образы собраны$(NC)"
-
-rebuild: ## Пересобрать образы и перезапустить
-	@echo "$(BLUE)🔨 Пересборка и перезапуск...$(NC)"
-	docker compose down
-	docker compose build --no-cache
-	docker compose up -d
-	@echo "$(GREEN)✅ Готово!$(NC)"
-
-rebuild-api: ## Пересобрать только API образ
-	@echo "$(BLUE)🔨 Пересборка API образа...$(NC)"
-	docker compose stop api
-	docker compose build --no-cache api
-	docker compose up -d api
-	@sleep 3
-	@echo "$(GREEN)✅ API образ пересобран и запущен!$(NC)"
-	@echo "$(BLUE)🌐 API: http://localhost:8000/docs$(NC)"
 
 # ═══════════════════════════════════════════════
 # 🔧 Управление отдельными сервисами
@@ -107,12 +89,6 @@ up-api: ## Запустить только API контейнер
 	@echo "$(BLUE)🌐 API: http://localhost:8000$(NC)"
 	@echo "$(BLUE)📚 Docs: http://localhost:8000/docs$(NC)"
 
-up-infra: ## Запустить только инфраструктуру (без API)
-	@echo "$(GREEN)🚀 Запуск инфраструктуры...$(NC)"
-	docker compose up -d clickhouse kafka zookeeper redis
-	@echo "$(GREEN)✅ Инфраструктура запущена!$(NC)"
-	@echo "$(YELLOW)💡 Запустите API локально: make run-api$(NC)"
-
 # ═══════════════════════════════════════════════
 # 💻 Локальная разработка
 # ═══════════════════════════════════════════════
@@ -130,9 +106,6 @@ run-api: ## Запустить API локально (не в Docker)
 stop-api: ## Остановить локально запущенный API
 	@echo "$(RED)🛑 Остановка API...$(NC)"
 	pkill -f "python -m app.main" || pkill -f "uvicorn app.main" || echo "API не запущен"
-
-shell: ## Открыть bash в контейнере API
-	docker compose exec api bash
 
 # ═══════════════════════════════════════════════
 # 🗄️ База данных
@@ -171,15 +144,8 @@ test: ## Запустить все тесты
 	@echo "$(BLUE)🧪 Запуск тестов...$(NC)"
 	pytest -v
 
-test-coverage: ## Запустить тесты с покрытием кода
-	@echo "$(BLUE)🧪 Запуск тестов с покрытием...$(NC)"
-	pytest --cov=app --cov-report=html --cov-report=term
-
 test-clickhouse: ## Запустить только тесты ClickHouse
 	pytest tests/clickhouse/ -v
-
-test-api: ## Запустить только тесты API
-	pytest tests/test_api.py tests/test_api_health_check.py -v
 
 test-watch: ## Запустить тесты в режиме watch
 	pytest-watch
@@ -220,22 +186,6 @@ health: ## Проверить health check API
 	@echo "$(BLUE)🏥 Проверка health check...$(NC)"
 	@curl -s http://localhost:8000/api/v1/health | python -m json.tool 2>/dev/null || echo "$(RED)❌ API недоступен. Проверьте: make ps$(NC)"
 
-api-status: ## Проверить работает ли API
-	@echo "$(BLUE)🔍 Проверка API...$(NC)"
-	@if curl -s http://localhost:8000/ > /dev/null 2>&1; then \
-		echo "$(GREEN)✅ API доступен на http://localhost:8000$(NC)"; \
-		echo "$(BLUE)📚 Документация: http://localhost:8000/docs$(NC)"; \
-	else \
-		echo "$(RED)❌ API недоступен!$(NC)"; \
-		echo ""; \
-		echo "$(YELLOW)Проверьте статус контейнера:$(NC)"; \
-		docker compose ps api; \
-		echo ""; \
-		echo "$(YELLOW)Возможные решения:$(NC)"; \
-		echo "  1. make up-api     # Запустить API контейнер"; \
-		echo "  2. make logs-api   # Посмотреть логи"; \
-		echo "  3. make rebuild    # Пересобрать образ"; \
-	fi
 
 check-services: ## Проверить доступность всех сервисов
 	@bash scripts/check_services.sh
@@ -248,7 +198,11 @@ diagnose: ## Полная диагностика системы (API, БД, да
 	@docker compose ps
 	@echo ""
 	@echo "$(YELLOW)2️⃣  Проверка API:$(NC)"
-	@make api-status
+	@if curl -s http://localhost:8000/ > /dev/null 2>&1; then \
+		echo "$(GREEN)✅ API доступен на http://localhost:8000$(NC)"; \
+	else \
+		echo "$(RED)❌ API недоступен!$(NC)"; \
+	fi
 	@echo ""
 	@echo "$(YELLOW)3️⃣  Проверка таблиц в БД:$(NC)"
 	@make db-tables
@@ -365,10 +319,6 @@ ui-stop: ## Остановить Frontend HTTP сервер
 # 📖 Документация и информация
 # ═══════════════════════════════════════════════
 
-docs: ## Открыть API документацию в браузере
-	@echo "$(BLUE)📚 Открытие документации...$(NC)"
-	@python -m webbrowser http://localhost:8000/docs 2>/dev/null || echo "Откройте: http://localhost:8000/docs"
-
 info: ## Показать информацию о проекте
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  🎵 Music Recommendation System$(NC)"
@@ -393,13 +343,12 @@ info: ## Показать информацию о проекте
 	@echo "   app/config.py     - Настройки приложения"
 	@echo ""
 	@echo "$(YELLOW)🔧 Быстрые команды:$(NC)"
-	@echo "   make quickstart-full - Запустить всё (backend + UI)"
+	@echo "   make quickstart      - Запустить всё (backend + UI)"
 	@echo "   make ui              - Запустить только Frontend"
-	@echo "   make quickstart      - Запустить только backend"
 	@echo "   make diagnose        - Диагностика проблем"
 	@echo "   make logs-errors     - Показать ошибки"
 	@echo "   make seed-quick      - Создать тестовые данные"
-	@echo "   make api-status      - Проверить API"
+	@echo "   make health          - Проверить API"
 	@echo "   make help            - Все команды"
 	@echo ""
 	@echo "$(YELLOW)🆘 Если API возвращает ошибку 500:$(NC)"
@@ -433,28 +382,12 @@ quickstart: ## Быстрый старт проекта (только backend)
 	@echo "$(YELLOW)5️⃣  Инициализация базы данных...$(NC)"
 	@make db-init
 	@echo ""
-	@echo "$(YELLOW)6️⃣  Проверка API...$(NC)"
-	@make api-status
-	@echo ""
-	@echo "$(YELLOW)7️⃣  Проверка health check...$(NC)"
+	@echo "$(YELLOW)6️⃣  Проверка health check...$(NC)"
 	@make health
 	@echo ""
 	@echo "$(GREEN)✅ Готово! Backend запущен!$(NC)"
 	@echo ""
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo "$(BLUE)🌐 API:        http://localhost:8000$(NC)"
-	@echo "$(BLUE)📚 Swagger:    http://localhost:8000/docs$(NC)"
-	@echo "$(BLUE)📖 ReDoc:      http://localhost:8000/redoc$(NC)"
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(YELLOW)💡 Запустить Frontend UI: make ui$(NC)"
-
-quickstart-full: ## Быстрый старт (backend + frontend UI)
-	@echo "$(GREEN)🚀 Полный запуск системы (Backend + Frontend)$(NC)"
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@make quickstart
-	@echo ""
-	@echo "$(YELLOW)8️⃣  Запуск Frontend UI...$(NC)"
+	@echo "$(YELLOW)7️⃣  Запуск Frontend UI...$(NC)"
 	@make ui
 	@sleep 2
 	@echo ""

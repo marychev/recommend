@@ -15,10 +15,10 @@ Music Recommendation System - это полнофункциональная ре
 ### ✨ Основные возможности
 
 - 🎯 **Персонализированные рекомендации** на основе Collaborative Filtering
-- 🎨 **Современный Web UI** для просмотра пользователей и рекомендаций ⭐ НОВОЕ!
+- 🎨 **Современный Web UI** для просмотра пользователей и рекомендаций
 - 📊 **Аналитика в реальном времени** на ClickHouse (OLAP)
 - 🔄 **Стриминг событий** через Kafka
-- ⚡ **Быстрое кэширование** с Redis
+- ⚡ **Redis кэширование** рекомендаций (20-50x быстрее повторных запросов)
 - 📡 **REST API** с автоматической документацией (Swagger/ReDoc)
 - 🧪 **60+ автоматических тестов** (92% покрытие)
 - 🐳 **Docker Compose** для запуска одной командой
@@ -31,16 +31,12 @@ Music Recommendation System - это полнофункциональная ре
 
 ```bash
 # 🎉 Запустить ВСЁ сразу (backend + frontend)!
-make quickstart-full
+make quickstart
 
 # Или по отдельности:
-make quickstart  # Только backend (API + БД)
-make ui          # Только Frontend UI
-
-# Или еще более детально:
 make up          # Запустить Docker сервисы
 make db-init     # Создать таблицы
-make ui          # Запустить Frontend
+make ui          # Запустить Frontend UI
 
 # Посмотреть все доступные команды
 make help
@@ -63,8 +59,10 @@ make down        # Остановить все сервисы
 # 1. Установите зависимости
 pip install -r requirements.txt
 
-# 2. Запустите только инфраструктуру
-make up-infra           # Запустить ClickHouse, Redis, Kafka
+# 2. Запустите инфраструктуру
+make up-clickhouse      # Запустить ClickHouse
+make up-kafka           # Запустить Kafka
+make up-redis           # Запустить Redis
 
 # 3. Инициализируйте БД
 make db-init
@@ -101,7 +99,7 @@ http://localhost:8000/docs
 ### 📖 Основная документация
 - 🏠 [Главная страница](README.md) ⬅️ Вы здесь
 - 📑 [Навигация по docs](docs/INDEX.md)
-- 📝 [Руководство по Makefile](docs/MAKEFILE_GUIDE.md)
+- 📝 [Руководство по Makefile](docs/MAKEFILE.md)
 - ⚡ [Быстрая справка](docs/QUICK_REFERENCE.md)
 
 </td>
@@ -342,7 +340,7 @@ recommend/
 ├── 📦 requirements.txt              # Python зависимости
 ├── 📖 README.md                     # Этот файл
 └── 📚 docs/                          # Документация
-    ├── MAKEFILE_GUIDE.md            # Руководство по Makefile
+    ├── MAKEFILE.md                  # Руководство по Makefile
     ├── API_ERROR_500.md             # Решение ошибки 500
     ├── DB_INIT.md                   # Инициализация БД
     └── ... другие документы
@@ -495,7 +493,7 @@ make diagnose        # Диагностика проблем
 make help            # Все команды
 ```
 
-> 📖 **Полный список команд**: [docs/MAKEFILE_GUIDE.md](docs/MAKEFILE_GUIDE.md)
+> 📖 **Полный список команд**: [docs/MAKEFILE.md](docs/MAKEFILE.md)
 
 **Или напрямую через Docker Compose:**
 ```bash
@@ -514,8 +512,9 @@ docker compose restart api      # Перезапустить API
 
 - **API Latency**: < 100ms (p99)
 - **Throughput**: 10,000 events/sec
-- **Recommendation Generation**: < 200ms
+- **Recommendation Generation**: < 200ms (первый раз), < 20ms (из кэша)
 - **ClickHouse Query**: < 50ms (простые), < 500ms (сложные)
+- **Cache Hit Rate**: > 70% (для рекомендаций)
 
 ### Оптимизации
 
@@ -523,7 +522,7 @@ docker compose restart api      # Перезапустить API
 - ✅ Материализованные представления
 - ✅ Батчинг вставок в ClickHouse
 - ✅ Индексы на часто используемых полях
-- ⏳ Redis кэширование рекомендаций (TODO)
+- ✅ Redis кэширование рекомендаций (TTL: 1 час)
 
 ---
 

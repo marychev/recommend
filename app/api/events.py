@@ -10,6 +10,7 @@ from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
 from app.models.schemas.action_type import ActionType
 from app.db.clickhouse import get_clickhouse_client
 from app.kafka.producer import send_event
+from app.services.cache import invalidate_user_recommendations
 
 router = APIRouter()
 
@@ -146,8 +147,12 @@ async def create_event(
             timestamp=timestamp,
         )
 
-        # Добавляем задачу в фон для отправки в Kafka
+        # Добавляем задачи в фон
         background_tasks.add_task(process_event_async, interaction)
+        background_tasks.add_task(
+            invalidate_user_recommendations, event.user_id
+        )
+
         return interaction
 
     except HTTPException:
