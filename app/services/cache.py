@@ -7,7 +7,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from app.db.redis_client import get_redis_client
+from app.services.cache_redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
 

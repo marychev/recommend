@@ -5,8 +5,8 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.db.clickhouse import connect_clickhouse, shutdown_clickhouse
-from app.db.redis_client import connect_redis, shutdown_redis
-from app.kafka.client import get_kafka_producer, close_kafka_producer
+from app.services.cache_redis_client import connect_redis, shutdown_redis
+from app.kafka.client import close_kafka_producer, connect_kafka
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +21,7 @@ async def lifespan(_app: FastAPI):
 
     clickhouse_connected = await connect_clickhouse()
     redis_connected = await connect_redis()
-
-    # Подключаемся к Kafka
-    kafka_connected = False
-    try:
-        await get_kafka_producer()
-        kafka_connected = True
-        print("✅ Kafka Producer подключен")
-    except Exception as e:
-        logger.warning("Kafka unavailable: %s", e)
-        print("⚠️  Kafka недоступна (события не будут отправляться)")
+    kafka_connected = await connect_kafka()
 
     print("\n" + "=" * 60)
     if clickhouse_connected and redis_connected and kafka_connected:

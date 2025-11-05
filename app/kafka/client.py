@@ -105,3 +105,15 @@ async def check_kafka_health() -> dict:
     except Exception as e:
         logger.error("Unexpected error in Kafka health check: %s", e)
         return {"status": "error", "error": str(e)}
+
+
+async def connect_kafka() -> bool:
+    kafka_connected = False
+    try:
+        await get_kafka_producer()
+        kafka_connected = True
+        print("Kafka Producer подключен")
+    except Exception as e:
+        logger.warning("Kafka unavailable: %s", e)
+        print("Kafka недоступна (события не будут отправляться)")
+    return kafka_connected

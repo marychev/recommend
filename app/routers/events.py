@@ -1,7 +1,3 @@
-"""
-API эндпоинты для работы с событиями
-"""
-
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
@@ -12,7 +8,10 @@ from app.db.clickhouse import get_clickhouse_client
 from app.kafka.producer import send_event
 from app.services.cache import invalidate_user_recommendations
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/events",
+    tags=["Events"],
+)
 
 
 async def process_event_async(event: UserTrackInteraction):
@@ -58,7 +57,7 @@ async def process_event_async(event: UserTrackInteraction):
 
 
 @router.post(
-    "/events",
+    "",
     response_model=UserTrackInteraction,
     status_code=status.HTTP_201_CREATED,
     summary="Отправить событие",
@@ -69,17 +68,6 @@ async def create_event(
 ):
     """
     Создание события взаимодействия пользователя с треком
-    События обрабатываются асинхронно через Kafka и сохраняются в ClickHouse.
-
-    Пример запроса:
-    ```json
-    {
-        "user_id": 1001,
-        "track_id": 12345,
-        "action_type": "play",
-        "listen_duration_seconds": 180
-    }
-    ```
 
     **Типы действий** (ActionType enum):
     - `play` (вес: +1.0) - Прослушивание трека
@@ -90,54 +78,17 @@ async def create_event(
     - `share` (вес: +2.5) - Поделиться треком
 
     > Веса используются для расчета неявного рейтинга в системе рекомендаций.
-    > Получить все типы действий программно: `GET /events/action-types`
+    > Получить все типы действий программно: `GET /api/v1/events/action-types`
     """
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверяем существование пользователя
-        user_check = await clickhouse.execute_raw(
-            f"SELECT count() FROM users WHERE user_id = {event.user_id}"
-        )
-        if user_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {event.user_id} не найден",
-            )
+        _ = await clickhouse.exists_user(event.user_id)
+        _ = await clickhouse.exists_track(event.track_id)
 
-        # Проверяем существование трека
-        track_check = await clickhouse.execute_raw(
-            f"SELECT count() FROM tracks WHERE track_id = {event.track_id}"
-        )
-        if track_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {event.track_id} не найден",
-            )
-
-        # Устанавливаем timestamp если не указан
         timestamp = event.timestamp if event.timestamp else datetime.now()
 
-        # Сохраняем событие в ClickHouse
-        await clickhouse.insert(
-            "user_track_interactions",
-            [
-                [
-                    event.user_id,
-                    event.track_id,
-                    event.action_type.value,
-                    event.listen_duration_seconds,
-                    timestamp,
-                ]
-            ],
-            column_names=[
-                "user_id",
-                "track_id",
-                "action_type",
-                "listen_duration_seconds",
-                "timestamp",
-            ],
-        )
+        await clickhouse.save_event(event, timestamp)
 
         interaction = UserTrackInteraction(
             user_id=event.user_id,
@@ -165,7 +116,7 @@ async def create_event(
 
 
 @router.get(
-    "/events/user/{user_id}",
+    "/user/{user_id}",
     response_model=List[UserTrackInteraction],
     summary="История событий пользователя",
     description="Возвращает историю взаимодействий пользователя с треками",
@@ -177,16 +128,7 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверяем существование пользователя
-        user_check = await clickhouse.execute_raw(
-            f"SELECT count() FROM users WHERE user_id = {user_id}"
-        )
-        if user_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {user_id} не найден",
-            )
-
+        _ = await clickhouse.exists_user(user_id)
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,
@@ -198,17 +140,16 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        events = []
-        for row in result:
-            events.append(
-                UserTrackInteraction(
-                    user_id=row[0],
-                    track_id=row[1],
-                    action_type=row[2],
-                    listen_duration_seconds=row[3],
-                    timestamp=row[4],
-                )
+        events = [
+            UserTrackInteraction(
+                user_id=row[0],
+                track_id=row[1],
+                action_type=row[2],
+                listen_duration_seconds=row[3],
+                timestamp=row[4],
             )
+            for row in result
+        ]
 
         return events
 
@@ -222,7 +163,7 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
 
 
 @router.get(
-    "/events/track/{track_id}",
+    "/track/{track_id}",
     response_model=List[UserTrackInteraction],
     summary="История событий трека",
     description="Возвращает историю взаимодействий с треком",
@@ -234,16 +175,7 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверяем существование трека
-        track_check = await clickhouse.execute_raw(
-            f"SELECT count() FROM tracks WHERE track_id = {track_id}"
-        )
-        if track_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {track_id} не найден",
-            )
-
+        _ = await clickhouse.exists_track(track_id)
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,
@@ -255,17 +187,16 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        events = []
-        for row in result:
-            events.append(
-                UserTrackInteraction(
-                    user_id=row[0],
-                    track_id=row[1],
-                    action_type=row[2],
-                    listen_duration_seconds=row[3],
-                    timestamp=row[4],
-                )
+        events = [
+            UserTrackInteraction(
+                user_id=row[0],
+                track_id=row[1],
+                action_type=row[2],
+                listen_duration_seconds=row[3],
+                timestamp=row[4],
             )
+            for row in result
+        ]
 
         return events
 
@@ -279,7 +210,7 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
 
 
 @router.get(
-    "/events/action-types",
+    "/action-types",
     response_model=dict,
     summary="Получить типы действий",
     description=(

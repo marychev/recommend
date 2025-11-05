@@ -1,20 +1,19 @@
-"""
-API эндпоинт для проверки состояния сервиса
-"""
-
 from datetime import datetime
 from fastapi import APIRouter, status
 
 from app.models.schemas import HealthCheckResponse
 from app.db.clickhouse import get_clickhouse_client
-from app.db.redis_client import get_redis_client
+from app.services.cache_redis_client import get_redis_client
 from app.kafka.client import check_kafka_health
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/health",
+    tags=["Health"],
+)
 
 
 @router.get(
-    "/health",
+    "",
     response_model=HealthCheckResponse,
     status_code=status.HTTP_200_OK,
     summary="Проверка состояния сервиса",

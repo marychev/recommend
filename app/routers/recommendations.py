@@ -1,7 +1,3 @@
-"""
-API эндпоинты для генерации рекомендаций
-"""
-
 import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Path
@@ -20,11 +16,15 @@ from app.services.cache import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+
+router = APIRouter(
+    prefix="/recommendations",
+    tags=["Recommendations"],
+)
 
 
 @router.post(
-    "/recommendations",
+    "",
     response_model=RecommendationResponse,
     summary="Получить рекомендации",
     description="Генерирует персонализированные рекомендации треков для пользователя",
@@ -69,15 +69,7 @@ async def get_recommendations(request: RecommendationRequest):
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверяем существование пользователя
-        user_check = await clickhouse.execute(
-            f"SELECT count() FROM users WHERE user_id = {request.user_id}"
-        )
-        if user_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {request.user_id} не найден",
-            )
+        _ = await clickhouse.exists_user(request.user_id)
 
         # Проверяем минимальное количество взаимодействий
         interaction_count = await clickhouse.execute(
@@ -316,7 +308,7 @@ async def get_popular_recommendations(
 
 
 @router.get(
-    "/recommendations/{user_id}",
+    "/{user_id}",
     response_model=RecommendationResponse,
     summary="Получить рекомендации (GET)",
     description="Генерирует рекомендации для пользователя (упрощенный метод через GET)",

@@ -1,6 +1,6 @@
 from app.config import settings
 from app.app import app
-from app.api import events, recommendations, users, tracks, health
+from app.routers import health, users, tracks, events, recommendations
 
 
 @app.get(
@@ -21,14 +21,12 @@ async def root() -> dict:
     }
 
 
-# Подключение роутеров
-app.include_router(health.router, prefix="/api/v1", tags=["Health"])
-app.include_router(users.router, prefix="/api/v1", tags=["Users"])
-app.include_router(tracks.router, prefix="/api/v1", tags=["Tracks"])
-app.include_router(events.router, prefix="/api/v1", tags=["Events"])
-app.include_router(
-    recommendations.router, prefix="/api/v1", tags=["Recommendations"]
-)
+# Подключение роутеров (префиксы и теги уже определены в самих роутерах)
+app.include_router(health.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(tracks.router, prefix="/api/v1")
+app.include_router(events.router, prefix="/api/v1")
+app.include_router(recommendations.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":

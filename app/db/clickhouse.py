@@ -1,6 +1,10 @@
+from re import T
 from typing import Optional, Any, List
 from aiochclient import ChClient
 from aiohttp import ClientSession
+from fastapi import HTTPException, status
+from app.models.schemas import UserTrackInteraction, Track, User
+from datetime import datetime
 
 from app.config import settings
 
@@ -114,6 +118,125 @@ class ClickHouseClient:
             await self.client.execute(query, *data)
         except Exception as e:
             raise RuntimeError(f"Insert failed: {e}")
+
+    async def exists_user(self, user_id: int) -> List[tuple]:
+        """Проверяем существование пользователя"""
+        user_check = await self.execute_raw(
+            f"SELECT count() FROM users WHERE user_id = {user_id}"
+        )
+        if user_check[0][0] == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Пользователь с ID {user_id} не найден",
+            )
+
+        return user_check
+
+    async def exists_track(self, track_id: int) -> List[tuple]:
+        """Проверяем существование трека"""
+        track_check = await self.execute_raw(
+            f"SELECT count() FROM tracks WHERE track_id = {track_id}"
+        )
+        if track_check[0][0] == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Трек с ID {track_id} не найден",
+            )
+        return track_check
+
+    async def save_event(
+        self, event: UserTrackInteraction, timestamp: datetime
+    ) -> None:
+        """Сохраняем событие в ClickHouse"""
+        await self.insert(
+            "user_track_interactions",
+            [
+                [
+                    event.user_id,
+                    event.track_id,
+                    event.action_type.value,
+                    event.listen_duration_seconds,
+                    timestamp,
+                ]
+            ],
+            column_names=[
+                "user_id",
+                "track_id",
+                "action_type",
+                "listen_duration_seconds",
+                "timestamp",
+            ],
+        )
+
+    async def save_track(self, track: Track) -> int:
+        """Сохраняем трек"""
+        # Генерируем ID
+        result = await self.execute_raw(
+            "SELECT max(track_id) as max_id FROM tracks"
+        )
+        max_id = result[0][0] if result and result[0][0] else 0
+        new_id = (max_id or 0) + 1
+
+        # Вставляем трек
+        await self.insert(
+            "tracks",
+            [
+                [
+                    new_id,
+                    track.title,
+                    track.artist,
+                    track.album or "",
+                    track.genre or "",
+                    track.duration_seconds or 0,
+                    track.release_year or 0,
+                    datetime.now(),
+                ]
+            ],
+            column_names=[
+                "track_id",
+                "title",
+                "artist",
+                "album",
+                "genre",
+                "duration_seconds",
+                "release_year",
+                "created_at",
+            ],
+        )
+        return new_id
+
+    async def save_user(self, user: User) -> int:
+        """Сохраняем пользователя"""
+        # Генерируем ID (в реальности нужно использовать автоинкремент или UUID)
+        result = await self.execute_raw(
+            "SELECT max(user_id) as max_id FROM users"
+        )
+        max_id = result[0][0] if result and result[0][0] else 0
+        new_id = (max_id or 0) + 1
+
+        await self.insert(
+            "users",
+            [
+                [
+                    new_id,
+                    user.username,
+                    user.email or "",
+                    user.age or 0,
+                    user.country or "",
+                    datetime.now(),
+                ]
+            ],
+            column_names=[
+                "user_id",
+                "username",
+                "email",
+                "age",
+                "country",
+                "created_at",
+            ],
+        )
+
+        return new_id
 
 
 clickhouse_client = ClickHouseClient()

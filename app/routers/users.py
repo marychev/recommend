@@ -1,7 +1,3 @@
-"""
-API эндпоинты для работы с пользователями
-"""
-
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Path, Query
@@ -9,11 +5,14 @@ from fastapi import APIRouter, HTTPException, status, Path, Query
 from app.models.schemas import User, UserCreate, UserStatistics
 from app.db.clickhouse import get_clickhouse_client
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+)
 
 
 @router.post(
-    "/users",
+    "",
     response_model=User,
     status_code=status.HTTP_201_CREATED,
     summary="Создать пользователя",
@@ -36,42 +35,13 @@ async def create_user(user: UserCreate):
     clickhouse = get_clickhouse_client()
 
     try:
-        # Генерируем ID (в реальности нужно использовать автоинкремент или UUID)
-        result = await clickhouse.execute_raw(
-            "SELECT max(user_id) as max_id FROM users"
-        )
-        max_id = result[0][0] if result and result[0][0] else 0
-        new_id = (max_id or 0) + 1
-
-        # Вставляем пользователя
-        await clickhouse.insert(
-            "users",
-            [
-                [
-                    new_id,
-                    user.username,
-                    user.email or "",
-                    user.age or 0,
-                    user.country or "",
-                    datetime.now(),
-                ]
-            ],
-            column_names=[
-                "user_id",
-                "username",
-                "email",
-                "age",
-                "country",
-                "created_at",
-            ],
-        )
-
+        new_id = await clickhouse.save_user(user)
         return User(
             user_id=new_id,
             username=user.username,
-            email=user.email,
-            age=user.age,
-            country=user.country,
+            email=user.email or "",
+            age=user.age or 0,
+            country=user.country or "",
             created_at=datetime.now(),
         )
     except Exception as e:
@@ -82,7 +52,7 @@ async def create_user(user: UserCreate):
 
 
 @router.get(
-    "/users/{user_id}",
+    "/{user_id}",
     response_model=User,
     summary="Получить пользователя",
     description="Возвращает информацию о пользователе по его ID",
@@ -122,7 +92,7 @@ async def get_user(
 
 
 @router.get(
-    "/users",
+    "",
     response_model=List[User],
     summary="Список пользователей",
     description="Возвращает список всех пользователей с пагинацией",
@@ -146,18 +116,16 @@ async def list_users(
             """
         )
 
-        users = []
-        for row in result:
-            users.append(
-                User(
-                    user_id=row[0],
-                    username=row[1],
-                    email=row[2],
-                    age=row[3],
-                    country=row[4],
-                    created_at=row[5],
-                )
-            )
+        users = [
+            User(
+                user_id=row[0],
+                username=row[1],
+                email=row[2],
+                age=row[3],
+                country=row[4],
+                created_at=row[5],
+            ) for row in result
+        ]
 
         return users
     except Exception as e:
@@ -168,7 +136,7 @@ async def list_users(
 
 
 @router.get(
-    "/users/{user_id}/statistics",
+    "/{user_id}/statistics",
     response_model=UserStatistics,
     summary="Статистика пользователя",
     description="Возвращает статистику активности пользователя",
@@ -186,16 +154,7 @@ async def get_user_statistics(
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверяем существование пользователя
-        user_check = await clickhouse.execute_raw(
-            f"SELECT count() FROM users WHERE user_id = {user_id}"
-        )
-
-        if user_check[0][0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {user_id} не найден",
-            )
+        _ = await clickhouse.exists_user(user_id)
 
         # Получаем статистику
         stats_query = f"""
