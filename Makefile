@@ -7,6 +7,9 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
+# Docker Compose команда
+DOCKER_COMPOSE := docker compose
+
 help: ## Показать справку по доступным командам
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  🎵 Music Recommendation System - Makefile$(NC)"
@@ -22,7 +25,7 @@ help: ## Показать справку по доступным команда�
 
 up: ## Запустить все сервисы (включая API)
 	@echo "$(GREEN)🚀 Запуск всех сервисов...$(NC)"
-	docker compose up -d
+	$(DOCKER_COMPOSE) up -d
 	@sleep 3
 	@echo "$(GREEN)✅ Сервисы запущены!$(NC)"
 	@echo ""
@@ -35,37 +38,37 @@ up: ## Запустить все сервисы (включая API)
 
 down: ## Остановить все сервисы
 	@echo "$(RED)🛑 Остановка всех сервисов...$(NC)"
-	docker compose down
+	$(DOCKER_COMPOSE) down
 	@echo "$(GREEN)✅ Сервисы остановлены$(NC)"
 
 restart: down up ## Перезапустить все сервисы
 
 logs: ## Показать логи всех сервисов
-	docker compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 logs-api: ## Показать логи API
-	docker compose logs -f api
+	$(DOCKER_COMPOSE) logs -f api
 
 logs-clickhouse: ## Показать логи ClickHouse
-	docker compose logs -f clickhouse
+	$(DOCKER_COMPOSE) logs -f clickhouse
 
 logs-kafka: ## Показать логи Kafka
-	docker compose logs -f kafka
+	$(DOCKER_COMPOSE) logs -f kafka
 
 logs-redis: ## Показать логи Redis
-	docker compose logs -f redis
+	$(DOCKER_COMPOSE) logs -f redis
 
 logs-errors: ## Показать только ошибки из логов API [[memory:7077763]]
 	@echo "$(RED)🔍 Поиск ошибок в логах API...$(NC)"
-	@docker compose logs api 2>&1 | grep -i -E "(error|exception|traceback|failed)" --color=always | tail -50
+	@$(DOCKER_COMPOSE) logs api 2>&1 | grep -i -E "(error|exception|traceback|failed)" --color=always | tail -50
 
 ps: ## Показать статус контейнеров
 	@echo "$(BLUE)🐳 Статус контейнеров:$(NC)"
-	@docker compose ps
+	@$(DOCKER_COMPOSE) ps
 
 build: ## Собрать Docker образы
 	@echo "$(BLUE)🔨 Сборка Docker образов...$(NC)"
-	docker compose build
+	$(DOCKER_COMPOSE) build
 	@echo "$(GREEN)✅ Образы собраны$(NC)"
 
 # ═══════════════════════════════════════════════
@@ -73,17 +76,17 @@ build: ## Собрать Docker образы
 # ═══════════════════════════════════════════════
 
 up-clickhouse: ## Запустить только ClickHouse
-	docker compose up -d clickhouse
+	$(DOCKER_COMPOSE) up -d clickhouse
 
 up-kafka: ## Запустить только Kafka и Zookeeper
-	docker compose up -d zookeeper kafka
+	$(DOCKER_COMPOSE) up -d zookeeper kafka
 
 up-redis: ## Запустить только Redis
-	docker compose up -d redis
+	$(DOCKER_COMPOSE) up -d redis
 
 up-api: ## Запустить только API контейнер
 	@echo "$(GREEN)🚀 Запуск API контейнера...$(NC)"
-	docker compose up -d api
+	$(DOCKER_COMPOSE) up -d api
 	@sleep 3
 	@echo "$(GREEN)✅ API контейнер запущен!$(NC)"
 	@echo "$(BLUE)🌐 API: http://localhost:8000$(NC)"
@@ -195,7 +198,7 @@ diagnose: ## Полная диагностика системы (API, БД, да
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)1️⃣  Статус контейнеров:$(NC)"
-	@docker compose ps
+	@$(DOCKER_COMPOSE) ps
 	@echo ""
 	@echo "$(YELLOW)2️⃣  Проверка API:$(NC)"
 	@if curl -s http://localhost:8000/ > /dev/null 2>&1; then \
@@ -211,7 +214,7 @@ diagnose: ## Полная диагностика системы (API, БД, да
 	@docker exec music_recommend_clickhouse clickhouse-client -q "SELECT 'users', count() FROM music_recommend.users UNION ALL SELECT 'tracks', count() FROM music_recommend.tracks UNION ALL SELECT 'interactions', count() FROM music_recommend.user_track_interactions" 2>/dev/null || echo "   $(RED)Ошибка подключения к БД$(NC)"
 	@echo ""
 	@echo "$(YELLOW)5️⃣  Последние ошибки API (если есть):$(NC)"
-	@docker compose logs api 2>&1 | grep -i -E "(error|exception)" | tail -10 || echo "   $(GREEN)Нет ошибок$(NC)"
+	@$(DOCKER_COMPOSE) logs api 2>&1 | grep -i -E "(error|exception)" | tail -10 || echo "   $(GREEN)Нет ошибок$(NC)"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 
@@ -231,7 +234,7 @@ clean: ## Очистить кэши и временные файлы
 
 clean-all: clean down ## Полная очистка (включая контейнеры и volumes)
 	@echo "$(YELLOW)⚠️  Удаление volumes...$(NC)"
-	docker compose down -v
+	$(DOCKER_COMPOSE) down -v
 	docker volume rm music_recommend_clickhouse_data music_recommend_redis_data 2>/dev/null || true
 	@echo "$(GREEN)✅ Полная очистка завершена$(NC)"
 
@@ -334,7 +337,7 @@ info: ## Показать информацию о проекте
 	@echo "   Kafka:      localhost:9092"
 	@echo ""
 	@echo "$(YELLOW)🐳 Статус контейнеров:$(NC)"
-	@docker compose ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | grep -E "(NAME|music_recommend)" || echo "   Контейнеры не запущены. Запустите: make up"
+	@$(DOCKER_COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | grep -E "(NAME|music_recommend)" || echo "   Контейнеры не запущены. Запустите: make up"
 	@echo ""
 	@echo "$(YELLOW)📂 Важные файлы:$(NC)"
 	@echo "   .env              - Переменные окружения"
@@ -370,7 +373,7 @@ quickstart: ## Быстрый старт проекта (только backend)
 	@make down 2>/dev/null || true
 	@echo ""
 	@echo "$(YELLOW)2️⃣  Проверка/сборка Docker образов...$(NC)"
-	@docker compose build 2>&1 | grep -E "(Building|CACHED|FINISHED)" || true
+	@$(DOCKER_COMPOSE) build 2>&1 | grep -E "(Building|CACHED|FINISHED)" || true
 	@echo "$(GREEN)   ✅ Образы готовы$(NC)"
 	@echo ""
 	@echo "$(YELLOW)3️⃣  Запуск сервисов...$(NC)"

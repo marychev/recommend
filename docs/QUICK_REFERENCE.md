@@ -47,6 +47,8 @@ make test-clickhouse   # Только ClickHouse
 ## 🔗 URL-адреса
 
 ```
+Frontend UI:     http://localhost:8080
+Kafka UI:        http://localhost:8081  ⭐ Мониторинг Kafka
 API Swagger:     http://localhost:8000/docs
 API ReDoc:       http://localhost:8000/redoc
 Health Check:    http://localhost:8000/api/v1/health
@@ -59,11 +61,14 @@ Kafka:           localhost:9092
 
 | Сервис | Порт | Примечание |
 |--------|------|------------|
+| Frontend UI | 8080 | Web интерфейс |
+| Kafka UI | 8081 | Мониторинг Kafka ⭐ |
 | FastAPI | 8000 | REST API |
 | ClickHouse HTTP | 8123 | Для приложения ✅ |
 | ClickHouse Native | 9000 | Для CLI |
 | Redis | 6379 | Cache |
-| Kafka | 9092 | Events |
+| Kafka | 9092 | Events (localhost) |
+| Kafka Internal | 29092 | Docker контейнеры |
 | Zookeeper | 2181 | Kafka coord |
 
 ## 📝 Проверка сервисов

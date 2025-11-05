@@ -15,6 +15,7 @@
 - 🗄️ **[DB_INIT.md](DB_INIT.md)** - Инициализация базы данных
 - 🔌 **[PORTS.md](PORTS.md)** - Справочник по портам сервисов
 - 📨 **[KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)** - Интеграция с Kafka
+- 📊 **[KAFKA_UI.md](KAFKA_UI.md)** - Kafka UI: мониторинг и управление Kafka ⭐
 - ⚡ **[REDIS_CACHING.md](REDIS_CACHING.md)** - Кэширование рекомендаций
 
 ### Тестирование
@@ -42,6 +43,7 @@ docs/
 ├── PORTS.md                    # Справочник портов
 ├── DB_INIT.md                  # Инициализация БД
 ├── KAFKA_INTEGRATION.md        # Интеграция Kafka
+├── KAFKA_UI.md                 # Kafka UI мониторинг
 ├── REDIS_CACHING.md            # Кэширование
 ├── ACTION_TYPES.md             # Типы действий (enum)
 ├── API_ERROR_500.md            # Решение ошибки 500
@@ -79,7 +81,9 @@ docs/
 
 **...использовать Kafka**
 1. Читайте [KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)
-2. Проверьте логи: `make logs-kafka`
+2. Откройте Kafka UI: http://localhost:8081
+3. Читайте [KAFKA_UI.md](KAFKA_UI.md) для инструкций
+4. Проверьте логи: `make logs-kafka`
 
 **...настроить кэширование**
 1. Читайте [REDIS_CACHING.md](REDIS_CACHING.md)

@@ -34,11 +34,13 @@ CLICKHOUSE_PORT=9000
 
 | Сервис | Порт | Протокол | Использование |
 |--------|------|----------|---------------|
-| **Frontend UI** | 8080 | HTTP | Web интерфейс ⭐ |
+| **Frontend UI** | 8080 | HTTP | Web интерфейс для пользователей ⭐ |
+| **Kafka UI** | 8081 | HTTP | Мониторинг Kafka (топики, события) 📊 |
 | **FastAPI** | 8000 | HTTP | REST API |
 | **ClickHouse HTTP** | 8123 | HTTP | Python app, тесты |
 | **ClickHouse Native** | 9000 | TCP | CLI клиент |
-| **Kafka** | 9092 | Kafka Protocol | Стриминг событий |
+| **Kafka** | 9092 | Kafka Protocol | Стриминг событий (localhost) |
+| **Kafka Internal** | 29092 | Kafka Protocol | Для Docker контейнеров |
 | **Zookeeper** | 2181 | TCP | Kafka coordination |
 | **Redis** | 6379 | Redis Protocol | Кэш, очереди |
 
@@ -142,9 +144,47 @@ python -m app.main
 pytest tests/clickhouse/ -v
 ```
 
+## Kafka UI
+
+### Описание
+
+Kafka UI - веб-интерфейс для мониторинга и управления Kafka кластером.
+
+### Доступ
+
+```bash
+# Открыть в браузере
+http://localhost:8081
+```
+
+### Возможности
+
+- 📊 **Просмотр топиков** - все топики в кластере
+- 📨 **Просмотр сообщений** - содержимое событий
+- 👥 **Consumer groups** - статус потребителей
+- 📈 **Метрики** - производительность брокеров
+- ⚙️ **Конфигурация** - настройки Kafka
+
+### Примеры использования
+
+**1. Просмотр событий из топика `user_track_events`:**
+- Откройте http://localhost:8081
+- Перейдите в "Topics" → "user_track_events"
+- Нажмите "Messages" для просмотра событий
+
+**2. Проверка Consumer Groups:**
+- Перейдите в "Consumers"
+- Найдите группу `recommend_consumer`
+- Посмотрите lag и offset
+
+**3. Мониторинг брокеров:**
+- Перейдите в "Brokers"
+- Проверьте статус и метрики
+
 ## Полезные ссылки
 
 - [ClickHouse Interfaces](https://clickhouse.com/docs/en/interfaces/overview)
 - [ClickHouse HTTP Interface](https://clickhouse.com/docs/en/interfaces/http)
 - [clickhouse-connect Documentation](https://clickhouse.com/docs/en/integrations/python)
+- [Kafka UI GitHub](https://github.com/provectus/kafka-ui)
 

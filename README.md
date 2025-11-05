@@ -43,7 +43,8 @@ make help
 ```
 
 **Откройте:**
-- 🎨 **Web UI**: http://localhost:8080
+- 🎨 **Frontend UI**: http://localhost:8080
+- 📊 **Kafka UI**: http://localhost:8081
 - 📖 **Swagger API**: http://localhost:8000/docs
 
 **Остановить:**
@@ -426,12 +427,14 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 | Сервис | Порт | URL | Назначение |
 |--------|------|-----|------------|
 | **Frontend UI** | 8080 | http://localhost:8080 | Web интерфейс ⭐ |
+| **Kafka UI** | 8081 | http://localhost:8081 | Мониторинг Kafka 📊 |
 | FastAPI | 8000 | http://localhost:8000 | REST API |
 | Swagger UI | 8000 | http://localhost:8000/docs | Интерактивная документация |
 | ClickHouse HTTP | 8123 | http://localhost:8123 | Для приложения ✅ |
 | ClickHouse Native | 9000 | - | Для CLI клиента |
 | Redis | 6379 | - | Cache |
-| Kafka | 9092 | - | Events |
+| Kafka | 9092 | - | Events (localhost), 29092 (Docker) |
+| Zookeeper | 2181 | - | Kafka coordination |
 
 > 🔍 **Подробнее**: [docs/PORTS.md](docs/PORTS.md)
 
@@ -477,6 +480,7 @@ Coverage: 92% ✅
 
 - ✅ **ClickHouse** - OLAP база данных
 - ✅ **Kafka + Zookeeper** - Стриминг событий
+- ✅ **Kafka UI** - Веб интерфейс для мониторинга Kafka
 - ✅ **Redis** - Кэширование
 - ✅ **FastAPI** - API сервер
 
