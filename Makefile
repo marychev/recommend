@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs logs-api logs-clickhouse status clean test seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint lint-install format ui ui-open ui-stop quickstart-full
+.PHONY: help up down restart logs logs-api logs-clickhouse logs-kafka status clean test test-clickhouse test-kafka seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint lint-install format ui ui-open ui-stop quickstart-full
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -149,6 +149,11 @@ test: ## Запустить все тесты
 
 test-clickhouse: ## Запустить только тесты ClickHouse
 	pytest tests/clickhouse/ -v
+
+test-kafka: ## Запустить все тесты Kafka (требует запущенный Kafka)
+	@echo "$(BLUE)🧪 Запуск всех тестов Kafka...$(NC)"
+	@echo "$(YELLOW)⚠️  Требуется запущенный Kafka: make up-kafka$(NC)"
+	pytest tests/kafka/ -v
 
 test-watch: ## Запустить тесты в режиме watch
 	pytest-watch

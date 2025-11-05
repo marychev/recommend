@@ -84,7 +84,7 @@ async def consume_events(
                 logger.error(
                     "Event deserialization error: %s",
                     e,
-                    extra={"message": message.value},
+                    extra={"raw_message": message.value},
                 )
             except Exception as e:
                 logger.error(

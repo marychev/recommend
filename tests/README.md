@@ -16,6 +16,14 @@ tests/
 │   ├── test_operations.py       # Тесты операций с данными
 │   ├── test_schema.py           # Тесты структуры БД
 │   └── README.md                # Документация ClickHouse тестов
+├── kafka/                       # Тесты Kafka
+│   ├── __init__.py
+│   ├── conftest.py              # Фикстуры для Kafka
+│   ├── test_kafka_client.py     # Тесты подключения
+│   ├── test_kafka_producer.py   # Тесты producer
+│   ├── test_kafka_consumer.py   # Тесты consumer
+│   ├── test_kafka_integration.py # Интеграционные тесты
+│   └── README.md                # Документация Kafka тестов
 ```
 
 ## 🚀 Быстрый старт
@@ -47,6 +55,9 @@ pytest tests/test_api.py -v
 # Только ClickHouse тесты
 pytest tests/clickhouse/ -v
 
+# Только Kafka тесты (unit)
+pytest tests/kafka/ -v -m "not integration"
+
 # Конкретный класс тестов
 pytest tests/test_api.py::TestHealthCheck -v
 
@@ -77,12 +88,12 @@ pytest tests/test_api.py::TestHealthCheck::test_health_check -v
 
 - ✅ **ClickHouse**: Подключение, операции, схема (50+ тестов)
 - ✅ **API**: Базовые эндпоинты (health, docs, root)
+- ✅ **Kafka**: Producer, Consumer, Client, Integration (60+ тестов)
 - ⏳ **API Users**: TODO
 - ⏳ **API Tracks**: TODO
 - ⏳ **API Events**: TODO
 - ⏳ **API Recommendations**: TODO
 - ⏳ **Redis**: TODO
-- ⏳ **Kafka**: TODO
 - ⏳ **ML Models**: TODO
 
 ## 🔧 Настройка
@@ -105,6 +116,8 @@ REDIS_PORT=6379
 
 # Kafka
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_TOPIC_EVENTS=user_track_events_test
+KAFKA_CONSUMER_GROUP=recommend_consumer_test
 ```
 
 ### Запуск сервисов для тестов
@@ -112,7 +125,11 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 #### Вариант 1: Docker Compose
 
 ```bash
+# Только ClickHouse и Redis (для unit тестов)
 docker-compose up -d clickhouse redis
+
+# Включая Kafka (для интеграционных тестов Kafka)
+docker-compose up -d clickhouse redis kafka zookeeper
 ```
 
 #### Вариант 2: Отдельные контейнеры
@@ -123,6 +140,9 @@ docker run -d --name clickhouse-test -p 9000:9000 clickhouse/clickhouse-server
 
 # Redis
 docker run -d --name redis-test -p 6379:6379 redis:7-alpine
+
+# Kafka (для интеграционных тестов)
+# Требует также Zookeeper
 ```
 
 ## 📝 Написание тестов
