@@ -1,0 +1,19 @@
+# k6 результаты
+*.json
+results/
+summary.json
+stress_test_results.json
+soak_test_results.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Временные файлы
+*.log
+*.tmp
+.DS_Store
+

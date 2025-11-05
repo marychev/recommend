@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs logs-api logs-clickhouse logs-kafka status clean test test-clickhouse test-kafka seed health check-services build rebuild ps stop-api run-api shell db-init db-reset install lint lint-install format ui ui-open ui-stop quickstart-full
+.PHONY: help up down logs logs-api logs-clickhouse logs-kafka status clean test test-clickhouse test-kafka health check-services build rebuild ps shell db-init db-reset lint lint-install format
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -41,7 +41,6 @@ down: ## Остановить все сервисы
 	$(DOCKER_COMPOSE) down
 	@echo "$(GREEN)✅ Сервисы остановлены$(NC)"
 
-restart: down up ## Перезапустить все сервисы
 
 logs: ## Показать логи всех сервисов
 	$(DOCKER_COMPOSE) logs -f
@@ -78,37 +77,15 @@ build: ## Собрать Docker образы
 up-clickhouse: ## Запустить только ClickHouse
 	$(DOCKER_COMPOSE) up -d clickhouse
 
-up-kafka: ## Запустить только Kafka и Zookeeper
-	$(DOCKER_COMPOSE) up -d zookeeper kafka
+up-kafka: ## Запустить только Kafka + Kafka-UI и Zookeeper
+	$(DOCKER_COMPOSE) up -d zookeeper kafka kafka-ui
 
 up-redis: ## Запустить только Redis
 	$(DOCKER_COMPOSE) up -d redis
 
 up-api: ## Запустить только API контейнер
-	@echo "$(GREEN)🚀 Запуск API контейнера...$(NC)"
 	$(DOCKER_COMPOSE) up -d api
-	@sleep 3
-	@echo "$(GREEN)✅ API контейнер запущен!$(NC)"
-	@echo "$(BLUE)🌐 API: http://localhost:8000$(NC)"
-	@echo "$(BLUE)📚 Docs: http://localhost:8000/docs$(NC)"
 
-# ═══════════════════════════════════════════════
-# 💻 Локальная разработка
-# ═══════════════════════════════════════════════
-
-install: ## Установить зависимости Python
-	@echo "$(BLUE)📦 Установка зависимостей...$(NC)"
-	pip install -r requirements.txt
-	@echo "$(GREEN)✅ Зависимости установлены$(NC)"
-
-run-api: ## Запустить API локально (не в Docker)
-	@echo "$(GREEN)🚀 Запуск API локально...$(NC)"
-	fuser -k 8000/tcp
-	python -m app.main
-
-stop-api: ## Остановить локально запущенный API
-	@echo "$(RED)🛑 Остановка API...$(NC)"
-	pkill -f "python -m app.main" || pkill -f "uvicorn app.main" || echo "API не запущен"
 
 # ═══════════════════════════════════════════════
 # 🗄️ База данных
@@ -118,7 +95,7 @@ db-init: ## Создать таблицы в ClickHouse (безопасно, и�
 	@bash scripts/safe_db_init.sh
 
 db-reset: ## Пересоздать ClickHouse контейнер и таблицы
-	@echo "$(YELLOW)⚠️  Пересоздание ClickHouse (данные будут удалены)...$(NC)"
+	@echo "$(YELLOW)⚠️ Пересоздание ClickHouse (данные будут удалены)...$(NC)"
 	bash scripts/docker-reset-clickhouse.sh
 
 db-shell: ## Открыть clickhouse-client
@@ -151,49 +128,78 @@ test-clickhouse: ## Запустить только тесты ClickHouse
 	pytest tests/clickhouse/ -v
 
 test-kafka: ## Запустить все тесты Kafka (требует запущенный Kafka)
-	@echo "$(BLUE)🧪 Запуск всех тестов Kafka...$(NC)"
-	@echo "$(YELLOW)⚠️  Требуется запущенный Kafka: make up-kafka$(NC)"
 	pytest tests/kafka/ -v
 
-test-watch: ## Запустить тесты в режиме watch
-	pytest-watch
+
+# ═══════════════════════════════════════════════
+# ⚡ Нагрузочное тестирование (k6)
+# ═══════════════════════════════════════════════
+
+load-test-install: ## Проверка установки k6
+	@echo "$(BLUE)🔍 Проверка k6...$(NC)"
+	@if command -v k6 > /dev/null 2>&1; then \
+		echo "$(GREEN)✅ k6 установлен: $$(k6 version | head -n1)$(NC)"; \
+	else \
+		echo "$(RED)❌ k6 не установлен$(NC)"; \
+		echo "$(YELLOW)Установите k6:$(NC)"; \
+		echo "  macOS:   brew install k6"; \
+		echo "  Linux:   https://k6.io/docs/getting-started/installation/"; \
+		exit 1; \
+	fi
+
+load-test-data-generate: ## Сгенерировать 1M записей для нагрузочного тестирования
+	@echo "$(BLUE)🌱 Генерация 1,000,000 записей для нагрузочных тестов...$(NC)"
+	@echo "$(YELLOW)⚠️ Это займет ~5 минут. Убедитесь, что сервисы запущены!$(NC)"
+	@echo ""
+	python load_tests/generate_test_data.py
+	@echo ""
+	@echo "$(GREEN)✅ Данные сгенерированы!$(NC)"
+	@echo "$(BLUE)💡 Проверьте статистику: make db-stats$(NC)"
+
+load-test-quick: ## Быстрая проверка API (30 секунд)
+	@echo "$(BLUE)⚡ Быстрая проверка API...$(NC)"
+	k6 run load_tests/quick_test.js
+
+load-test-basic: ## Базовый нагрузочный тест (~15 минут)
+	@echo "$(BLUE)📊 Запуск базового нагрузочного теста...$(NC)"
+	@echo "$(YELLOW)Длительность: ~15 минут$(NC)"
+	k6 run load_tests/k6_basic_load_test.js
+
+load-test-spike: ## Тест пиковой нагрузки (~3 минуты)
+	@echo "$(BLUE)⚡ Запуск теста пиковой нагрузки...$(NC)"
+	@echo "$(YELLOW)Длительность: ~3 минуты$(NC)"
+	k6 run load_tests/k6_spike_test.js
+
+load-test-stress: ## Стресс-тест (~30 минут)
+	@echo "$(BLUE)💪 Запуск стресс-теста...$(NC)"
+	@echo "$(YELLOW)Длительность: ~30 минут$(NC)"
+	k6 run load_tests/k6_stress_test.js
+
+load-test-soak: ## Тест на выносливость (~70 минут)
+	@echo "$(BLUE)🕐 Запуск теста на выносливость...$(NC)"
+	@echo "$(YELLOW)Длительность: ~70 минут$(NC)"
+	k6 run load_tests/k6_soak_test.js
+
+load-test-all: ## Запустить все нагрузочные тесты последовательно
+	@echo "$(BLUE)🚀 Запуск всех нагрузочных тестов...$(NC)"
+	@bash load_tests/run_all_tests.sh
+
+load-test-results: ## Показать результаты последних тестов
+	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"
+	@echo ""
+	@if [ -d "load_tests/results" ]; then \
+		ls -lht load_tests/results/*.json 2>/dev/null | head -5 || echo "$(YELLOW)Нет результатов. Запустите тесты!$(NC)"; \
+	else \
+		echo "$(YELLOW)Директория results не существует. Запустите тесты!$(NC)"; \
+	fi
 
 # ═══════════════════════════════════════════════
 # 📊 Данные и проверки
 # ═══════════════════════════════════════════════
 
-seed: ## Сгенерировать тестовые данные (10,000 записей)
-	@echo "$(BLUE)🌱 Генерация тестовых данных...$(NC)"
-	@echo "$(YELLOW)Это может занять ~1-2 минуты...$(NC)"
-	python scripts/seed_data.py
-	@echo "$(GREEN)✅ Данные созданы!$(NC)"
-	@echo "$(BLUE)💡 Проверьте: make db-stats$(NC)"
-
-seed-quick: ## Быстрая генерация минимальных тестовых данных
-	@echo "$(BLUE)🌱 Генерация минимальных тестовых данных...$(NC)"
-	@docker exec music_recommend_clickhouse clickhouse-client -q "\
-		INSERT INTO music_recommend.users (user_id, username, email, age, country) VALUES \
-		(1, 'testuser1', 'test1@example.com', 25, 'US'), \
-		(2, 'testuser2', 'test2@example.com', 30, 'UK'), \
-		(3, 'testuser3', 'test3@example.com', 22, 'CA');"
-	@docker exec music_recommend_clickhouse clickhouse-client -q "\
-		INSERT INTO music_recommend.tracks (track_id, title, artist, album, genre, duration_seconds, release_year) VALUES \
-		(1, 'Test Song 1', 'Test Artist', 'Test Album', 'Rock', 180, 2023), \
-		(2, 'Test Song 2', 'Test Artist', 'Test Album', 'Pop', 200, 2023), \
-		(3, 'Test Song 3', 'Test Artist 2', 'Album 2', 'Jazz', 240, 2023);"
-	@docker exec music_recommend_clickhouse clickhouse-client -q "\
-		INSERT INTO music_recommend.user_track_interactions (user_id, track_id, action_type, listen_duration_seconds, timestamp) VALUES \
-		(1, 1, 'play', 180, now()), \
-		(1, 2, 'like', 200, now()), \
-		(2, 1, 'play', 180, now()), \
-		(2, 3, 'play', 240, now());"
-	@echo "$(GREEN)✅ Минимальные тестовые данные созданы!$(NC)"
-	@echo "$(BLUE)📊 Создано: 3 пользователя, 3 трека, 4 взаимодействия$(NC)"
-
 health: ## Проверить health check API
 	@echo "$(BLUE)🏥 Проверка health check...$(NC)"
 	@curl -s http://localhost:8000/api/v1/health | python -m json.tool 2>/dev/null || echo "$(RED)❌ API недоступен. Проверьте: make ps$(NC)"
-
 
 check-services: ## Проверить доступность всех сервисов
 	@bash scripts/check_services.sh
@@ -287,43 +293,6 @@ format: ## Отформатировать код с помощью black
 	fi
 
 # ═══════════════════════════════════════════════
-# 🎨 Frontend / UI
-# ═══════════════════════════════════════════════
-
-ui: ## Запустить Frontend UI на порту 8080
-	@echo "$(GREEN)🎨 Запуск Frontend UI...$(NC)"
-	@echo ""
-	@echo "$(BLUE)📡 Проверка доступности API...$(NC)"
-	@if curl -s http://localhost:8000/api/v1/health > /dev/null 2>&1; then \
-		echo "$(GREEN)✅ API доступен на http://localhost:8000$(NC)"; \
-	else \
-		echo "$(RED)⚠️  API недоступен!$(NC)"; \
-		echo "$(YELLOW)   Запустите API: make up-api$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(BLUE)🌐 Запуск HTTP сервера на порту 8080...$(NC)"
-	@cd frontend && python -m http.server 8080 &
-	@sleep 2
-	@echo ""
-	@echo "$(GREEN)✅ Frontend UI запущен!$(NC)"
-	@echo ""
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)🎨 Откройте в браузере:$(NC)"
-	@echo "$(BLUE)   http://localhost:8080$(NC)"
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(YELLOW)💡 Остановить: make ui-stop$(NC)"
-
-ui-open: ## Открыть Frontend UI в браузере
-	@echo "$(BLUE)🌐 Открытие Frontend UI...$(NC)"
-	@python -m webbrowser http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || open http://localhost:8080 2>/dev/null || echo "Откройте: http://localhost:8080"
-
-ui-stop: ## Остановить Frontend HTTP сервер
-	@echo "$(RED)🛑 Остановка Frontend UI...$(NC)"
-	@pkill -f "python -m http.server 8080" || echo "Frontend UI не запущен"
-	@echo "$(GREEN)✅ Frontend UI остановлен$(NC)"
-
-# ═══════════════════════════════════════════════
 # 📖 Документация и информация
 # ═══════════════════════════════════════════════
 
@@ -355,14 +324,12 @@ info: ## Показать информацию о проекте
 	@echo "   make ui              - Запустить только Frontend"
 	@echo "   make diagnose        - Диагностика проблем"
 	@echo "   make logs-errors     - Показать ошибки"
-	@echo "   make seed-quick      - Создать тестовые данные"
 	@echo "   make health          - Проверить API"
 	@echo "   make help            - Все команды"
 	@echo ""
 	@echo "$(YELLOW)🆘 Если API возвращает ошибку 500:$(NC)"
 	@echo "   1. make diagnose       # Диагностика"
 	@echo "   2. make logs-errors    # Смотреть ошибки"
-	@echo "   3. make seed-quick     # Создать тестовые данные"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 
@@ -395,19 +362,13 @@ quickstart: ## Быстрый старт проекта (только backend)
 	@echo ""
 	@echo "$(GREEN)✅ Готово! Backend запущен!$(NC)"
 	@echo ""
-	@echo "$(YELLOW)7️⃣  Запуск Frontend UI...$(NC)"
-	@make ui
-	@sleep 2
-	@echo ""
 	@echo "$(GREEN)✅ Система полностью запущена!$(NC)"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo "$(BLUE)🌐 API:        http://localhost:8000$(NC)"
 	@echo "$(BLUE)📚 Swagger:    http://localhost:8000/docs$(NC)"
-	@echo "$(BLUE)🎨 Frontend:   http://localhost:8080$(NC)"
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
-	@echo "$(YELLOW)💡 Остановить UI:      make ui-stop$(NC)"
 	@echo "$(YELLOW)💡 Остановить все:     make down$(NC)"
 
 # По умолчанию показываем help
