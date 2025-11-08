@@ -36,7 +36,6 @@ make quickstart
 # Или по отдельности:
 make up          # Запустить Docker сервисы
 make db-init     # Создать таблицы
-make ui          # Запустить Frontend UI
 
 # Посмотреть все доступные команды
 make help
@@ -49,7 +48,6 @@ make help
 
 **Остановить:**
 ```bash
-make ui-stop     # Остановить Frontend
 make down        # Остановить все сервисы
 ```
 
@@ -73,6 +71,8 @@ make run-api            # или python -m app.main
 
 # 5. Откройте API
 http://localhost:8000/docs
+http://localhost:8123/play
+
 ```
 ---
 

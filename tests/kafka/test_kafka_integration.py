@@ -2,6 +2,8 @@
 Интеграционные тесты для Kafka
 Требуют запущенный Kafka для выполнения
 """
+import time
+
 import pytest
 import asyncio
 from datetime import datetime
@@ -116,8 +118,6 @@ class TestKafkaPerformance:
         if not kafka_connected:
             pytest.skip("Kafka недоступна")
 
-        import time
-
         event = {
             "user_id": 9999,
             "track_id": 99999,
@@ -150,8 +150,6 @@ class TestKafkaPerformance:
         if not kafka_connected:
             pytest.skip("Kafka недоступна")
 
-        import time
-
         events = [
             {
                 "user_id": 9999 + i,
@@ -169,7 +167,7 @@ class TestKafkaPerformance:
 
         events_per_second = result / elapsed
         print(
-            f"\n📊 Batch производительность: "
+            f"\nBatch производительность: "
             f"{events_per_second:.2f} событий/сек"
         )
 
@@ -217,8 +215,9 @@ class TestKafkaReliability:
             return await send_event(event)
 
         # Отправляем 10 событий параллельно
-        results = await asyncio.gather(*[send_test_event(i) for i in range(10)])
+        results = await asyncio.gather(
+            *[send_test_event(i) for i in range(10)]
+        )
 
         # Все должны быть успешными
         assert all(results)
-

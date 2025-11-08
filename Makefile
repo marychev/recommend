@@ -23,6 +23,10 @@ help: ## Показать справку по доступным команда�
 # 🐳 Docker Compose команды
 # ═══════════════════════════════════════════════
 
+ps: ## Показать статус контейнеров
+	@echo "$(BLUE)🐳 Статус контейнеров:$(NC)"
+	@$(DOCKER_COMPOSE) ps
+
 up: ## Запустить все сервисы (включая API)
 	@echo "$(GREEN)🚀 Запуск всех сервисов...$(NC)"
 	$(DOCKER_COMPOSE) up -d
@@ -32,6 +36,7 @@ up: ## Запустить все сервисы (включая API)
 	@echo "$(BLUE)🌐 API доступен на: http://localhost:8000$(NC)"
 	@echo "$(BLUE)📚 Swagger документация: http://localhost:8000/docs$(NC)"
 	@echo "$(BLUE)📖 ReDoc документация: http://localhost:8000/redoc$(NC)"
+	@echo "$(BLUE)📖 ClickHouse: http://localhost:8123$(NC)"
 	@echo ""
 	@echo "$(YELLOW)💡 Проверьте статус: make ps$(NC)"
 	@echo "$(YELLOW)💡 Посмотрите логи: make logs-api$(NC)"
@@ -296,20 +301,23 @@ format: ## Отформатировать код с помощью black
 # 📖 Документация и информация
 # ═══════════════════════════════════════════════
 
-info: ## Показать информацию о проекте
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)  🎵 Music Recommendation System$(NC)"
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo ""
+urls: ## Показать URLs
 	@echo "$(YELLOW)📍 URLs:$(NC)"
-	@echo "   Frontend:   http://localhost:8080"
 	@echo "   API:        http://localhost:8000"
 	@echo "   Swagger:    http://localhost:8000/docs"
 	@echo "   ReDoc:      http://localhost:8000/redoc"
 	@echo "   ClickHouse: http://localhost:8123"
 	@echo "   Redis:      localhost:6379"
+	@echo "   UI Kafka:   http://localhost:8081"
 	@echo "   Kafka:      localhost:9092"
 	@echo ""
+
+info: ## Показать информацию о проекте
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  🎵 Music Recommendation System$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	make urls
 	@echo "$(YELLOW)🐳 Статус контейнеров:$(NC)"
 	@$(DOCKER_COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | grep -E "(NAME|music_recommend)" || echo "   Контейнеры не запущены. Запустите: make up"
 	@echo ""
@@ -365,8 +373,7 @@ quickstart: ## Быстрый старт проекта (только backend)
 	@echo "$(GREEN)✅ Система полностью запущена!$(NC)"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo "$(BLUE)🌐 API:        http://localhost:8000$(NC)"
-	@echo "$(BLUE)📚 Swagger:    http://localhost:8000/docs$(NC)"
+	make urls
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)💡 Остановить все:     make down$(NC)"

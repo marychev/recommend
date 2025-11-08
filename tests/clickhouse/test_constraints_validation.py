@@ -1,4 +1,10 @@
 import pytest
+from datetime import datetime
+from tests.clickhouse.test_complex_queries import (
+    USER_COLUMN_NAMES,
+    TRACK_COLUMN_NAMES,
+    INTERACTION_COLUMN_NAMES,
+)
 
 
 class TestConstraintsAndValidation:
@@ -13,26 +19,17 @@ class TestConstraintsAndValidation:
         sample_tracks,
     ):
         """Тест ENUM ограничения для action_type"""
-        from datetime import datetime
 
         # Вставляем пользователей и треки
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=["user_id", "username", "email", "age", "country"],
+            column_names=USER_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=[
-                "track_id",
-                "title",
-                "artist",
-                "album",
-                "genre",
-                "duration_seconds",
-                "release_year",
-            ],
+            column_names=TRACK_COLUMN_NAMES,
         )
 
         # Тест валидных значений ENUM
@@ -51,13 +48,7 @@ class TestConstraintsAndValidation:
             await clickhouse_client.insert(
                 "user_track_interactions",
                 valid_interaction,
-                column_names=[
-                    "user_id",
-                    "track_id",
-                    "action_type",
-                    "listen_duration_seconds",
-                    "timestamp",
-                ],
+                column_names=INTERACTION_COLUMN_NAMES,
             )
 
         # Проверяем что все валидные значения вставились

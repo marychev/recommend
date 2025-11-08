@@ -1,6 +1,7 @@
 """
 Тесты для Kafka producer (app/kafka/producer.py)
 """
+
 import pytest
 from unittest.mock import patch, AsyncMock, Mock
 from datetime import datetime
@@ -194,7 +195,7 @@ class TestSendBatchEvents:
         mock_batch.__len__ = Mock(return_value=0)
         mock_kafka_producer.create_batch.return_value = mock_batch
 
-        result = await send_batch_events([])
+        _ = await send_batch_events([])
 
         # Не должно вызывать send_batch для пустого пакета
         mock_kafka_producer.send_batch.assert_not_called()
@@ -254,4 +255,3 @@ class TestSendBatchEvents:
         result = await send_batch_events(sample_events_batch)
 
         assert result == 0
-

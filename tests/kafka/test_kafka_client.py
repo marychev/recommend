@@ -1,9 +1,7 @@
-"""
-Тесты для Kafka client (app/kafka/client.py)
-"""
 import pytest
 from unittest.mock import patch, AsyncMock, Mock
 from aiokafka.errors import KafkaError
+import app.kafka.client as client_module
 
 from app.kafka.client import (
     get_kafka_producer,
@@ -26,7 +24,6 @@ class TestGetKafkaProducer:
     ):
         """Тест создания нового producer"""
         # Очищаем глобальный producer
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = None
 
@@ -44,7 +41,6 @@ class TestGetKafkaProducer:
         self, mock_producer_class, mock_kafka_producer
     ):
         """Тест возврата существующего producer (singleton)"""
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = mock_kafka_producer
 
@@ -60,7 +56,6 @@ class TestGetKafkaProducer:
         self, mock_producer_class, mock_kafka_producer
     ):
         """Тест правильной конфигурации producer"""
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = None
 
@@ -130,11 +125,8 @@ class TestCloseKafkaProducer:
     """Тесты для close_kafka_producer()"""
 
     @pytest.mark.asyncio
-    async def test_close_kafka_producer_when_exists(
-        self, mock_kafka_producer
-    ):
+    async def test_close_kafka_producer_when_exists(self, mock_kafka_producer):
         """Тест закрытия существующего producer"""
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = mock_kafka_producer
 
@@ -146,7 +138,6 @@ class TestCloseKafkaProducer:
     @pytest.mark.asyncio
     async def test_close_kafka_producer_when_none(self):
         """Тест закрытия когда producer = None"""
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = None
 
@@ -159,7 +150,6 @@ class TestCloseKafkaProducer:
         self, mock_kafka_producer
     ):
         """Тест обработки исключения при закрытии"""
-        import app.kafka.client as client_module
 
         client_module._kafka_producer = mock_kafka_producer
         mock_kafka_producer.stop.side_effect = Exception("Stop error")
@@ -173,9 +163,7 @@ class TestCloseKafkaConsumer:
     """Тесты для close_kafka_consumer()"""
 
     @pytest.mark.asyncio
-    async def test_close_kafka_consumer_when_exists(
-        self, mock_kafka_consumer
-    ):
+    async def test_close_kafka_consumer_when_exists(self, mock_kafka_consumer):
         """Тест закрытия существующего consumer"""
         await close_kafka_consumer(mock_kafka_consumer)
         mock_kafka_consumer.stop.assert_called_once()
@@ -281,4 +269,3 @@ class TestConnectKafka:
         result = await connect_kafka()
 
         assert result is False
-

@@ -124,7 +124,8 @@ async def list_users(
                 age=row[3],
                 country=row[4],
                 created_at=row[5],
-            ) for row in result
+            )
+            for row in result
         ]
 
         return users

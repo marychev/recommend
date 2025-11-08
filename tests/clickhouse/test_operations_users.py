@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from tests.clickhouse.test_complex_queries import USER_COLUMN_NAMES
 
 
 class TestUsersOperations:
@@ -10,9 +10,9 @@ class TestUsersOperations:
     ):
         """Тест вставки одного пользователя"""
         data = [[1, "john_doe", "john@test.com", 25, "Russia"]]
-        columns = ["user_id", "username", "email", "age", "country"]
-
-        await clickhouse_client.insert("users", data, column_names=columns)
+        await clickhouse_client.insert(
+            "users", data, column_names=USER_COLUMN_NAMES
+        )
 
         result = await clickhouse_client.execute_raw(
             "SELECT user_id, username, email FROM users WHERE user_id = 1"
@@ -27,10 +27,8 @@ class TestUsersOperations:
         self, clickhouse_client, create_test_schema, clean_tables, sample_users
     ):
         """Тест вставки нескольких пользователей"""
-        columns = ["user_id", "username", "email", "age", "country"]
-
         await clickhouse_client.insert(
-            "users", sample_users, column_names=columns
+            "users", sample_users, column_names=USER_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(
@@ -42,9 +40,8 @@ class TestUsersOperations:
         self, clickhouse_client, create_test_schema, clean_tables, sample_users
     ):
         """Тест выборки пользователей с фильтром"""
-        columns = ["user_id", "username", "email", "age", "country"]
         await clickhouse_client.insert(
-            "users", sample_users, column_names=columns
+            "users", sample_users, column_names=USER_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(
@@ -59,9 +56,8 @@ class TestUsersOperations:
         self, clickhouse_client, create_test_schema, clean_tables, sample_users
     ):
         """Тест агрегирующего запроса"""
-        columns = ["user_id", "username", "email", "age", "country"]
         await clickhouse_client.insert(
-            "users", sample_users, column_names=columns
+            "users", sample_users, column_names=USER_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(

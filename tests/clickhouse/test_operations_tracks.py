@@ -1,3 +1,6 @@
+from tests.clickhouse.test_complex_queries import TRACK_COLUMN_NAMES
+
+
 class TestTracksOperations:
     """Тесты операций с таблицей треков"""
 
@@ -9,18 +12,8 @@ class TestTracksOperations:
         sample_tracks,
     ):
         """Тест вставки треков"""
-        columns = [
-            "track_id",
-            "title",
-            "artist",
-            "album",
-            "genre",
-            "duration_seconds",
-            "release_year",
-        ]
-
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=columns
+            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(
@@ -36,17 +29,8 @@ class TestTracksOperations:
         sample_tracks,
     ):
         """Тест выборки треков по жанру"""
-        columns = [
-            "track_id",
-            "title",
-            "artist",
-            "album",
-            "genre",
-            "duration_seconds",
-            "release_year",
-        ]
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=columns
+            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(
@@ -65,17 +49,8 @@ class TestTracksOperations:
         sample_tracks,
     ):
         """Тест выборки треков по исполнителю"""
-        columns = [
-            "track_id",
-            "title",
-            "artist",
-            "album",
-            "genre",
-            "duration_seconds",
-            "release_year",
-        ]
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=columns
+            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
         )
 
         result = await clickhouse_client.execute_raw(

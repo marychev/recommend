@@ -55,10 +55,12 @@ class RedisClient:
             return await self.redis.get(key)
         return None
 
-    async def set(self, key: str, value: str, ex: Optional[int] = None) -> bool:
+    async def set(
+        self, key: str, value: str, ex: Optional[int] = None
+    ) -> bool:
         """
         Установить значение по ключу
-        
+
         Args:
             key: Ключ
             value: Значение
@@ -121,4 +123,3 @@ async def shutdown_redis() -> None:
 
     print("✓ Приложение остановлено")
     print("=" * 60)
-

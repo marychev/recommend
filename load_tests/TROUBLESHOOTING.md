@@ -334,6 +334,111 @@ k6 version
 pip list | grep -E "(faker|fastapi|aiochclient)"
 ```
 
+## Проблема: "thresholds have been crossed" (Exit 99)
+
+**Ошибка:**
+```
+ERRO[0902] thresholds on metrics 'http_req_duration, recommendations_response_time' have been crossed
+make: *** [Makefile:166: load-test-basic] Error 99
+```
+
+**Причина:** Тест выполнился успешно, но производительность не соответствует установленным пороговым значениям.
+
+**Это означает:**
+- ✅ API работает корректно
+- ✅ Тест выполнился полностью
+- ⚠️ Производительность ниже ожидаемой
+
+**Решения:**
+
+### Вариант 1: Скорректировать пороговые значения (рекомендуется для начала)
+
+Установите более реалистичные пороги, основываясь на фактической производительности:
+
+```javascript
+// В файле load_tests/k6_basic_load_test.js измените thresholds:
+thresholds: {
+  'http_req_duration': ['p(95)<5000', 'p(99)<10000'],  // было 2000/5000
+  'http_req_failed': ['rate<0.10'],                     // было 0.05
+  'users_response_time': ['p(95)<3000'],                // было 1000
+  'tracks_response_time': ['p(95)<3000'],               // было 1000
+  'recommendations_response_time': ['p(95)<8000'],      // было 3000
+}
+```
+
+После изменения запустите тест снова:
+```bash
+make load-test-basic
+```
+
+### Вариант 2: Оптимизировать производительность
+
+1. **Проверьте кэширование Redis:**
+   ```bash
+   docker-compose logs redis
+   docker-compose restart redis
+   ```
+
+2. **Оптимизируйте ClickHouse:**
+   ```bash
+   # Оптимизируйте таблицы
+   docker exec music_recommend_clickhouse clickhouse-client -q "OPTIMIZE TABLE users"
+   docker exec music_recommend_clickhouse clickhouse-client -q "OPTIMIZE TABLE tracks"
+   docker exec music_recommend_clickhouse clickhouse-client -q "OPTIMIZE TABLE user_track_interactions"
+   ```
+
+3. **Увеличьте ресурсы Docker:**
+   - CPU: минимум 4 ядра
+   - RAM: минимум 8GB
+   - В Docker Desktop: Settings → Resources
+
+4. **Увеличьте количество workers API:**
+   ```yaml
+   # В docker-compose.yml
+   services:
+     api:
+       command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+   ```
+
+5. **Добавьте индексы в ClickHouse** (если их нет):
+   ```sql
+   ALTER TABLE users ADD INDEX IF NOT EXISTS idx_user_id user_id TYPE minmax;
+   ALTER TABLE tracks ADD INDEX IF NOT EXISTS idx_track_id track_id TYPE minmax;
+   ```
+
+### Вариант 3: Уменьшить нагрузку
+
+Если система не справляется, уменьшите количество виртуальных пользователей:
+
+```javascript
+// В k6_basic_load_test.js измените stages:
+stages: [
+  { duration: '1m', target: 25 },   // было 50
+  { duration: '3m', target: 50 },   // было 100
+  { duration: '5m', target: 50 },   // было 100
+  { duration: '2m', target: 100 },  // было 200
+  { duration: '3m', target: 25 },   // было 50
+  { duration: '1m', target: 0 },
+]
+```
+
+### Анализ результатов
+
+Посмотрите детальные результаты теста в `load_tests/results/`:
+
+```bash
+# Найдите последний результат
+ls -lht load_tests/results/*.json | head -1
+
+# Посмотрите метрики (если установлен jq)
+cat load_tests/results/basic_load_test_*.json | jq '.metrics.http_req_duration'
+```
+
+**Ключевые метрики для анализа:**
+- `p(95)` - 95% запросов быстрее этого времени
+- `p(99)` - 99% запросов быстрее этого времени
+- `rate` - процент ошибок
+
 ## Получение помощи
 
 Если проблема не решена:

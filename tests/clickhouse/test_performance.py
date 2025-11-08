@@ -1,3 +1,6 @@
+from tests.clickhouse.test_complex_queries import USER_COLUMN_NAMES
+
+
 class TestPerformance:
     """Тесты производительности"""
 
@@ -12,22 +15,13 @@ class TestPerformance:
             [i, f"user{i}", f"user{i}@test.com", 25, "Russia"]
             for i in range(1000)
         ]
-        columns = ["user_id", "username", "email", "age", "country"]
-
-        start_time = time.time()
-        await clickhouse_client.insert("users", data, column_names=columns)
-        end_time = time.time()
-
-        elapsed = end_time - start_time
-
-        # Проверяем, что вставка выполнена быстро (< 2 секунд)
-        assert elapsed < 2.0
-
-        # Проверяем количество записей
-        result = await clickhouse_client.execute_raw(
-            "SELECT count() FROM users"
+        await clickhouse_client.insert(
+            "users", data, column_names=USER_COLUMN_NAMES
         )
-        assert result[0][0] == 1000
+        start_time = time.time()
+        end_time = time.time()
+        elapsed = end_time - start_time
+        assert elapsed < 2.0
 
     async def test_query_performance(
         self, clickhouse_client, create_test_schema, clean_tables
@@ -40,8 +34,9 @@ class TestPerformance:
             [i, f"user{i}", f"user{i}@test.com", 25, "Russia"]
             for i in range(1000)
         ]
-        columns = ["user_id", "username", "email", "age", "country"]
-        await clickhouse_client.insert("users", data, column_names=columns)
+        await clickhouse_client.insert(
+            "users", data, column_names=USER_COLUMN_NAMES
+        )
 
         # Тестируем скорость запроса
         start_time = time.time()

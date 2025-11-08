@@ -38,7 +38,7 @@ async def create_track(track: TrackCreate):
 
     try:
         new_id = await clickhouse.save_track(track)
-       
+
         return Track(
             track_id=new_id,
             title=track.title,
@@ -213,8 +213,9 @@ async def list_tracks(
                 genre=row[4],
                 duration_seconds=row[5],
                 release_year=row[6],
-                created_at=row[7]
-            ) for row in result
+                created_at=row[7],
+            )
+            for row in result
         ]
 
         return tracks

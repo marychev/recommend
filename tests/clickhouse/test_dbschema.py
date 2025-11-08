@@ -1,6 +1,3 @@
-import pytest
-
-
 class TestDBSchema:
     """Тесты схемы базы данных"""
 

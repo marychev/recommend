@@ -1,6 +1,7 @@
 """
 Фикстуры для тестирования Kafka
 """
+
 import pytest
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime
@@ -90,4 +91,3 @@ def mock_kafka_message():
     message.offset = 0
     message.partition = 0
     return message
-

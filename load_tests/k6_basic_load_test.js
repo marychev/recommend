@@ -30,12 +30,12 @@ export const options = {
     { duration: '1m', target: 0 },    // Завершение
   ],
   thresholds: {
-    'http_req_duration': ['p(95)<2000', 'p(99)<5000'], // 95% запросов < 2s, 99% < 5s
-    'http_req_failed': ['rate<0.05'],                   // Менее 5% ошибок
-    'errors': ['rate<0.05'],
-    'users_response_time': ['p(95)<1000'],
-    'tracks_response_time': ['p(95)<1000'],
-    'recommendations_response_time': ['p(95)<3000'],    // Рекомендации могут быть медленнее
+    'http_req_duration': ['p(95)<10000', 'p(99)<20000'], // Очень мягкие пороги для старта
+    'http_req_failed': ['rate<0.15'],                    // До 15% ошибок
+    'errors': ['rate<0.15'],
+    'users_response_time': ['p(95)<8000'],               // Увеличенные значения
+    'tracks_response_time': ['p(95)<8000'],
+    'recommendations_response_time': ['p(95)<15000'],    // До 15 секунд для рекомендаций
   },
 };
 

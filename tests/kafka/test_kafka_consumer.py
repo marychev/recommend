@@ -1,6 +1,8 @@
 """
 Тесты для Kafka consumer (app/kafka/consumer.py)
 """
+import asyncio
+
 import pytest
 import json
 from unittest.mock import patch, AsyncMock, Mock
@@ -29,10 +31,7 @@ class TestDeserializeEvent:
 
     def test_deserialize_event_with_timestamp(self):
         """Тест десериализации с timestamp"""
-        message = (
-            b'{"user_id": 1001, '
-            b'"timestamp": "2025-11-05T12:00:00"}'
-        )
+        message = b'{"user_id": 1001, ' b'"timestamp": "2025-11-05T12:00:00"}'
 
         result = deserialize_event(message)
 
@@ -98,7 +97,6 @@ class TestConsumeEvents:
         handler = AsyncMock()
 
         # Запускаем consumer (добавляем timeout для избежания бесконечного цикла)
-        import asyncio
 
         try:
             await asyncio.wait_for(consume_events(handler), timeout=0.1)
@@ -212,7 +210,6 @@ class TestConsumeEvents:
         handler = AsyncMock(side_effect=Exception("Processing error"))
 
         # Не должно пробрасывать исключение
-        import asyncio
 
         try:
             await asyncio.wait_for(consume_events(handler), timeout=0.1)
@@ -226,9 +223,7 @@ class TestConsumeEvents:
 
     @pytest.mark.asyncio
     @patch("app.kafka.consumer.get_kafka_consumer")
-    async def test_consume_events_handles_kafka_error(
-        self, mock_get_consumer
-    ):
+    async def test_consume_events_handles_kafka_error(self, mock_get_consumer):
         """Тест обработки ошибки Kafka"""
         mock_get_consumer.side_effect = KafkaError("Connection failed")
 
@@ -301,9 +296,7 @@ class TestExampleEventHandler:
     """Тесты для example_event_handler()"""
 
     @pytest.mark.asyncio
-    async def test_example_event_handler_processes_event(
-        self, sample_event
-    ):
+    async def test_example_event_handler_processes_event(self, sample_event):
         """Тест примерного обработчика событий"""
         # Не должно вызывать исключений
         await example_event_handler(sample_event)
@@ -323,4 +316,3 @@ class TestExampleEventHandler:
 
         # Не должно вызывать исключений
         await example_event_handler(event)
-

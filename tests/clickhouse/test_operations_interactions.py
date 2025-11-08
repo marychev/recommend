@@ -1,5 +1,8 @@
-import pytest
-from datetime import datetime, timedelta
+from tests.clickhouse.test_complex_queries import (
+    USER_COLUMN_NAMES,
+    TRACK_COLUMN_NAMES,
+    INTERACTION_COLUMN_NAMES,
+)
 
 
 class TestInteractionsOperations:
@@ -19,33 +22,19 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=["user_id", "username", "email", "age", "country"],
+            column_names=USER_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=[
-                "track_id",
-                "title",
-                "artist",
-                "album",
-                "genre",
-                "duration_seconds",
-                "release_year",
-            ],
+            column_names=TRACK_COLUMN_NAMES,
         )
 
         # Вставляем взаимодействия
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=[
-                "user_id",
-                "track_id",
-                "action_type",
-                "listen_duration_seconds",
-                "timestamp",
-            ],
+            column_names=INTERACTION_COLUMN_NAMES,
         )
 
         result = await clickhouse_client.execute_raw(
@@ -67,31 +56,17 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=["user_id", "username", "email", "age", "country"],
+            column_names=USER_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=[
-                "track_id",
-                "title",
-                "artist",
-                "album",
-                "genre",
-                "duration_seconds",
-                "release_year",
-            ],
+            column_names=TRACK_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=[
-                "user_id",
-                "track_id",
-                "action_type",
-                "listen_duration_seconds",
-                "timestamp",
-            ],
+            column_names=INTERACTION_COLUMN_NAMES,
         )
 
         # Проверка
@@ -114,31 +89,17 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=["user_id", "username", "email", "age", "country"],
+            column_names=USER_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=[
-                "track_id",
-                "title",
-                "artist",
-                "album",
-                "genre",
-                "duration_seconds",
-                "release_year",
-            ],
+            column_names=TRACK_COLUMN_NAMES,
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=[
-                "user_id",
-                "track_id",
-                "action_type",
-                "listen_duration_seconds",
-                "timestamp",
-            ],
+            column_names=INTERACTION_COLUMN_NAMES,
         )
 
         # Группировка по пользователям
