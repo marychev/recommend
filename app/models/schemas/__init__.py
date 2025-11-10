@@ -9,6 +9,7 @@ from .recommenation import (
     RecommendationRequest,
     RecommendationResponse,
     RecommendedTrack,
+    PerformanceMetrics,
 )
 from .statistics import UserStatistics, TrackStatistics
 from .health import HealthCheckResponse

@@ -3,6 +3,7 @@
 	load-test-install load-test-data-generate load-test-diagnostics \
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
+	load-test-recommendations load-test-recommendations-quick \
 	status check-services health diagnose \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
@@ -136,13 +137,13 @@ db-stats: ## Показать статистику по таблицам
 
 test: ## Запустить все тесты
 	@echo "$(BLUE)🧪 Запуск тестов...$(NC)"
-	pytest -v
+	pytest -s
 
 test-clickhouse: ## Запустить только тесты ClickHouse
-	pytest tests/clickhouse/ -v
+	pytest tests/clickhouse/ -s
 
 test-kafka: ## Запустить все тесты Kafka (требует запущенный Kafka)
-	pytest tests/kafka/ -v
+	pytest tests/kafka/ -s
 
 
 # ═══════════════════════════════════════════════
@@ -208,6 +209,17 @@ load-test-soak: ## Тест на выносливость (~70 минут)
 	@echo "$(BLUE)🕐 Запуск теста на выносливость...$(NC)"
 	@echo "$(YELLOW)Длительность: ~70 минут$(NC)"
 	k6 run load_tests/k6_soak_test.js
+
+load-test-recommendations: ## Детальный анализ производительности рекомендаций (~11 минут)
+	@echo "$(BLUE)📊 Запуск детального анализа производительности рекомендаций...$(NC)"
+	@echo "$(YELLOW)Длительность: ~11 минут | Детальные метрики: Redis, ClickHouse, Алгоритм$(NC)"
+	@echo "$(GREEN)Этот тест собирает подробную статистику о времени выполнения каждого компонента$(NC)"
+	k6 run load_tests/k6_recommendations_performance_test.js
+
+load-test-recommendations-quick: ## Быстрый анализ производительности рекомендаций (10 запросов)
+	@echo "$(BLUE)⚡ Быстрый анализ производительности рекомендаций...$(NC)"
+	@echo "$(YELLOW)Всего 10 запросов | Детальная статистика каждого компонента$(NC)"
+	k6 run load_tests/k6_quick_performance_test.js
 
 load-test-results: ## Показать результаты последних тестов
 	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"
