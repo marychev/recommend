@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import patch, Mock
 from aiokafka.errors import KafkaError
 import app.kafka.client as client_module
 
@@ -9,8 +9,7 @@ from app.kafka.client import (
     close_kafka_producer,
     close_kafka_consumer,
     check_kafka_health,
-    connect_kafka,
-    _kafka_producer,
+    connect_kafka
 )
 
 
@@ -67,6 +66,7 @@ class TestGetKafkaProducer:
         call_kwargs = mock_producer_class.call_args[1]
         assert call_kwargs["compression_type"] == "gzip"
         assert call_kwargs["acks"] == "all"
+        # assert call_kwargs["max_in_flight_requests_per_connection"] == 5
         assert call_kwargs["retries"] == 3
         assert call_kwargs["request_timeout_ms"] == 30000
 
