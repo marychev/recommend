@@ -4,11 +4,11 @@
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
 	load-test-recommendations load-test-recommendations-quick \
-	status check-services health diagnose \
+	status check-services health diagnose urls \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
 	db-init db-reset db-shell db-tables db-stats \
-	lint lint-install format format-trailing
+	lint lint-install format
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -43,13 +43,7 @@ up: ## Запустить все сервисы (включая API)
 	@sleep 3
 	@echo "$(GREEN)✅ Сервисы запущены!$(NC)"
 	@echo ""
-	@echo "$(BLUE)🌐 API доступен на: http://localhost:8000$(NC)"
-	@echo "$(BLUE)📚 Swagger документация: http://localhost:8000/docs$(NC)"
-	@echo "$(BLUE)📖 UI Kafka: http://localhost:8081$(NC)"
-	@echo "$(BLUE)📖 ClickHouse: http://localhost:8123$(NC)"
-	@echo ""
-	@echo "$(YELLOW)💡 Проверьте статус: make ps$(NC)"
-	@echo "$(YELLOW)💡 Посмотрите логи: make logs-api$(NC)"
+	make urls
 
 down: ## Остановить все сервисы
 	@echo "$(RED)🛑 Остановка всех сервисов...$(NC)"
@@ -94,9 +88,7 @@ shell: ## Открыть shell в API контейнере
 
 status: ## Показать статус всех сервисов и базовую информацию
 	@echo "$(BLUE)📊 Статус системы:$(NC)"
-	@echo ""
-	@make ps
-	@echo ""
+	make ps
 	@echo "$(YELLOW)API Health:$(NC)"
 	@make health 2>/dev/null || echo "$(RED)  ❌ API недоступен$(NC)"
 
@@ -261,8 +253,7 @@ diagnose: ## Полная диагностика системы (API, БД, да
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)1️⃣  Статус контейнеров:$(NC)"
-	@$(DOCKER_COMPOSE) ps
-	@echo ""
+	make ps
 	@echo "$(YELLOW)2️⃣  Проверка API:$(NC)"
 	@if curl -s http://localhost:8000/ > /dev/null 2>&1; then \
 		echo "$(GREEN)✅ API доступен на http://localhost:8000$(NC)"; \
@@ -354,13 +345,6 @@ format: ## Отформатировать код (black + удаление trail
 	@echo ""
 	@echo "$(GREEN)✅ Форматирование завершено!$(NC)"
 
-format-trailing: ## Удалить только trailing whitespace (без black)
-	@echo "$(BLUE)🧹 Удаление trailing whitespace...$(NC)"
-	@find app/ tests/ -name "*.py" -type f -exec sed -i 's/[[:space:]]*$$//' {} + 2>/dev/null || \
-		find app/ tests/ -name "*.py" -type f -exec sed -i '' 's/[[:space:]]*$$//' {} + 2>/dev/null || \
-		(echo "$(RED)❌ sed недоступен$(NC)" && exit 1)
-	@echo "$(GREEN)✅ Trailing whitespace удалён из всех Python файлов!$(NC)"
-
 # ═══════════════════════════════════════════════
 # 📖 Документация и информация
 # ═══════════════════════════════════════════════
@@ -393,15 +377,10 @@ info: ## Показать информацию о проекте
 	@echo ""
 	@echo "$(YELLOW)🔧 Быстрые команды:$(NC)"
 	@echo "   make quickstart      - Запустить всё (backend + UI)"
-	@echo "   make ui              - Запустить только Frontend"
 	@echo "   make diagnose        - Диагностика проблем"
 	@echo "   make logs-errors     - Показать ошибки"
 	@echo "   make health          - Проверить API"
 	@echo "   make help            - Все команды"
-	@echo ""
-	@echo "$(YELLOW)🆘 Если API возвращает ошибку 500:$(NC)"
-	@echo "   1. make diagnose       # Диагностика"
-	@echo "   2. make logs-errors    # Смотреть ошибки"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 
