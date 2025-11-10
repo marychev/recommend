@@ -62,7 +62,7 @@ class TestConstraintsAndValidation:
         with pytest.raises(Exception):
             await clickhouse_client.execute_raw(
                 """
-                INSERT INTO user_track_interactions 
+                INSERT INTO user_track_interactions
                 (user_id, track_id, action_type, listen_duration_seconds, timestamp)
                 VALUES (1, 1, 'invalid_action', 180, now())
             """

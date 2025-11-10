@@ -59,8 +59,10 @@ async def get_recommendations(request: RecommendationRequest):
     """
     # Инициализация метрик производительности
     start_time = time.perf_counter()
-    metrics: Optional[Dict[str, Any]] = {} if request.include_performance_metrics else None
-    
+    metrics: Optional[Dict[str, Any]] = (
+        {} if request.include_performance_metrics else None
+    )
+
     # Проверяем кэш
     redis_check_start = time.perf_counter()
     cached = await get_cached_recommendations(
@@ -69,14 +71,16 @@ async def get_recommendations(request: RecommendationRequest):
         exclude_listened=request.exclude_listened,
     )
     if metrics is not None:
-        metrics["redis_check_time_ms"] = (time.perf_counter() - redis_check_start) * 1000
+        metrics["redis_check_time_ms"] = (
+            time.perf_counter() - redis_check_start
+        ) * 1000
 
     if cached:
         logger.info(
             "Recommendations served from cache: user_id=%s", request.user_id
         )
         response = RecommendationResponse(**cached)
-        
+
         # Добавляем метрики для кэшированного ответа
         if metrics is not None:
             total_time = (time.perf_counter() - start_time) * 1000
@@ -85,7 +89,7 @@ async def get_recommendations(request: RecommendationRequest):
                 redis_check_time_ms=metrics.get("redis_check_time_ms"),
                 cache_hit=True,
             )
-        
+
         return response
 
     clickhouse = get_clickhouse_client()
@@ -95,7 +99,9 @@ async def get_recommendations(request: RecommendationRequest):
         user_check_start = time.perf_counter()
         _ = await clickhouse.exists_user(request.user_id)
         if metrics is not None:
-            metrics["clickhouse_user_check_time_ms"] = (time.perf_counter() - user_check_start) * 1000
+            metrics["clickhouse_user_check_time_ms"] = (
+                time.perf_counter() - user_check_start
+            ) * 1000
 
         # Проверяем минимальное количество взаимодействий
         interactions_count_start = time.perf_counter()
@@ -103,14 +109,18 @@ async def get_recommendations(request: RecommendationRequest):
             f"SELECT count() FROM user_track_interactions WHERE user_id = {request.user_id}"
         )
         if metrics is not None:
-            metrics["clickhouse_interactions_count_time_ms"] = (time.perf_counter() - interactions_count_start) * 1000
+            metrics["clickhouse_interactions_count_time_ms"] = (
+                time.perf_counter() - interactions_count_start
+            ) * 1000
 
         if (
             interaction_count[0][0]
             < settings.min_interactions_for_recommendations
         ):
             # Если недостаточно данных, возвращаем популярные треки
-            return await get_popular_recommendations(request, metrics, start_time)
+            return await get_popular_recommendations(
+                request, metrics, start_time
+            )
 
         # Collaborative Filtering: находим похожих пользователей
         similar_users_query = f"""
@@ -119,10 +129,10 @@ async def get_recommendations(request: RecommendationRequest):
             FROM user_track_matrix
             WHERE user_id = {request.user_id} AND implicit_rating > 0
         )
-        SELECT 
+        SELECT
             m2.user_id,
-            sum(m2.implicit_rating * ut.implicit_rating) / 
-                (sqrt(sum(m2.implicit_rating * m2.implicit_rating)) * 
+            sum(m2.implicit_rating * ut.implicit_rating) /
+                (sqrt(sum(m2.implicit_rating * m2.implicit_rating)) *
                  sqrt(sum(ut.implicit_rating * ut.implicit_rating))) as similarity
         FROM user_track_matrix m2
         INNER JOIN user_tracks ut ON m2.track_id = ut.track_id
@@ -137,12 +147,16 @@ async def get_recommendations(request: RecommendationRequest):
         similar_users_start = time.perf_counter()
         similar_users = await clickhouse.execute(similar_users_query)
         if metrics is not None:
-            metrics["clickhouse_similar_users_time_ms"] = (time.perf_counter() - similar_users_start) * 1000
+            metrics["clickhouse_similar_users_time_ms"] = (
+                time.perf_counter() - similar_users_start
+            ) * 1000
             metrics["similar_users_count"] = len(similar_users)
 
         if not similar_users:
             # Если не найдено похожих пользователей, возвращаем популярные треки
-            return await get_popular_recommendations(request, metrics, start_time)
+            return await get_popular_recommendations(
+                request, metrics, start_time
+            )
 
         # Получаем ID похожих пользователей
         similar_user_ids = [row[0] for row in similar_users]
@@ -153,14 +167,14 @@ async def get_recommendations(request: RecommendationRequest):
         if request.exclude_listened:
             exclude_clause = f"""
             AND t.track_id NOT IN (
-                SELECT DISTINCT track_id 
-                FROM user_track_interactions 
+                SELECT DISTINCT track_id
+                FROM user_track_interactions
                 WHERE user_id = {request.user_id}
             )
             """
 
         recommendations_query = f"""
-        SELECT 
+        SELECT
             t.track_id,
             t.title,
             t.artist,
@@ -175,7 +189,7 @@ async def get_recommendations(request: RecommendationRequest):
         WHERE m.user_id IN ({similar_user_ids_str})
           AND m.implicit_rating > 0
           {exclude_clause}
-        GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
+        GROUP BY t.track_id, t.title, t.artist, t.album, t.genre,
                  t.duration_seconds, t.release_year, t.created_at
         ORDER BY total_score DESC
         LIMIT {request.top_n}
@@ -184,11 +198,15 @@ async def get_recommendations(request: RecommendationRequest):
         recommendations_start = time.perf_counter()
         result = await clickhouse.execute(recommendations_query)
         if metrics is not None:
-            metrics["clickhouse_recommendations_time_ms"] = (time.perf_counter() - recommendations_start) * 1000
+            metrics["clickhouse_recommendations_time_ms"] = (
+                time.perf_counter() - recommendations_start
+            ) * 1000
 
         if not result:
             # Если нет рекомендаций, возвращаем популярные треки
-            return await get_popular_recommendations(request, metrics, start_time)
+            return await get_popular_recommendations(
+                request, metrics, start_time
+            )
 
         # Формируем ответ
         algorithm_start = time.perf_counter()
@@ -217,9 +235,11 @@ async def get_recommendations(request: RecommendationRequest):
                     reason="Пользователи с похожими вкусами также слушают этот трек",
                 )
             )
-        
+
         if metrics is not None:
-            metrics["algorithm_processing_time_ms"] = (time.perf_counter() - algorithm_start) * 1000
+            metrics["algorithm_processing_time_ms"] = (
+                time.perf_counter() - algorithm_start
+            ) * 1000
 
         response = RecommendationResponse(
             user_id=request.user_id,
@@ -237,7 +257,9 @@ async def get_recommendations(request: RecommendationRequest):
             recommendations=response.model_dump(),
         )
         if metrics is not None:
-            metrics["redis_save_time_ms"] = (time.perf_counter() - redis_save_start) * 1000
+            metrics["redis_save_time_ms"] = (
+                time.perf_counter() - redis_save_start
+            ) * 1000
 
         # Добавляем метрики производительности в ответ
         if metrics is not None:
@@ -246,11 +268,21 @@ async def get_recommendations(request: RecommendationRequest):
                 total_time_ms=total_time,
                 redis_check_time_ms=metrics.get("redis_check_time_ms"),
                 redis_save_time_ms=metrics.get("redis_save_time_ms"),
-                clickhouse_user_check_time_ms=metrics.get("clickhouse_user_check_time_ms"),
-                clickhouse_interactions_count_time_ms=metrics.get("clickhouse_interactions_count_time_ms"),
-                clickhouse_similar_users_time_ms=metrics.get("clickhouse_similar_users_time_ms"),
-                clickhouse_recommendations_time_ms=metrics.get("clickhouse_recommendations_time_ms"),
-                algorithm_processing_time_ms=metrics.get("algorithm_processing_time_ms"),
+                clickhouse_user_check_time_ms=metrics.get(
+                    "clickhouse_user_check_time_ms"
+                ),
+                clickhouse_interactions_count_time_ms=metrics.get(
+                    "clickhouse_interactions_count_time_ms"
+                ),
+                clickhouse_similar_users_time_ms=metrics.get(
+                    "clickhouse_similar_users_time_ms"
+                ),
+                clickhouse_recommendations_time_ms=metrics.get(
+                    "clickhouse_recommendations_time_ms"
+                ),
+                algorithm_processing_time_ms=metrics.get(
+                    "algorithm_processing_time_ms"
+                ),
                 cache_hit=False,
                 similar_users_count=metrics.get("similar_users_count"),
             )
@@ -288,14 +320,14 @@ async def get_popular_recommendations(
     if request.exclude_listened:
         exclude_clause = f"""
         AND t.track_id NOT IN (
-            SELECT DISTINCT track_id 
-            FROM user_track_interactions 
+            SELECT DISTINCT track_id
+            FROM user_track_interactions
             WHERE user_id = {request.user_id}
         )
         """
 
     query = f"""
-    SELECT 
+    SELECT
         t.track_id,
         t.title,
         t.artist,
@@ -310,7 +342,7 @@ async def get_popular_recommendations(
     WHERE i.action_type = 'play'
       AND i.timestamp >= now() - INTERVAL 30 DAY
       {exclude_clause}
-    GROUP BY t.track_id, t.title, t.artist, t.album, t.genre, 
+    GROUP BY t.track_id, t.title, t.artist, t.album, t.genre,
              t.duration_seconds, t.release_year, t.created_at
     ORDER BY play_count DESC
     LIMIT {request.top_n}
@@ -319,7 +351,9 @@ async def get_popular_recommendations(
     popular_query_start = time.perf_counter()
     result = await clickhouse.execute(query)
     if metrics is not None:
-        metrics["clickhouse_popular_recommendations_time_ms"] = (time.perf_counter() - popular_query_start) * 1000
+        metrics["clickhouse_popular_recommendations_time_ms"] = (
+            time.perf_counter() - popular_query_start
+        ) * 1000
 
     algorithm_start = time.perf_counter()
     recommendations = []
@@ -346,9 +380,11 @@ async def get_popular_recommendations(
                 reason="Популярный трек на платформе",
             )
         )
-    
+
     if metrics is not None:
-        metrics["algorithm_processing_time_ms"] = (time.perf_counter() - algorithm_start) * 1000
+        metrics["algorithm_processing_time_ms"] = (
+            time.perf_counter() - algorithm_start
+        ) * 1000
 
     response = RecommendationResponse(
         user_id=request.user_id,
@@ -366,7 +402,9 @@ async def get_popular_recommendations(
         recommendations=response.model_dump(),
     )
     if metrics is not None:
-        metrics["redis_save_time_ms"] = (time.perf_counter() - redis_save_start) * 1000
+        metrics["redis_save_time_ms"] = (
+            time.perf_counter() - redis_save_start
+        ) * 1000
 
     # Добавляем метрики производительности в ответ
     if metrics is not None and start_time is not None:
@@ -375,10 +413,18 @@ async def get_popular_recommendations(
             total_time_ms=total_time,
             redis_check_time_ms=metrics.get("redis_check_time_ms"),
             redis_save_time_ms=metrics.get("redis_save_time_ms"),
-            clickhouse_user_check_time_ms=metrics.get("clickhouse_user_check_time_ms"),
-            clickhouse_interactions_count_time_ms=metrics.get("clickhouse_interactions_count_time_ms"),
-            clickhouse_recommendations_time_ms=metrics.get("clickhouse_popular_recommendations_time_ms"),
-            algorithm_processing_time_ms=metrics.get("algorithm_processing_time_ms"),
+            clickhouse_user_check_time_ms=metrics.get(
+                "clickhouse_user_check_time_ms"
+            ),
+            clickhouse_interactions_count_time_ms=metrics.get(
+                "clickhouse_interactions_count_time_ms"
+            ),
+            clickhouse_recommendations_time_ms=metrics.get(
+                "clickhouse_popular_recommendations_time_ms"
+            ),
+            algorithm_processing_time_ms=metrics.get(
+                "algorithm_processing_time_ms"
+            ),
             cache_hit=False,
         )
 

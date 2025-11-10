@@ -9,9 +9,9 @@ class TestTableEngines:
 
         result = await clickhouse_client.execute_raw(
             f"""
-            SELECT engine 
-            FROM system.tables 
-            WHERE database = '{settings.clickhouse_database}' 
+            SELECT engine
+            FROM system.tables
+            WHERE database = '{settings.clickhouse_database}'
               AND name = 'users'
         """
         )
@@ -27,9 +27,9 @@ class TestTableEngines:
 
         result = await clickhouse_client.execute_raw(
             f"""
-            SELECT engine 
-            FROM system.tables 
-            WHERE database = '{settings.clickhouse_database}' 
+            SELECT engine
+            FROM system.tables
+            WHERE database = '{settings.clickhouse_database}'
               AND name = 'user_track_matrix'
         """
         )

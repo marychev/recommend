@@ -72,14 +72,14 @@ async def get_popular_tracks(
 
     try:
         query = f"""
-        SELECT 
-            t.track_id, t.title, t.artist, t.album, t.genre, 
+        SELECT
+            t.track_id, t.title, t.artist, t.album, t.genre,
             t.duration_seconds, t.release_year, t.created_at
         FROM tracks t
         INNER JOIN (
             SELECT track_id, count() as play_count
             FROM user_track_interactions
-            WHERE action_type = 'play' 
+            WHERE action_type = 'play'
               AND timestamp >= now() - INTERVAL 30 DAY
             GROUP BY track_id
             ORDER BY play_count DESC
@@ -129,8 +129,8 @@ async def get_track(
 
     try:
         result = await clickhouse.execute_raw(
-            f"""SELECT track_id, title, artist, album, genre, 
-                      duration_seconds, release_year, created_at 
+            f"""SELECT track_id, title, artist, album, genre,
+                      duration_seconds, release_year, created_at
                FROM tracks WHERE track_id = {track_id}"""
         )
 
@@ -194,11 +194,11 @@ async def list_tracks(
         )
 
         query = f"""
-            SELECT track_id, title, artist, album, genre, 
-                   duration_seconds, release_year, created_at 
-            FROM tracks 
+            SELECT track_id, title, artist, album, genre,
+                   duration_seconds, release_year, created_at
+            FROM tracks
             {where_sql}
-            ORDER BY track_id 
+            ORDER BY track_id
             LIMIT {limit} OFFSET {offset}
         """
 
@@ -260,7 +260,7 @@ async def get_track_statistics(
 
         # Получаем статистику
         stats_query = f"""
-        SELECT 
+        SELECT
             countIf(action_type = 'play') as total_plays,
             uniq(user_id) as unique_listeners,
             countIf(action_type = 'like') as total_likes,

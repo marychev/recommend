@@ -54,7 +54,7 @@ class TestComplexQueries:
         # JOIN запрос
         result = await clickhouse_client.execute_raw(
             """
-            SELECT 
+            SELECT
                 u.username,
                 count() as interaction_count
             FROM user_track_interactions i
@@ -97,7 +97,7 @@ class TestComplexQueries:
         # JOIN запрос
         result = await clickhouse_client.execute_raw(
             """
-            SELECT 
+            SELECT
                 t.title,
                 t.artist,
                 count() as play_count
@@ -145,7 +145,7 @@ class TestComplexQueries:
         # Запрос с оконной функцией
         result = await clickhouse_client.execute_raw(
             """
-            SELECT 
+            SELECT
                 user_id,
                 track_id,
                 row_number() OVER (PARTITION BY user_id ORDER BY timestamp) as rn

@@ -9,7 +9,7 @@ from app.kafka.client import (
     close_kafka_producer,
     close_kafka_consumer,
     check_kafka_health,
-    connect_kafka
+    connect_kafka,
 )
 
 

@@ -109,9 +109,9 @@ async def list_users(
     try:
         result = await clickhouse.execute_raw(
             f"""
-            SELECT user_id, username, email, age, country, created_at 
-            FROM users 
-            ORDER BY user_id 
+            SELECT user_id, username, email, age, country, created_at
+            FROM users
+            ORDER BY user_id
             LIMIT {limit} OFFSET {offset}
             """
         )
@@ -159,7 +159,7 @@ async def get_user_statistics(
 
         # Получаем статистику
         stats_query = f"""
-        SELECT 
+        SELECT
             count() as total_interactions,
             uniq(track_id) as unique_tracks,
             sum(listen_duration_seconds) / 3600.0 as total_listen_hours

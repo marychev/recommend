@@ -8,7 +8,7 @@
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
 	db-init db-reset db-shell db-tables db-stats \
-	lint lint-install format
+	lint lint-install format format-trailing
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -76,14 +76,29 @@ logs-errors: ## Показать только ошибки из логов API [
 	@echo "$(RED)🔍 Поиск ошибок в логах API...$(NC)"
 	@$(DOCKER_COMPOSE) logs api 2>&1 | grep -i -E "(error|exception|traceback|failed)" --color=always | tail -50
 
-ps: ## Показать статус контейнеров
-	@echo "$(BLUE)🐳 Статус контейнеров:$(NC)"
-	@$(DOCKER_COMPOSE) ps
-
 build: ## Собрать Docker образы
 	@echo "$(BLUE)🔨 Сборка Docker образов...$(NC)"
 	$(DOCKER_COMPOSE) build
 	@echo "$(GREEN)✅ Образы собраны$(NC)"
+
+rebuild: ## Пересобрать и перезапустить все сервисы
+	@echo "$(BLUE)🔄 Пересборка и перезапуск сервисов...$(NC)"
+	$(DOCKER_COMPOSE) down
+	$(DOCKER_COMPOSE) build
+	$(DOCKER_COMPOSE) up -d
+	@echo "$(GREEN)✅ Сервисы пересобраны и перезапущены$(NC)"
+
+shell: ## Открыть shell в API контейнере
+	@echo "$(BLUE)🐚 Открытие shell в API контейнере...$(NC)"
+	docker exec -it music_recommend_api /bin/bash
+
+status: ## Показать статус всех сервисов и базовую информацию
+	@echo "$(BLUE)📊 Статус системы:$(NC)"
+	@echo ""
+	@make ps
+	@echo ""
+	@echo "$(YELLOW)API Health:$(NC)"
+	@make health 2>/dev/null || echo "$(RED)  ❌ API недоступен$(NC)"
 
 # ═══════════════════════════════════════════════
 # 🔧 Управление отдельными сервисами
@@ -137,7 +152,7 @@ db-stats: ## Показать статистику по таблицам
 
 test: ## Запустить все тесты
 	@echo "$(BLUE)🧪 Запуск тестов...$(NC)"
-	pytest -s
+	pytest -v  # -s
 
 test-clickhouse: ## Запустить только тесты ClickHouse
 	pytest tests/clickhouse/ -s
@@ -319,15 +334,32 @@ lint-install: ## Установить линтеры
 	pip install flake8 black mypy pylint
 	@echo "$(GREEN)✅ Линтеры установлены$(NC)"
 
-format: ## Отформатировать код с помощью black
+format: ## Отформатировать код (black + удаление trailing whitespace)
 	@echo "$(BLUE)🎨 Форматирование кода...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)1️⃣  Удаление trailing whitespace...$(NC)"
+	@find app/ tests/ -name "*.py" -type f -exec sed -i 's/[[:space:]]*$$//' {} + 2>/dev/null || \
+		find app/ tests/ -name "*.py" -type f -exec sed -i '' 's/[[:space:]]*$$//' {} + 2>/dev/null || \
+		echo "$(YELLOW)⚠️  sed недоступен, пропускаем удаление trailing whitespace$(NC)"
+	@echo "$(GREEN)   ✅ Trailing whitespace удалён$(NC)"
+	@echo ""
+	@echo "$(YELLOW)2️⃣  Форматирование с black...$(NC)"
 	@if command -v black > /dev/null 2>&1; then \
 		black app/ tests/; \
-		echo "$(GREEN)✅ Код отформатирован$(NC)"; \
+		echo "$(GREEN)   ✅ Код отформатирован с black$(NC)"; \
 	else \
-		echo "$(RED)❌ black не установлен$(NC)"; \
-		echo "$(YELLOW)Установите: make lint-install$(NC)"; \
+		echo "$(RED)   ❌ black не установлен$(NC)"; \
+		echo "$(YELLOW)   Установите: make lint-install$(NC)"; \
 	fi
+	@echo ""
+	@echo "$(GREEN)✅ Форматирование завершено!$(NC)"
+
+format-trailing: ## Удалить только trailing whitespace (без black)
+	@echo "$(BLUE)🧹 Удаление trailing whitespace...$(NC)"
+	@find app/ tests/ -name "*.py" -type f -exec sed -i 's/[[:space:]]*$$//' {} + 2>/dev/null || \
+		find app/ tests/ -name "*.py" -type f -exec sed -i '' 's/[[:space:]]*$$//' {} + 2>/dev/null || \
+		(echo "$(RED)❌ sed недоступен$(NC)" && exit 1)
+	@echo "$(GREEN)✅ Trailing whitespace удалён из всех Python файлов!$(NC)"
 
 # ═══════════════════════════════════════════════
 # 📖 Документация и информация

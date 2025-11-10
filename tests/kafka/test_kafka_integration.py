@@ -2,6 +2,7 @@
 Интеграционные тесты для Kafka
 Требуют запущенный Kafka для выполнения
 """
+
 import time
 
 import pytest

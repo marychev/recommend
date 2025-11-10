@@ -1,6 +1,7 @@
 """
 Тесты для Kafka consumer (app/kafka/consumer.py)
 """
+
 import asyncio
 
 import pytest

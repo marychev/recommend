@@ -105,9 +105,9 @@ class TestInteractionsOperations:
         # Группировка по пользователям
         result = await clickhouse_client.execute_raw(
             """
-            SELECT user_id, count() as interaction_count 
-            FROM user_track_interactions 
-            GROUP BY user_id 
+            SELECT user_id, count() as interaction_count
+            FROM user_track_interactions
+            GROUP BY user_id
             ORDER BY user_id
         """
         )
