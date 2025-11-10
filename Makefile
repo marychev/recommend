@@ -35,7 +35,7 @@ up: ## Запустить все сервисы (включая API)
 	@echo ""
 	@echo "$(BLUE)🌐 API доступен на: http://localhost:8000$(NC)"
 	@echo "$(BLUE)📚 Swagger документация: http://localhost:8000/docs$(NC)"
-	@echo "$(BLUE)📖 ReDoc документация: http://localhost:8000/redoc$(NC)"
+	@echo "$(BLUE)📖 UI Kafka: http://localhost:8081$(NC)"
 	@echo "$(BLUE)📖 ClickHouse: http://localhost:8123$(NC)"
 	@echo ""
 	@echo "$(YELLOW)💡 Проверьте статус: make ps$(NC)"
@@ -161,19 +161,34 @@ load-test-data-generate: ## Сгенерировать 1M записей для 
 	@echo "$(GREEN)✅ Данные сгенерированы!$(NC)"
 	@echo "$(BLUE)💡 Проверьте статистику: make db-stats$(NC)"
 
+load-test-diagnostics: ## Диагностика производительности (1 минута, 10 VUs)
+	@echo "$(BLUE)🔍 Диагностика производительности API...$(NC)"
+	@echo "$(YELLOW)Длительность: 1 минута | Без thresholds - только метрики$(NC)"
+	k6 run load_tests/k6_diagnostics_test.js
+
 load-test-quick: ## Быстрая проверка API (30 секунд)
 	@echo "$(BLUE)⚡ Быстрая проверка API...$(NC)"
 	k6 run load_tests/quick_test.js
+
+load-test-smoke: ## Smoke test - проверка работоспособности API (~2 минуты)
+	@echo "$(BLUE)🔥 Запуск smoke теста...$(NC)"
+	@echo "$(YELLOW)Длительность: ~2 минуты$(NC)"
+	k6 run load_tests/k6_smoke_test.js
 
 load-test-basic: ## Базовый нагрузочный тест (~15 минут)
 	@echo "$(BLUE)📊 Запуск базового нагрузочного теста...$(NC)"
 	@echo "$(YELLOW)Длительность: ~15 минут$(NC)"
 	k6 run load_tests/k6_basic_load_test.js
 
-load-test-spike: ## Тест пиковой нагрузки (~3 минуты)
-	@echo "$(BLUE)⚡ Запуск теста пиковой нагрузки...$(NC)"
-	@echo "$(YELLOW)Длительность: ~3 минуты$(NC)"
+load-test-spike: ## Тест пиковой нагрузки 200 VUs (~2 минуты)
+	@echo "$(BLUE)⚡ Запуск теста пиковой нагрузки (200 VUs)...$(NC)"
+	@echo "$(YELLOW)Длительность: ~2 минуты$(NC)"
 	k6 run load_tests/k6_spike_test.js
+
+load-test-spike-extreme: ## Экстремальный spike test 500 VUs (без thresholds)
+	@echo "$(BLUE)💥 Запуск ЭКСТРЕМАЛЬНОГО spike теста (500 VUs)...$(NC)"
+	@echo "$(YELLOW)Длительность: ~1 минута | БЕЗ строгих критериев прохождения$(NC)"
+	k6 run load_tests/k6_spike_test_extreme.js
 
 load-test-stress: ## Стресс-тест (~30 минут)
 	@echo "$(BLUE)💪 Запуск стресс-теста...$(NC)"
@@ -184,10 +199,6 @@ load-test-soak: ## Тест на выносливость (~70 минут)
 	@echo "$(BLUE)🕐 Запуск теста на выносливость...$(NC)"
 	@echo "$(YELLOW)Длительность: ~70 минут$(NC)"
 	k6 run load_tests/k6_soak_test.js
-
-load-test-all: ## Запустить все нагрузочные тесты последовательно
-	@echo "$(BLUE)🚀 Запуск всех нагрузочных тестов...$(NC)"
-	@bash load_tests/run_all_tests.sh
 
 load-test-results: ## Показать результаты последних тестов
 	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"

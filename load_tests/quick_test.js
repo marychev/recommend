@@ -8,6 +8,14 @@
 
 import http from 'k6/http';
 import { check, group } from 'k6';
+import { 
+  BASE_URL,
+  getBasicStats,
+  printHeader,
+  printBasicStats,
+  evaluateResults,
+  formatPercent 
+} from './k6-helpers.js';
 
 export const options = {
   vus: 5,
@@ -17,8 +25,6 @@ export const options = {
     'http_req_failed': ['rate<0.1'],
   },
 };
-
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
 
 export default function () {
   group('API Health Check', () => {
@@ -53,23 +59,29 @@ export default function () {
 }
 
 export function handleSummary(data) {
-  console.log('\n╔════════════════════════════════════════════════╗');
-  console.log('║      ✅ БЫСТРАЯ ПРОВЕРКА API ЗАВЕРШЕНА        ║');
-  console.log('╚════════════════════════════════════════════════╝\n');
+  printHeader('✅ БЫСТРАЯ ПРОВЕРКА API ЗАВЕРШЕНА');
   
-  const failRate = (data.metrics.http_req_failed?.values?.rate || 0) * 100;
-  const avgDuration = data.metrics.http_req_duration?.values?.avg || 0;
+  const stats = getBasicStats(data);
   
   console.log(`📊 Результаты:`);
-  console.log(`   • Всего запросов: ${data.metrics.http_reqs?.values?.count}`);
-  console.log(`   • Среднее время ответа: ${avgDuration.toFixed(2)}ms`);
-  console.log(`   • Процент ошибок: ${failRate.toFixed(2)}%`);
+  console.log(`   • Всего запросов:        ${stats.totalReqs}`);
+  console.log(`   • Среднее время ответа:  ${stats.avgDuration.toFixed(0)}ms`);
+  console.log(`   • 95 перцентиль:         ${stats.p95Duration.toFixed(0)}ms`);
+  console.log(`   • Процент ошибок:        ${formatPercent(stats.failRate)}`);
+  console.log('');
   
-  if (failRate < 10 && avgDuration < 3000) {
-    console.log(`\n✅ API готов к нагрузочному тестированию!\n`);
+  // Оценка готовности
+  if (stats.failRate < 0.1 && stats.p95Duration < 3000) {
+    console.log(`✅ API готов к нагрузочному тестированию!`);
   } else {
-    console.log(`\n⚠️  Обнаружены проблемы. Проверьте API перед полноценным тестированием.\n`);
+    console.log(`⚠️  Обнаружены проблемы. Проверьте API перед полноценным тестированием.`);
+    console.log('');
+    console.log(`💡 Запустите диагностику: make load-test-diagnostics`);
   }
+  
+  console.log('');
+  console.log('═'.repeat(63));
+  console.log('');
   
   return {};
 }

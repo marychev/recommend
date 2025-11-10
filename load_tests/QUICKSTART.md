@@ -2,7 +2,7 @@
 
 Краткое руководство для быстрого начала работы с нагрузочным тестированием.
 
-## 🚀 Шаг 1: Установка k6
+## 🚀 Установка k6
 
 ### macOS
 ```bash
@@ -21,18 +21,7 @@ sudo apt-get update
 sudo apt-get install k6
 ```
 
-### Windows
-```powershell
-choco install k6
-```
-
-## 📦 Шаг 2: Установка зависимостей Python
-
-```bash
-pip install -r requirements.txt
-```
-
-## 🐳 Шаг 3: Запуск сервисов
+## 🐳 Запуск сервисов
 
 ```bash
 # Запустить все сервисы (ClickHouse, Redis, Kafka, API)
@@ -42,7 +31,7 @@ make up
 make db-init
 ```
 
-## 🌱 Шаг 4: Генерация тестовых данных
+## 🌱 Генерация тестовых данных
 
 ```bash
 # Генерация 1,000,000 записей (~5-10 минут)
@@ -153,59 +142,6 @@ export const options = {
 };
 ```
 
-## 🆘 Устранение неполадок
-
-**📖 Полное руководство:** [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
-### Быстрые решения
-
-| Проблема | Команда |
-|----------|---------|
-| ClickHouse не подключен | `make up && sleep 10` |
-| Таблицы не созданы | `make db-init` |
-| k6 не найден | `brew install k6` |
-| API недоступен | `make restart` |
-| Мало данных | `make load-test-data-generate` |
-
-### Если что-то пошло не так
-
-```bash
-# Полная диагностика
-make diagnose
-
-# Перезапуск с нуля
-make down
-make up
-make db-init
-make load-test-data-generate
-
-# Проверка логов
-make logs-errors
-```
-
-### Типичные ошибки и решения
-
-**"ClickHouse client not connected"**
-```bash
-make up          # Запустите сервисы
-sleep 10         # Подождите инициализации
-make db-init     # Создайте таблицы
-```
-
-**"k6 command not found"**
-```bash
-# macOS
-brew install k6
-
-# Linux
-# См. инструкции в Шаг 1
-```
-
-**"Connection refused"**
-```bash
-make ps          # Проверьте статус
-make restart     # Перезапустите сервисы
-```
 
 ## 📈 Мониторинг
 
@@ -231,43 +167,3 @@ make load-test-results
 # Или просмотрите напрямую
 cat load_tests/results/*.json | jq
 ```
-
-## 💡 Полезные команды
-
-```bash
-# Проверить все Makefile команды
-make help
-
-# Диагностика системы
-make diagnose
-
-# Проверить health API
-make health
-
-# Посмотреть статистику БД
-make db-stats
-
-# Посмотреть ошибки
-make logs-errors
-```
-
-## 📚 Дополнительная документация
-
-- Полная документация: [load_tests/README.md](README.md)
-- Документация k6: https://k6.io/docs/
-- Примеры k6: https://github.com/grafana/k6/tree/master/examples
-
----
-
-**Готово! Теперь вы можете запускать нагрузочные тесты! 🚀**
-
-Начните с быстрой проверки:
-```bash
-make load-test-quick
-```
-
-Затем запустите базовый тест:
-```bash
-make load-test-basic
-```
-
