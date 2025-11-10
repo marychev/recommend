@@ -1,4 +1,13 @@
-.PHONY: help up down logs logs-api logs-clickhouse logs-kafka status clean test test-clickhouse test-kafka health check-services build rebuild ps shell db-init db-reset lint lint-install format
+.PHONY: help up down build rebuild ps shell \
+	logs logs-api logs-clickhouse logs-kafka logs-errors logs-redis \
+	load-test-install load-test-data-generate load-test-diagnostics \
+	load-test-spike-extreme load-test-results \
+	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
+	status check-services health diagnose \
+	clean clean-all \ 
+	test test-clickhouse test-kafka   \
+	db-init db-reset db-shell db-tables db-stats \
+	lint lint-install format
 
 # Цвета для вывода
 BLUE := \033[0;34m
