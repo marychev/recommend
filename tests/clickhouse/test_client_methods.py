@@ -1,5 +1,7 @@
 import pytest
+from datetime import datetime
 from app.db.clickhouse import ClickHouseClient
+from app.models.schemas import User
 
 
 class TestClickHouseClientMethods:
@@ -17,10 +19,8 @@ class TestClickHouseClientMethods:
         self, clickhouse_client, create_test_schema, clean_tables
     ):
         """Тест метода insert"""
-        data = [[1, "test_user", "test@test.com", 25, "Russia"]]
-        columns = ["user_id", "username", "email", "age", "country"]
-
-        await clickhouse_client.insert("users", data, column_names=columns)
+        data = [[1, "test_user", "test@test.com", 25, "Russia", datetime.now()]]
+        await clickhouse_client.insert("users", data, column_names=User.column_names())
 
         # Проверяем вставку
         result = await clickhouse_client.execute_raw(

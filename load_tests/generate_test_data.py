@@ -1,20 +1,21 @@
 """
 Скрипт для генерации тестовых данных с использованием Faker
-Генерирует 1,000,000 записей в ClickHouse для нагрузочного тестирования
+Генерирует N записей в ClickHouse для нагрузочного тестирования
 """
 
 import asyncio
 import sys
-from pathlib import Path
-from datetime import datetime, timedelta
 import random
+from pathlib import Path
+
 from faker import Faker
+from datetime import datetime
+from app.db.clickhouse import get_clickhouse_client
+from app.models.schemas import User, Track, UserTrackInteraction
 
 # Добавляем корневую директорию в PATH
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.db.clickhouse import get_clickhouse_client
-from app.config import settings
 
 fake = Faker(['ru_RU', 'en_US'])
 Faker.seed(42)
@@ -23,7 +24,10 @@ random.seed(42)
 
 class DataGenerator:
     """Генератор тестовых данных"""
-    
+    USERS_COUNT: int = 1_000_000,
+    TRACKS_COUNT: int = 500_000,
+    INTERACTIONS_COUNT: int = 8_500_000
+
     def __init__(self):
         self.clickhouse = None
         self.user_ids = []
@@ -43,7 +47,7 @@ class DataGenerator:
             print(f"   make db-init")
             raise
         
-    async def generate_users(self, count: int = 100000):
+    async def generate_users(self, count: int = USERS_COUNT):
         """
         Генерация пользователей
         
@@ -66,22 +70,22 @@ class DataGenerator:
                     user_id,
                     fake.user_name()[:50],
                     fake.email()[:100],
-                    random.randint(13, 70),
-                    fake.country()[:50],
-                    fake.date_time_between(start_date='-2y', end_date='now')
+                    random.randint(13, 70),     # age
+                    fake.country()[:50],         # country
+                    fake.date_time_between(start_date='-2y', end_date='now')  # created_at
                 ])
             
             await self.clickhouse.insert(
                 "users",
                 users_batch,
-                column_names=["user_id", "username", "email", "age", "country", "created_at"]
+                column_names=User.column_names(),
             )
             
             print(f"  ✓ Batch {batch + 1}/{batches}: {(batch + 1) * batch_size:,} пользователей")
         
         print(f"✓ Создано {count:,} пользователей")
         
-    async def generate_tracks(self, count: int = 50000):
+    async def generate_tracks(self, count: int = TRACKS_COUNT):
         """
         Генерация треков
         
@@ -112,8 +116,8 @@ class DataGenerator:
                     track_id,
                     fake.catch_phrase()[:100],  # title
                     random.choice(artists)[:100],  # artist
-                    fake.bs()[:100],  # album
-                    random.choice(genres),
+                    fake.bs()[:100],            # album
+                    random.choice(genres),  # genre
                     random.randint(120, 600),  # duration 2-10 min
                     random.randint(1960, 2024),  # release_year
                     fake.date_time_between(start_date='-2y', end_date='now')
@@ -122,17 +126,14 @@ class DataGenerator:
             await self.clickhouse.insert(
                 "tracks",
                 tracks_batch,
-                column_names=[
-                    "track_id", "title", "artist", "album", "genre",
-                    "duration_seconds", "release_year", "created_at"
-                ]
+                column_names=Track.column_names(),
             )
             
             print(f"  ✓ Batch {batch + 1}/{batches}: {(batch + 1) * batch_size:,} треков")
         
         print(f"✓ Создано {count:,} треков")
         
-    async def generate_interactions(self, count: int = 850000):
+    async def generate_interactions(self, count: int = INTERACTIONS_COUNT):
         """
         Генерация взаимодействий пользователей с треками
         
@@ -177,10 +178,7 @@ class DataGenerator:
             await self.clickhouse.insert(
                 "user_track_interactions",
                 interactions_batch,
-                column_names=[
-                    "user_id", "track_id", "action_type",
-                    "listen_duration_seconds", "timestamp"
-                ]
+                column_names=UserTrackInteraction.column_names()
             )
             
             print(f"  ✓ Batch {batch + 1}/{batches}: {(batch + 1) * batch_size:,} взаимодействий")
@@ -210,9 +208,9 @@ class DataGenerator:
         
     async def generate_all(
         self,
-        users_count: int = 100000,
-        tracks_count: int = 50000,
-        interactions_count: int = 850000
+        users_count: int = USERS_COUNT,
+        tracks_count: int = TRACKS_COUNT,
+        interactions_count: int = INTERACTIONS_COUNT
     ):
         """
         Генерация всех данных
@@ -269,16 +267,11 @@ class DataGenerator:
 
 async def main():
     """Главная функция"""
-    generator = DataGenerator()
-    
-    # Генерируем 1,000,000 записей:
-    # - 100,000 пользователей
-    # - 50,000 треков
-    # - 850,000 взаимодействий
+    generator = DataGenerator()    
     await generator.generate_all(
-        users_count=100000,
-        tracks_count=50000,
-        interactions_count=850000
+        users_count=DataGenerator.USERS_COUNT,
+        tracks_count=DataGenerator.TRACKS_COUNT,
+        interactions_count=DataGenerator.INTERACTIONS_COUNT
     )
 
 

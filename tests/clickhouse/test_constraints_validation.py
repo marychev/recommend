@@ -1,10 +1,6 @@
 import pytest
 from datetime import datetime
-from tests.clickhouse.test_complex_queries import (
-    USER_COLUMN_NAMES,
-    TRACK_COLUMN_NAMES,
-    INTERACTION_COLUMN_NAMES,
-)
+from app.models.schemas import User, Track, UserTrackInteraction
 
 
 class TestConstraintsAndValidation:
@@ -24,12 +20,12 @@ class TestConstraintsAndValidation:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
 
         # Тест валидных значений ENUM
@@ -48,7 +44,7 @@ class TestConstraintsAndValidation:
             await clickhouse_client.insert(
                 "user_track_interactions",
                 valid_interaction,
-                column_names=INTERACTION_COLUMN_NAMES,
+                column_names=UserTrackInteraction.column_names(),
             )
 
         # Проверяем что все валидные значения вставились

@@ -355,9 +355,9 @@ urls: ## Показать URLs
 	@echo "   Swagger:    http://localhost:8000/docs"
 	@echo "   ReDoc:      http://localhost:8000/redoc"
 	@echo "   ClickHouse: http://localhost:8123"
-	@echo "   Redis:      localhost:6379"
 	@echo "   UI Kafka:   http://localhost:8081"
 	@echo "   Kafka:      localhost:9092"
+	@echo "   Redis:      localhost:6379"
 	@echo ""
 
 info: ## Показать информацию о проекте

@@ -1,4 +1,4 @@
-from tests.clickhouse.test_complex_queries import TRACK_COLUMN_NAMES
+from app.models.schemas import Track
 
 
 class TestTracksOperations:
@@ -13,7 +13,7 @@ class TestTracksOperations:
     ):
         """Тест вставки треков"""
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
+            "tracks", sample_tracks, column_names=Track.column_names()
         )
 
         result = await clickhouse_client.execute_raw(
@@ -30,7 +30,7 @@ class TestTracksOperations:
     ):
         """Тест выборки треков по жанру"""
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
+            "tracks", sample_tracks, column_names=Track.column_names()
         )
 
         result = await clickhouse_client.execute_raw(
@@ -50,7 +50,7 @@ class TestTracksOperations:
     ):
         """Тест выборки треков по исполнителю"""
         await clickhouse_client.insert(
-            "tracks", sample_tracks, column_names=TRACK_COLUMN_NAMES
+            "tracks", sample_tracks, column_names=Track.column_names()
         )
 
         result = await clickhouse_client.execute_raw(

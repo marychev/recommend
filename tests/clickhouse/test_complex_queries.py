@@ -2,23 +2,7 @@
 Тесты операций с данными в ClickHouse
 """
 
-USER_COLUMN_NAMES = ["user_id", "username", "email", "age", "country"]
-TRACK_COLUMN_NAMES = [
-    "track_id",
-    "title",
-    "artist",
-    "album",
-    "genre",
-    "duration_seconds",
-    "release_year",
-]
-INTERACTION_COLUMN_NAMES = [
-    "user_id",
-    "track_id",
-    "action_type",
-    "listen_duration_seconds",
-    "timestamp",
-]
+from app.models.schemas import User, Track, UserTrackInteraction
 
 
 class TestComplexQueries:
@@ -38,17 +22,17 @@ class TestComplexQueries:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         # JOIN запрос
@@ -81,17 +65,17 @@ class TestComplexQueries:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         # JOIN запрос
@@ -129,17 +113,17 @@ class TestComplexQueries:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         # Запрос с оконной функцией

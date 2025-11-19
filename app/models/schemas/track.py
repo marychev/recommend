@@ -35,3 +35,17 @@ class Track(TrackBase):
     created_at: datetime = Field(..., description="Дата создания записи")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @staticmethod
+    def column_names() -> list[str]:
+        return [
+            "track_id",
+            "title",
+            "artist",
+            "album",
+            "genre",
+            "duration_seconds",
+            "release_year",
+            "created_at",
+            # "model_config"
+        ]

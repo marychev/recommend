@@ -4,6 +4,7 @@
 
 import pytest
 import pytest_asyncio
+from datetime import datetime
 from aiohttp import ClientSession
 from aiochclient import ChClient
 from app.db.clickhouse import ClickHouseClient
@@ -184,15 +185,18 @@ async def create_test_schema(clickhouse_client):
     yield
 
 
+NOW = datetime.now()
+
+
 @pytest.fixture
 def sample_users():
     """
     Возвращает тестовые данные пользователей
     """
     return [
-        [1, "user1", "user1@test.com", 25, "Russia"],
-        [2, "user2", "user2@test.com", 30, "USA"],
-        [3, "user3", "user3@test.com", 22, "Germany"],
+        [1, "user1", "user1@test.com", 25, "Russia", NOW],
+        [2, "user2", "user2@test.com", 30, "USA", NOW],
+        [3, "user3", "user3@test.com", 22, "Germany", NOW],
     ]
 
 
@@ -202,9 +206,9 @@ def sample_tracks():
     Возвращает тестовые данные треков
     """
     return [
-        [1, "Track 1", "Artist 1", "Album 1", "Rock", 180, 2020],
-        [2, "Track 2", "Artist 2", "Album 2", "Pop", 200, 2021],
-        [3, "Track 3", "Artist 1", "Album 3", "Rock", 220, 2022],
+        [1, "Track 1", "Artist 1", "Album 1", "Rock", 180, 2020, NOW],
+        [2, "Track 2", "Artist 2", "Album 2", "Pop", 200, 2021, NOW],
+        [3, "Track 3", "Artist 1", "Album 3", "Rock", 220, 2022, NOW],
     ]
 
 
@@ -213,14 +217,11 @@ def sample_interactions():
     """
     Возвращает тестовые данные взаимодействий
     """
-    from datetime import datetime
-
-    now = datetime.now()
 
     return [
-        [1, 1, "play", 180, now],
-        [1, 2, "like", None, now],
-        [2, 1, "play", 90, now],
-        [2, 3, "skip", 30, now],
-        [3, 2, "play", 200, now],
+        [1, 1, "play", 180, NOW],
+        [1, 2, "like", None, NOW],
+        [2, 1, "play", 90, NOW],
+        [2, 3, "skip", 30, NOW],
+        [3, 2, "play", 200, NOW],
     ]

@@ -1,22 +1,27 @@
-from tests.clickhouse.test_complex_queries import USER_COLUMN_NAMES
+import time
+from datetime import datetime
+from typing import Any, List
+from app.models.schemas import User
+
+
+NOW = datetime.now()
 
 
 class TestPerformance:
     """Тесты производительности"""
 
+    def generate_row(self, i: int, age: int = 25, country: str = "Russia") -> List[Any]:
+        return [i, f"user{i}", f"user{i}@test.com", age, country, NOW]
+
     async def test_bulk_insert_performance(
         self, clickhouse_client, create_test_schema, clean_tables
     ):
         """Тест производительности массовой вставки"""
-        import time
 
         # Генерируем большое количество данных
-        data = [
-            [i, f"user{i}", f"user{i}@test.com", 25, "Russia"]
-            for i in range(1000)
-        ]
+        data = [self.generate_row(i) for i in range(1000)]
         await clickhouse_client.insert(
-            "users", data, column_names=USER_COLUMN_NAMES
+            "users", data, column_names=User.column_names()
         )
         start_time = time.time()
         end_time = time.time()
@@ -27,15 +32,11 @@ class TestPerformance:
         self, clickhouse_client, create_test_schema, clean_tables
     ):
         """Тест производительности запросов"""
-        import time
 
         # Вставляем данные
-        data = [
-            [i, f"user{i}", f"user{i}@test.com", 25, "Russia"]
-            for i in range(1000)
-        ]
+        data = [self.generate_row(i) for i in range(1000)]
         await clickhouse_client.insert(
-            "users", data, column_names=USER_COLUMN_NAMES
+            "users", data, column_names=User.column_names()
         )
 
         # Тестируем скорость запроса

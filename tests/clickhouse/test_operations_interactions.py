@@ -1,8 +1,4 @@
-from tests.clickhouse.test_complex_queries import (
-    USER_COLUMN_NAMES,
-    TRACK_COLUMN_NAMES,
-    INTERACTION_COLUMN_NAMES,
-)
+from app.models.schemas import User, Track, UserTrackInteraction
 
 
 class TestInteractionsOperations:
@@ -22,19 +18,19 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
 
         # Вставляем взаимодействия
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         result = await clickhouse_client.execute_raw(
@@ -56,17 +52,17 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         # Проверка
@@ -89,17 +85,17 @@ class TestInteractionsOperations:
         await clickhouse_client.insert(
             "users",
             sample_users,
-            column_names=USER_COLUMN_NAMES,
+            column_names=User.column_names(),
         )
         await clickhouse_client.insert(
             "tracks",
             sample_tracks,
-            column_names=TRACK_COLUMN_NAMES,
+            column_names=Track.column_names(),
         )
         await clickhouse_client.insert(
             "user_track_interactions",
             sample_interactions,
-            column_names=INTERACTION_COLUMN_NAMES,
+            column_names=UserTrackInteraction.column_names(),
         )
 
         # Группировка по пользователям

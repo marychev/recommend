@@ -159,13 +159,7 @@ class ClickHouseClient:
                     timestamp,
                 ]
             ],
-            column_names=[
-                "user_id",
-                "track_id",
-                "action_type",
-                "listen_duration_seconds",
-                "timestamp",
-            ],
+            column_names=UserTrackInteraction.column_names(),
         )
 
     async def save_track(self, track: Track) -> int:
@@ -192,16 +186,7 @@ class ClickHouseClient:
                     datetime.now(),
                 ]
             ],
-            column_names=[
-                "track_id",
-                "title",
-                "artist",
-                "album",
-                "genre",
-                "duration_seconds",
-                "release_year",
-                "created_at",
-            ],
+            column_names=Track.column_names(),
         )
         return new_id
 
@@ -226,14 +211,7 @@ class ClickHouseClient:
                     datetime.now(),
                 ]
             ],
-            column_names=[
-                "user_id",
-                "username",
-                "email",
-                "age",
-                "country",
-                "created_at",
-            ],
+            column_names=User.column_names(),
         )
 
         return new_id

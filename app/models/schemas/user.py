@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -35,3 +35,15 @@ class User(UserBase):
     created_at: datetime = Field(..., description="Дата регистрации")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @staticmethod
+    def column_names() -> list[str]:
+        return [
+            "user_id",
+            "username",
+            "email",
+            "age",
+            "country",
+            "created_at",
+            # "model_config"
+    ]

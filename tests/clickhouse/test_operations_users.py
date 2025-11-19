@@ -1,5 +1,6 @@
 import pytest
-from tests.clickhouse.test_complex_queries import USER_COLUMN_NAMES
+from app.models.schemas import User
+from datetime import datetime
 
 
 class TestUsersOperations:
@@ -9,9 +10,9 @@ class TestUsersOperations:
         self, clickhouse_client, create_test_schema, clean_tables
     ):
         """Тест вставки одного пользователя"""
-        data = [[1, "john_doe", "john@test.com", 25, "Russia"]]
+        data = [[1, "john_doe", "john@test.com", 25, "Russia", datetime.now()]]
         await clickhouse_client.insert(
-            "users", data, column_names=USER_COLUMN_NAMES
+            "users", data, column_names=User.column_names()
         )
 
         result = await clickhouse_client.execute_raw(
@@ -28,7 +29,7 @@ class TestUsersOperations:
     ):
         """Тест вставки нескольких пользователей"""
         await clickhouse_client.insert(
-            "users", sample_users, column_names=USER_COLUMN_NAMES
+            "users", sample_users, column_names=User.column_names()
         )
 
         result = await clickhouse_client.execute_raw(
@@ -41,7 +42,7 @@ class TestUsersOperations:
     ):
         """Тест выборки пользователей с фильтром"""
         await clickhouse_client.insert(
-            "users", sample_users, column_names=USER_COLUMN_NAMES
+            "users", sample_users, column_names=User.column_names()
         )
 
         result = await clickhouse_client.execute_raw(
@@ -57,7 +58,7 @@ class TestUsersOperations:
     ):
         """Тест агрегирующего запроса"""
         await clickhouse_client.insert(
-            "users", sample_users, column_names=USER_COLUMN_NAMES
+            "users", sample_users, column_names=User.column_names()
         )
 
         result = await clickhouse_client.execute_raw(

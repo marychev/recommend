@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.db.clickhouse import get_clickhouse_client
 from app.config import settings
+from app.models.schemas import User, Track, UserTrackInteraction
 
 
 def generate_users(count=100):
@@ -39,7 +40,7 @@ def generate_users(count=100):
     clickhouse.insert(
         "users",
         users_data,
-        column_names=["user_id", "username", "email", "age", "country", "created_at"]
+        column_names=User.column_names()
     )
     
     print(f"✅ Создано {count} пользователей")
@@ -85,8 +86,7 @@ def generate_tracks(count=500):
     clickhouse.insert(
         "tracks",
         tracks_data,
-        column_names=["track_id", "title", "artist", "album", "genre", 
-                     "duration_seconds", "release_year", "created_at"]
+        column_names=Track.column_names(),
     )
     
     print(f"✅ Создано {count} треков")
@@ -100,9 +100,7 @@ def generate_interactions(count=10000, user_count=100, track_count=500):
     
     actions = ["play", "like", "dislike", "skip", "add_to_playlist", "share"]
     action_weights = [70, 15, 3, 8, 3, 1]  # Веса для более реалистичного распределения
-    
-    interactions_data = []
-    
+        
     # Создаем взаимодействия пакетами
     batch_size = 1000
     for batch in range(count // batch_size):
@@ -128,8 +126,7 @@ def generate_interactions(count=10000, user_count=100, track_count=500):
         clickhouse.insert(
             "user_track_interactions",
             batch_data,
-            column_names=["user_id", "track_id", "action_type", 
-                         "listen_duration_seconds", "timestamp"]
+            column_names=UserTrackInteraction.column_names()
         )
         
         print(f"  ✓ Обработано {(batch + 1) * batch_size} / {count}")

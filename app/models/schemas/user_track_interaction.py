@@ -36,3 +36,14 @@ class UserTrackInteraction(UserTrackInteractionBase):
     timestamp: datetime = Field(..., description="Время события")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @staticmethod
+    def column_names() -> list[str]:
+        return [
+            "user_id",
+            "track_id",
+            "action_type",
+            "listen_duration_seconds",
+            "timestamp",
+            # "model_config"
+        ]
