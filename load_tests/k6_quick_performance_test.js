@@ -203,8 +203,16 @@ export function handleSummary(data) {
  * Создает текстовый прогресс-бар
  */
 function getBar(percent, width = 40) {
-  const filled = Math.round((percent / 100) * width);
-  const empty = width - filled;
+  // Защита от некорректных значений
+  if (!isFinite(percent) || percent < 0) {
+    percent = 0;
+  }
+  if (percent > 100) {
+    percent = 100;
+  }
+  
+  const filled = Math.max(0, Math.min(width, Math.round((percent / 100) * width)));
+  const empty = Math.max(0, width - filled);
   return '█'.repeat(filled) + '░'.repeat(empty);
 }
 

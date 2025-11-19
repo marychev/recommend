@@ -9,6 +9,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Counter } from 'k6/metrics';
+import { BASE_URL, getRandomUserId } from './k6-helpers.js';
 
 const errorRate = new Rate('errors');
 const requests = new Counter('requests');
@@ -29,15 +30,6 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
-
-function getRandomUserId() {
-  return Math.floor(Math.random() * 100000) + 1;
-}
-
-function getRandomTrackId() {
-  return Math.floor(Math.random() * 50000) + 1;
-}
 
 export default function () {
   requests.add(1);
@@ -54,12 +46,11 @@ export default function () {
     // 25% - списки с большим лимитом
     const res = http.get(`${BASE_URL}/api/v1/users?limit=100&offset=${Math.floor(Math.random() * 10000)}`);
     check(res, {
-      'users list status ok': (r) => r.status === 200,
+      '100 users list status ok': (r) => r.status === 200,
     });
   } else {
     // 25% - статистика (тяжелые запросы)
-    const userId = getRandomUserId();
-    const res = http.get(`${BASE_URL}/api/v1/users/${userId}/statistics`);
+    const res = http.get(`${BASE_URL}/api/v1/users/${getRandomUserId()}/statistics`);
     check(res, {
       'statistics status ok': (r) => r.status === 200 || r.status === 404,
     });

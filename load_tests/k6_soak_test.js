@@ -9,6 +9,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
+import { BASE_URL, getRandomUserId } from './k6-helpers.js';
 
 const errorRate = new Rate('errors');
 const responseTime = new Trend('response_time');
@@ -27,15 +28,6 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
-
-function getRandomUserId() {
-  return Math.floor(Math.random() * 100000) + 1;
-}
-
-function getRandomTrackId() {
-  return Math.floor(Math.random() * 50000) + 1;
-}
 
 export default function () {
   // Реалистичный сценарий использования

@@ -9,6 +9,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
+import { BASE_URL, getRandomUserId, getRandomTrackId, urlTracksList10, urlUsersList10 } from './k6-helpers.js';
 
 const errorRate = new Rate('errors');
 
@@ -28,21 +29,11 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
-
-function getRandomUserId() {
-  return Math.floor(Math.random() * 100000) + 1;
-}
-
-function getRandomTrackId() {
-  return Math.floor(Math.random() * 50000) + 1;
-}
-
 export default function () {
   // Выбираем случайный эндпоинт
   const endpoints = [
-    () => http.get(`${BASE_URL}/api/v1/users?limit=20`),
-    () => http.get(`${BASE_URL}/api/v1/tracks?limit=20`),
+    () => http.get(urlUsersList10),
+    () => http.get(urlTracksList10),
     () => http.get(`${BASE_URL}/api/v1/recommendations/${getRandomUserId()}`),
     () => http.get(`${BASE_URL}/api/v1/users/${getRandomUserId()}`),
     () => http.get(`${BASE_URL}/api/v1/tracks/${getRandomTrackId()}`),

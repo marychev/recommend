@@ -12,6 +12,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
+import { BASE_URL, getRandomUserId, getRandomTrackId } from './k6-helpers.js';
 
 // Кастомные метрики
 const errorRate = new Rate('errors');
@@ -39,28 +40,6 @@ export const options = {
   },
 };
 
-// Базовый URL API
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
-
-// Диапазоны ID для тестирования
-const USER_ID_MIN = 1;
-const USER_ID_MAX = 100000;
-const TRACK_ID_MIN = 1;
-const TRACK_ID_MAX = 50000;
-
-/**
- * Получает случайный ID пользователя
- */
-function getRandomUserId() {
-  return Math.floor(Math.random() * (USER_ID_MAX - USER_ID_MIN + 1)) + USER_ID_MIN;
-}
-
-/**
- * Получает случайный ID трека
- */
-function getRandomTrackId() {
-  return Math.floor(Math.random() * (TRACK_ID_MAX - TRACK_ID_MIN + 1)) + TRACK_ID_MIN;
-}
 
 /**
  * Тестирование GET /api/v1/users

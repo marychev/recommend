@@ -9,6 +9,12 @@
 // ════════════════════════════════════════════════════════
 
 export const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
+export const urlUsersList10 = `${BASE_URL}/api/v1/users?limit=10`;
+export const urlTracksList10 = `${BASE_URL}/api/v1/tracks?limit=10`;
+
+// export const urlRandomRecommendation = `${BASE_URL}/api/v1/recommendations/${getRandomUserId()}`;
+// export const urlRandomUser = `${BASE_URL}/api/v1/users/${getRandomUserId()}`;
+// export const urlRandomTrack = `${BASE_URL}/api/v1/tracks/${getRandomTrackId()}`;
 
 // Диапазоны ID для тестовых данных
 export const USER_ID_MIN = 1;

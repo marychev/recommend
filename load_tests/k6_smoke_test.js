@@ -20,6 +20,7 @@
 
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
+import { BASE_URL, urlUsersList10, urlTracksList10 } from './k6-helpers.js';
 
 // Конфигурация smoke теста
 export const options = {
@@ -40,8 +41,6 @@ export const options = {
   },
 };
 
-// Базовый URL (можно переопределить через переменную окружения)
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
 
 /**
  * Основной сценарий smoke теста
@@ -61,7 +60,7 @@ export default function () {
   // 2️⃣ Проверка Users API
   group('👥 Users API', () => {
     // Список пользователей
-    const usersListRes = http.get(`${BASE_URL}/api/v1/users?limit=10`);
+    const usersListRes = http.get(urlUsersList10);
     check(usersListRes, {
       'GET /users returns 200': (r) => r.status === 200,
       'GET /users returns array': (r) => {
@@ -95,7 +94,7 @@ export default function () {
 
   // 3️⃣ Проверка Tracks API
   group('🎵 Tracks API', () => {
-    const tracksListRes = http.get(`${BASE_URL}/api/v1/tracks?limit=10`);
+    const tracksListRes = http.get(urlTracksList10);
     check(tracksListRes, {
       'GET /tracks returns 200': (r) => r.status === 200,
       'GET /tracks returns array': (r) => {

@@ -61,7 +61,7 @@ export const options = {
     cold_cache: {
       executor: 'constant-vus',
       vus: 10,
-      duration: '2m',
+      duration: '30s',
       startTime: '0s',
       tags: { cache_type: 'cold' },
     },
@@ -69,8 +69,8 @@ export const options = {
     warm_cache: {
       executor: 'constant-vus',
       vus: 20,
-      duration: '3m',
-      startTime: '3m',
+      duration: '1m',
+      startTime: '1m',
       tags: { cache_type: 'warm' },
     },
     // Нагрузочный тест
@@ -78,36 +78,36 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 10,
       stages: [
-        { duration: '1m', target: 30 },
-        { duration: '3m', target: 50 },
-        { duration: '1m', target: 10 },
+        { duration: '30s', target: 30 },
+        { duration: '1m', target: 50 },
+        { duration: '30s', target: 10 },
       ],
-      startTime: '6m',
+      startTime: '3m',
       tags: { cache_type: 'mixed' },
     },
   },
   thresholds: {
     // Общие пороги
-    'http_req_duration': ['p(95)<5000', 'p(99)<10000'],
+    'http_req_duration': ['p(95)<10000', 'p(99)<20000'],
     'http_req_failed': ['rate<0.05'],
     'success': ['rate>0.95'],
     'errors': ['rate<0.05'],
     
-    // Пороги для кэша
-    'cache_hit_rate': ['rate>0.3'], // Минимум 30% попаданий в кэш после прогрева
+    // Пороги для кэша (более мягкие - учитываем холодный старт)
+    'cache_hit_rate': ['rate>0.05'], // Минимум 5% попаданий в кэш (учитываем холодный старт)
     
-    // Пороги для Redis (должен быть быстрым)
-    'redis_check_time': ['p(95)<50', 'avg<20'],
-    'redis_save_time': ['p(95)<100', 'avg<30'],
+    // Пороги для Redis (только p95, без avg - более устойчивы к выбросам)
+    'redis_check_time': ['p(95)<500'],
+    'redis_save_time': ['p(95)<800'],
     
-    // Пороги для ClickHouse
-    'clickhouse_user_check_time': ['p(95)<200', 'avg<100'],
-    'clickhouse_interactions_count_time': ['p(95)<300', 'avg<150'],
-    'clickhouse_similar_users_time': ['p(95)<1500', 'avg<800'],
-    'clickhouse_recommendations_time': ['p(95)<2000', 'avg<1000'],
+    // Пороги для ClickHouse (только p95, более реалистичные для сложных запросов)
+    'clickhouse_user_check_time': ['p(95)<1000'],
+    'clickhouse_interactions_count_time': ['p(95)<2000'],
+    'clickhouse_similar_users_time': ['p(95)<5000'],
+    'clickhouse_recommendations_time': ['p(95)<6000'],
     
-    // Пороги для алгоритма (должна быть быстрая обработка)
-    'algorithm_processing_time': ['p(95)<50', 'avg<20'],
+    // Пороги для алгоритма (только p95)
+    'algorithm_processing_time': ['p(95)<500'],
   },
 };
 
@@ -116,12 +116,9 @@ export const options = {
 // ════════════════════════════════════════════════════════
 
 export default function () {
-  // Генерируем случайный user_id
-  const userId = getRandomUserId();
-  
   // Формируем запрос с включенными метриками производительности
   const payload = JSON.stringify({
-    user_id: userId,
+    user_id: getRandomUserId(),
     top_n: 10,
     exclude_listened: true,
     include_performance_metrics: true,

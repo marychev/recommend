@@ -10,6 +10,7 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
+import { BASE_URL, getRandomUserId, getRandomTrackId, urlUsersList10, urlTracksList10 } from './k6-helpers.js';
 
 // Метрики по эндпоинтам
 const usersListDuration = new Trend('users_list_duration');
@@ -28,30 +29,21 @@ export const options = {
   thresholds: {}, // БЕЗ thresholds - только диагностика
 };
 
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
-
-function getRandomUserId() {
-  return Math.floor(Math.random() * 100000) + 1;
-}
-
-function getRandomTrackId() {
-  return Math.floor(Math.random() * 50000) + 1;
-}
 
 export default function () {
   // Тест 1: Users List
   group('Users List', () => {
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/users?limit=10`);
+    const res = http.get(urlUsersList10);
     usersListDuration.add(Date.now() - start);
     
     const success = check(res, {
-      'users list status 200': (r) => r.status === 200,
+      '10 users list status 200': (r) => r.status === 200,
     });
     
     if (!success) {
       usersListErrors.add(1);
-      console.log(`❌ Users List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
+      console.log(`❌ 10 Users List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
     }
   });
 
@@ -60,16 +52,16 @@ export default function () {
   // Тест 2: Tracks List
   group('Tracks List', () => {
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/tracks?limit=10`);
+    const res = http.get(urlTracksList10);
     tracksListDuration.add(Date.now() - start);
     
     const success = check(res, {
-      'tracks list status 200': (r) => r.status === 200,
+      '10 tracks list status 200': (r) => r.status === 200,
     });
     
     if (!success) {
       tracksListErrors.add(1);
-      console.log(`❌ Tracks List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
+      console.log(`❌ 10 Tracks List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
     }
   });
 

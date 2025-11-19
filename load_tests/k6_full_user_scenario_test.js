@@ -22,12 +22,8 @@ import { check, sleep, group } from 'k6';
 import { Trend, Counter, Rate, Gauge } from 'k6/metrics';
 import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
 import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
+import { BASE_URL, getRandomUserId } from './k6-helpers.js';
 
-// ════════════════════════════════════════════════════════
-// Конфигурация
-// ════════════════════════════════════════════════════════
-
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
 
 // ════════════════════════════════════════════════════════
 // Кастомные метрики
@@ -178,10 +174,6 @@ export const options = {
 // Тестовые данные
 // ════════════════════════════════════════════════════════
 
-// Генерация случайных данных пользователя
-function getRandomUserId() {
-  return Math.floor(Math.random() * 1000) + 1;
-}
 
 function getRandomCredentials() {
   const userId = getRandomUserId();

@@ -11,8 +11,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Trend, Counter, Rate } from 'k6/metrics';
-
-const BASE_URL = __ENV.API_URL || 'http://localhost:8000';
+import { BASE_URL, getRandomUserId } from './k6-helpers.js';
 
 // Метрики
 const scenarioDuration = new Trend('scenario_duration', true);
@@ -37,10 +36,6 @@ export const options = {
     'http_req_duration': ['p(95)<3000'],
   },
 };
-
-function getRandomUserId() {
-  return Math.floor(Math.random() * 1000) + 1;
-}
 
 export default function () {
   const startTime = Date.now();
