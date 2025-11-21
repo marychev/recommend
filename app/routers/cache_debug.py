@@ -197,6 +197,53 @@ async def test_cache_operations():
         }
 
 
+@router.post("/set-ttl/{ttl_hours}")
+async def set_cache_ttl(ttl_hours: int):
+    """Временно изменить TTL кэша для тестирования"""
+    from app.config import settings
+    
+    if ttl_hours < 1 or ttl_hours > 24:
+        raise HTTPException(
+            status_code=400, 
+            detail="TTL должен быть от 1 до 24 часов"
+        )
+    
+    old_ttl = settings.recommendations_cache_ttl
+    new_ttl = ttl_hours * 3600  # конвертируем часы в секунды
+    
+    # Временно изменяем TTL
+    settings.recommendations_cache_ttl = new_ttl
+    
+    return {
+        "success": True,
+        "old_ttl_seconds": old_ttl,
+        "old_ttl_hours": old_ttl // 3600,
+        "new_ttl_seconds": new_ttl,
+        "new_ttl_hours": ttl_hours,
+        "message": f"TTL изменен с {old_ttl//3600}ч на {ttl_hours}ч",
+        "note": "Изменение временное, до перезапуска сервера",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/current-ttl")
+async def get_current_ttl():
+    """Получить текущий TTL кэша"""
+    from app.services.cache import get_cache_ttl
+    
+    ttl_seconds = get_cache_ttl()
+    ttl_hours = ttl_seconds // 3600
+    ttl_minutes = (ttl_seconds % 3600) // 60
+    
+    return {
+        "ttl_seconds": ttl_seconds,
+        "ttl_hours": ttl_hours,
+        "ttl_minutes": ttl_minutes,
+        "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
 @router.post("/simulate-hitrate")
 async def simulate_cache_hitrate():
     """Симуляция hit rate кэша"""
@@ -305,6 +352,53 @@ async def simulate_cache_hitrate():
             "error": str(e),
             "results": results
         }
+
+
+@router.post("/set-ttl/{ttl_hours}")
+async def set_cache_ttl(ttl_hours: int):
+    """Временно изменить TTL кэша для тестирования"""
+    from app.config import settings
+    
+    if ttl_hours < 1 or ttl_hours > 24:
+        raise HTTPException(
+            status_code=400, 
+            detail="TTL должен быть от 1 до 24 часов"
+        )
+    
+    old_ttl = settings.recommendations_cache_ttl
+    new_ttl = ttl_hours * 3600  # конвертируем часы в секунды
+    
+    # Временно изменяем TTL
+    settings.recommendations_cache_ttl = new_ttl
+    
+    return {
+        "success": True,
+        "old_ttl_seconds": old_ttl,
+        "old_ttl_hours": old_ttl // 3600,
+        "new_ttl_seconds": new_ttl,
+        "new_ttl_hours": ttl_hours,
+        "message": f"TTL изменен с {old_ttl//3600}ч на {ttl_hours}ч",
+        "note": "Изменение временное, до перезапуска сервера",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/current-ttl")
+async def get_current_ttl():
+    """Получить текущий TTL кэша"""
+    from app.services.cache import get_cache_ttl
+    
+    ttl_seconds = get_cache_ttl()
+    ttl_hours = ttl_seconds // 3600
+    ttl_minutes = (ttl_seconds % 3600) // 60
+    
+    return {
+        "ttl_seconds": ttl_seconds,
+        "ttl_hours": ttl_hours,
+        "ttl_minutes": ttl_minutes,
+        "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
 
 
 @router.delete("/clear/{user_id}")
@@ -505,6 +599,53 @@ async def test_real_scenario_v2():
         }
 
 
+@router.post("/set-ttl/{ttl_hours}")
+async def set_cache_ttl(ttl_hours: int):
+    """Временно изменить TTL кэша для тестирования"""
+    from app.config import settings
+    
+    if ttl_hours < 1 or ttl_hours > 24:
+        raise HTTPException(
+            status_code=400, 
+            detail="TTL должен быть от 1 до 24 часов"
+        )
+    
+    old_ttl = settings.recommendations_cache_ttl
+    new_ttl = ttl_hours * 3600  # конвертируем часы в секунды
+    
+    # Временно изменяем TTL
+    settings.recommendations_cache_ttl = new_ttl
+    
+    return {
+        "success": True,
+        "old_ttl_seconds": old_ttl,
+        "old_ttl_hours": old_ttl // 3600,
+        "new_ttl_seconds": new_ttl,
+        "new_ttl_hours": ttl_hours,
+        "message": f"TTL изменен с {old_ttl//3600}ч на {ttl_hours}ч",
+        "note": "Изменение временное, до перезапуска сервера",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/current-ttl")
+async def get_current_ttl():
+    """Получить текущий TTL кэша"""
+    from app.services.cache import get_cache_ttl
+    
+    ttl_seconds = get_cache_ttl()
+    ttl_hours = ttl_seconds // 3600
+    ttl_minutes = (ttl_seconds % 3600) // 60
+    
+    return {
+        "ttl_seconds": ttl_seconds,
+        "ttl_hours": ttl_hours,
+        "ttl_minutes": ttl_minutes,
+        "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
 @router.post("/test-real-scenario")
 async def test_real_scenario():
     """Тест реального сценария: рекомендации + события + повторные рекомендации"""
@@ -675,3 +816,50 @@ async def test_real_scenario():
             "error": str(e),
             "results": results
         }
+
+
+@router.post("/set-ttl/{ttl_hours}")
+async def set_cache_ttl(ttl_hours: int):
+    """Временно изменить TTL кэша для тестирования"""
+    from app.config import settings
+    
+    if ttl_hours < 1 or ttl_hours > 24:
+        raise HTTPException(
+            status_code=400, 
+            detail="TTL должен быть от 1 до 24 часов"
+        )
+    
+    old_ttl = settings.recommendations_cache_ttl
+    new_ttl = ttl_hours * 3600  # конвертируем часы в секунды
+    
+    # Временно изменяем TTL
+    settings.recommendations_cache_ttl = new_ttl
+    
+    return {
+        "success": True,
+        "old_ttl_seconds": old_ttl,
+        "old_ttl_hours": old_ttl // 3600,
+        "new_ttl_seconds": new_ttl,
+        "new_ttl_hours": ttl_hours,
+        "message": f"TTL изменен с {old_ttl//3600}ч на {ttl_hours}ч",
+        "note": "Изменение временное, до перезапуска сервера",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/current-ttl")
+async def get_current_ttl():
+    """Получить текущий TTL кэша"""
+    from app.services.cache import get_cache_ttl
+    
+    ttl_seconds = get_cache_ttl()
+    ttl_hours = ttl_seconds // 3600
+    ttl_minutes = (ttl_seconds % 3600) // 60
+    
+    return {
+        "ttl_seconds": ttl_seconds,
+        "ttl_hours": ttl_hours,
+        "ttl_minutes": ttl_minutes,
+        "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }

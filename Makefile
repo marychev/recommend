@@ -4,7 +4,7 @@
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
 	load-test-recommendations load-test-recommendations-quick \
-	status check-services health diagnose diagnose-cache urls \
+	status check-services health diagnose diagnose-cache test-ttl-optimization urls \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
 	db-init db-reset db-shell db-tables db-stats \
@@ -281,6 +281,11 @@ diagnose-cache: ## Диагностика кэширования Redis
 	@echo "$(BLUE)🎯 Тест реального hit rate...$(NC)"
 	@echo "$(YELLOW)Проверяем производительность в реальных условиях$(NC)"
 	@python tests/test_real_hitrate.py
+
+test-ttl-optimization: ## Тест оптимизации TTL для повышения hit rate
+	@echo "$(BLUE)🕐 Тест оптимизации TTL...$(NC)"
+	@echo "$(YELLOW)Тестируем разные значения TTL (1ч, 2ч, 4ч)$(NC)"
+	@python simple_ttl_test.py
 
 diagnose-cache-curl: ## Диагностика кэширования через curl
 	@echo "$(BLUE)🔍 Диагностика кэширования (curl)...$(NC)"

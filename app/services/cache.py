@@ -8,11 +8,15 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from app.services.cache_redis_client import get_redis_client
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 # TTL для кэша рекомендаций (в секундах)
-RECOMMENDATIONS_CACHE_TTL = 3600  # 1 час
+# Теперь конфигурируется через settings
+def get_cache_ttl() -> int:
+    """Получить TTL для кэша рекомендаций из конфигурации"""
+    return settings.recommendations_cache_ttl
 
 
 def _get_cache_key(user_id: int, top_n: int, exclude_listened: bool) -> str:
@@ -89,7 +93,7 @@ async def set_cached_recommendations(
     top_n: int,
     exclude_listened: bool,
     recommendations: Dict[str, Any],
-    ttl: int = RECOMMENDATIONS_CACHE_TTL,
+    ttl: int = None,
 ) -> bool:
     """
     Сохранить рекомендации в кэш
@@ -99,12 +103,15 @@ async def set_cached_recommendations(
         top_n: Количество рекомендаций
         exclude_listened: Исключить прослушанные
         recommendations: Данные рекомендаций
-        ttl: Время жизни кэша в секундах
+        ttl: Время жизни кэша в секундах (если None, используется из настроек)
 
     Returns:
         bool: True если успешно закэшировано
     """
     try:
+        # Используем TTL из настроек, если не передан явно
+        if ttl is None:
+            ttl = get_cache_ttl()
         redis = get_redis_client()
 
         if not await redis.is_connected():
@@ -201,7 +208,7 @@ async def get_cache_stats() -> Dict[str, Any]:
         return {
             "status": "connected",
             "cached_recommendations": len(keys),
-            "ttl_seconds": RECOMMENDATIONS_CACHE_TTL,
+            "ttl_seconds": get_cache_ttl(),
         }
 
     except Exception as e:

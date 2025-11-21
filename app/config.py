@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # ML Model
     min_interactions_for_recommendations: int = 5
     top_n_recommendations: int = 10
+    
+    # Cache settings
+    recommendations_cache_ttl: int = 3600  # 1 час по умолчанию
 
     model_config = ConfigDict(env_file=".env", case_sensitive=False)
 
