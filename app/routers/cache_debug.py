@@ -226,6 +226,75 @@ async def set_cache_ttl(ttl_hours: int):
     }
 
 
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
+        "timestamp": datetime.now()
+    }
+
+
 @router.get("/current-ttl")
 async def get_current_ttl():
     """Получить текущий TTL кэша"""
@@ -240,6 +309,75 @@ async def get_current_ttl():
         "ttl_hours": ttl_hours,
         "ttl_minutes": ttl_minutes,
         "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
         "timestamp": datetime.now()
     }
 
@@ -383,6 +521,75 @@ async def set_cache_ttl(ttl_hours: int):
     }
 
 
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
+        "timestamp": datetime.now()
+    }
+
+
 @router.get("/current-ttl")
 async def get_current_ttl():
     """Получить текущий TTL кэша"""
@@ -397,6 +604,75 @@ async def get_current_ttl():
         "ttl_hours": ttl_hours,
         "ttl_minutes": ttl_minutes,
         "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
         "timestamp": datetime.now()
     }
 
@@ -628,6 +904,75 @@ async def set_cache_ttl(ttl_hours: int):
     }
 
 
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
+        "timestamp": datetime.now()
+    }
+
+
 @router.get("/current-ttl")
 async def get_current_ttl():
     """Получить текущий TTL кэша"""
@@ -642,6 +987,75 @@ async def get_current_ttl():
         "ttl_hours": ttl_hours,
         "ttl_minutes": ttl_minutes,
         "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
         "timestamp": datetime.now()
     }
 
@@ -847,6 +1261,75 @@ async def set_cache_ttl(ttl_hours: int):
     }
 
 
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
+        "timestamp": datetime.now()
+    }
+
+
 @router.get("/current-ttl")
 async def get_current_ttl():
     """Получить текущий TTL кэша"""
@@ -861,5 +1344,74 @@ async def get_current_ttl():
         "ttl_hours": ttl_hours,
         "ttl_minutes": ttl_minutes,
         "ttl_formatted": f"{ttl_hours}ч {ttl_minutes}м",
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/auto")
+async def auto_warmup_cache():
+    """Автоматический прогрев кэша для активных пользователей"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    result = await warmup_service.auto_warmup(max_users=50, min_interactions=5)
+    
+    return {
+        "success": result.get("success", True),
+        "result": result,
+        "timestamp": datetime.now()
+    }
+
+
+@router.post("/warmup/user/{user_id}")
+async def warmup_user_cache(user_id: int):
+    """Прогрев кэша для конкретного пользователя"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    success = await warmup_service.warmup_user_recommendations(user_id)
+    
+    return {
+        "success": success,
+        "user_id": user_id,
+        "message": "Прогрев выполнен" if success else "Ошибка прогрева",
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/stats")
+async def get_warmup_stats():
+    """Получить статистику прогрева кэша"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    stats = warmup_service.get_warmup_stats()
+    
+    return {
+        "stats": stats,
+        "timestamp": datetime.now()
+    }
+
+
+@router.get("/warmup/active-users")
+async def get_active_users_for_warmup():
+    """Получить список активных пользователей для прогрева"""
+    from app.services.cache_warmup import get_warmup_service
+    
+    warmup_service = get_warmup_service()
+    active_users = await warmup_service.get_active_users(
+        hours_back=24, 
+        min_interactions=3, 
+        limit=20
+    )
+    
+    return {
+        "active_users": active_users,
+        "count": len(active_users),
+        "criteria": {
+            "hours_back": 24,
+            "min_interactions": 3,
+            "limit": 20
+        },
         "timestamp": datetime.now()
     }

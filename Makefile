@@ -4,7 +4,7 @@
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
 	load-test-recommendations load-test-recommendations-quick \
-	status check-services health diagnose diagnose-cache test-ttl-optimization urls \
+	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
 	db-init db-reset db-shell db-tables db-stats \
@@ -285,7 +285,16 @@ diagnose-cache: ## Диагностика кэширования Redis
 test-ttl-optimization: ## Тест оптимизации TTL для повышения hit rate
 	@echo "$(BLUE)🕐 Тест оптимизации TTL...$(NC)"
 	@echo "$(YELLOW)Тестируем разные значения TTL (1ч, 2ч, 4ч)$(NC)"
-	@python simple_ttl_test.py
+	@python tests/simple_ttl_test.py
+
+test-cache-warmup: ## Тест эффективности прогрева кэша
+	@echo "$(BLUE)🔥 Тест прогрева кэша...$(NC)"
+	@echo "$(YELLOW)Проверяем работу прогрева кэша$(NC)"
+	@python tests/simple_warmup_test.py
+
+test-api-health: ## Проверка здоровья API
+	@echo "$(BLUE)🏥 Проверка API...$(NC)"
+	@python tests/test_api_health.py
 
 diagnose-cache-curl: ## Диагностика кэширования через curl
 	@echo "$(BLUE)🔍 Диагностика кэширования (curl)...$(NC)"
