@@ -17,6 +17,7 @@
 - 📨 **[KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)** - Интеграция с Kafka
 - 📊 **[KAFKA_UI.md](KAFKA_UI.md)** - Kafka UI: мониторинг и управление Kafka ⭐
 - ⚡ **[REDIS_CACHING.md](REDIS_CACHING.md)** - Кэширование рекомендаций
+- 🔥 **[CACHE_OPTIMIZATION.md](CACHE_OPTIMIZATION.md)** - Трехэтапная оптимизация кэша (0% → 85-90% hit rate) ⭐
 
 ### Тестирование
 - 🧪 **[RUN_TESTS.md](RUN_TESTS.md)** - Как запускать тесты
@@ -45,6 +46,7 @@ docs/
 ├── KAFKA_INTEGRATION.md        # Интеграция Kafka
 ├── KAFKA_UI.md                 # Kafka UI мониторинг
 ├── REDIS_CACHING.md            # Кэширование
+├── CACHE_OPTIMIZATION.md       # Оптимизация кэша (3 этапа) ⭐
 ├── ACTION_TYPES.md             # Типы действий (enum)
 ├── API_ERROR_500.md            # Решение ошибки 500
 ├── TROUBLESHOOTING.md          # Решение проблем
@@ -86,8 +88,9 @@ docs/
 4. Проверьте логи: `make logs-kafka`
 
 **...настроить кэширование**
-1. Читайте [REDIS_CACHING.md](REDIS_CACHING.md)
-2. Файл: `app/services/cache.py`
+1. Читайте [CACHE_OPTIMIZATION.md](CACHE_OPTIMIZATION.md) - полное руководство по оптимизации ⭐
+2. Читайте [REDIS_CACHING.md](REDIS_CACHING.md) - базовое кэширование
+3. Файлы: `app/services/cache.py`, `app/services/cache_warmup.py`
 
 ## 📦 Дополнительные файлы
 

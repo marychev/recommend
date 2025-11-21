@@ -39,9 +39,28 @@ make seed         # Полные тестовые данные (10k записе
 
 ```bash
 make test              # Все тесты
-make test              # Все тесты
 make test-clickhouse   # Только ClickHouse
-make test-clickhouse   # Только ClickHouse
+make test-cache-warmup # Тест прогрева кэша
+make test-api-health   # Проверка здоровья API
+```
+
+## ⚡ Кэширование (NEW!)
+
+```bash
+# Диагностика кэша
+curl http://localhost:8000/api/v1/debug/cache/status
+
+# Управление TTL
+curl -X POST http://localhost:8000/api/v1/debug/cache/set-ttl/4
+curl http://localhost:8000/api/v1/debug/cache/current-ttl
+
+# Прогрев кэша
+curl -X POST "http://localhost:8000/api/v1/debug/cache/warmup?num_users=50"
+curl http://localhost:8000/api/v1/debug/cache/warmup/stats
+
+# Тестирование
+make test-cache-warmup
+make test-api-health
 ```
 
 ## 🔗 URL-адреса
