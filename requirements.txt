@@ -1,3 +1,4 @@
+requests==2.31.0
 # Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0

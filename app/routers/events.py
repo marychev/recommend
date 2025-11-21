@@ -100,9 +100,16 @@ async def create_event(
 
         # Добавляем задачи в фон
         background_tasks.add_task(process_event_async, interaction)
-        background_tasks.add_task(
-            invalidate_user_recommendations, event.user_id
-        )
+        
+        # Инвалидируем кэш только для значимых действий
+        # play и skip не должны сразу инвалидировать кэш
+        if event.action_type in [ActionType.LIKE, ActionType.DISLIKE, ActionType.ADD_TO_PLAYLIST, ActionType.SHARE]:
+            print(f"🗑️  Инвалидация кэша для пользователя {event.user_id} из-за действия {event.action_type}")
+            background_tasks.add_task(
+                invalidate_user_recommendations, event.user_id
+            )
+        else:
+            print(f"✅ Кэш НЕ инвалидируется для пользователя {event.user_id} из-за действия {event.action_type}")
 
         return interaction
 

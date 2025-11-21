@@ -18,9 +18,9 @@ export const urlTracksList10 = `${BASE_URL}/api/v1/tracks?limit=10`;
 
 // Диапазоны ID для тестовых данных
 export const USER_ID_MIN = 1;
-export const USER_ID_MAX = 100000;
+export const USER_ID_MAX = 100_000_000; // 100000;
 export const TRACK_ID_MIN = 1;
-export const TRACK_ID_MAX = 50000;
+export const TRACK_ID_MAX = 50_000_000; // 50000;
 
 // ════════════════════════════════════════════════════════
 // Helper функции

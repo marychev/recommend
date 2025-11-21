@@ -52,10 +52,14 @@ class ClickHouseClient:
     async def disconnect(self):
         """Отключение от ClickHouse"""
         if self.session:
-            await self.session.close()
-            self.session = None
-            self.client = None
-            print("✓ Подключение к ClickHouse закрыто")
+            try:
+                await self.session.close()
+            except Exception:
+                pass  # Игнорируем ошибки при закрытии
+            finally:
+                self.session = None
+                self.client = None
+                print("✓ Подключение к ClickHouse закрыто")
 
     async def is_connected(self) -> bool:
         """Проверка подключения"""
@@ -67,12 +71,33 @@ class ClickHouseClient:
             return False
         return False
 
+    async def _ensure_connected(self):
+        """Проверяет подключение и пытается переподключиться, если нужно"""
+        if not self.client:
+            try:
+                await self.connect()
+            except Exception as e:
+                raise RuntimeError(f"ClickHouse client not connected: {e}")
+        else:
+            # Проверяем, что подключение действительно работает
+            try:
+                await self.client.execute("SELECT 1")
+            except Exception:
+                # Подключение потеряно, переподключаемся
+                try:
+                    if self.session:
+                        await self.session.close()
+                    self.session = None
+                    self.client = None
+                    await self.connect()
+                except Exception as e:
+                    raise RuntimeError(f"ClickHouse client not connected: {e}")
+
     async def execute(
         self, query: str, parameters: Optional[dict] = None
     ) -> List[dict]:
         """Выполнение запроса с возвратом результатов в виде словарей"""
-        if not self.client:
-            raise RuntimeError("ClickHouse client not connected")
+        await self._ensure_connected()
 
         try:
             # aiochclient не поддерживает параметры напрямую, выполняем простой запрос
@@ -85,8 +110,7 @@ class ClickHouseClient:
         self, query: str, parameters: Optional[dict] = None
     ) -> List[tuple]:
         """Выполнение запроса с возвратом сырых результатов (список кортежей)"""
-        if not self.client:
-            raise RuntimeError("ClickHouse client not connected")
+        await self._ensure_connected()
 
         try:
             # Получаем данные и преобразуем в список кортежей
@@ -103,8 +127,7 @@ class ClickHouseClient:
         column_names: Optional[List[str]] = None,
     ):
         """Вставка данных в таблицу"""
-        if not self.client:
-            raise RuntimeError("ClickHouse client not connected")
+        await self._ensure_connected()
 
         if not data:
             return

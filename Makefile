@@ -4,7 +4,7 @@
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
 	load-test-recommendations load-test-recommendations-quick \
-	status check-services health diagnose urls \
+	status check-services health diagnose diagnose-cache urls \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
 	db-init db-reset db-shell db-tables db-stats \
@@ -114,7 +114,9 @@ up-api: ## Запустить только API контейнер
 # ═══════════════════════════════════════════════
 
 db-init: ## Создать таблицы в ClickHouse (безопасно, идемпотентно)
-	@bash scripts/safe_db_init.sh
+	# @bash scripts/safe_db_init.sh
+	python scripts/seed_data.py
+
 
 db-reset: ## Пересоздать ClickHouse контейнер и таблицы
 	@echo "$(YELLOW)⚠️ Пересоздание ClickHouse (данные будут удалены)...$(NC)"
@@ -271,6 +273,30 @@ diagnose: ## Полная диагностика системы (API, БД, да
 	@$(DOCKER_COMPOSE) logs api 2>&1 | grep -i -E "(error|exception)" | tail -10 || echo "   $(GREEN)Нет ошибок$(NC)"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+
+diagnose-cache: ## Диагностика кэширования Redis
+	@echo "$(BLUE)🔍 Диагностика кэширования...$(NC)"
+	@python tests/test_cache_api.py
+	@python tests/test_cache_simple.py
+	@echo "$(BLUE)🎯 Тест реального hit rate...$(NC)"
+	@echo "$(YELLOW)Проверяем производительность в реальных условиях$(NC)"
+	@python tests/test_real_hitrate.py
+
+diagnose-cache-curl: ## Диагностика кэширования через curl
+	@echo "$(BLUE)🔍 Диагностика кэширования (curl)...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)1️⃣  Статус кэша:$(NC)"
+	@curl -s http://localhost:8000/api/v1/debug/cache/status | python -m json.tool 2>/dev/null || curl -s http://localhost:8000/api/v1/debug/cache/status
+	@echo ""
+	@echo "$(YELLOW)2️⃣  Ключи кэша:$(NC)"
+	@curl -s http://localhost:8000/api/v1/debug/cache/keys | python -m json.tool 2>/dev/null || curl -s http://localhost:8000/api/v1/debug/cache/keys
+	@echo ""
+	@echo "$(YELLOW)3️⃣  Тест операций:$(NC)"
+	@curl -s -X POST http://localhost:8000/api/v1/debug/cache/test | python -m json.tool 2>/dev/null || curl -s -X POST http://localhost:8000/api/v1/debug/cache/test
+	@echo ""
+	@echo "$(YELLOW)4️⃣  Симуляция hit rate:$(NC)"
+	@curl -s -X POST http://localhost:8000/api/v1/debug/cache/simulate-hitrate | python -m json.tool 2>/dev/null || curl -s -X POST http://localhost:8000/api/v1/debug/cache/simulate-hitrate
+
 
 # ═══════════════════════════════════════════════
 # 🧹 Очистка

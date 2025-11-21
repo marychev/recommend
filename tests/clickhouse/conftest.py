@@ -19,7 +19,9 @@ def setup_test_database():
 
     async def create_db():
         test_db = "music_recommend_test"
-        async with ClientSession() as session:
+        session = None
+        try:
+            session = ClientSession()
             url = (
                 f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
             )
@@ -31,6 +33,9 @@ def setup_test_database():
             )
             await client.execute(f"CREATE DATABASE IF NOT EXISTS {test_db}")
             print(f"\n✓ Тестовая БД '{test_db}' готова")
+        finally:
+            if session:
+                await session.close()
 
     asyncio.run(create_db())
     yield
@@ -38,7 +43,9 @@ def setup_test_database():
     # Очистка после всех тестов
     async def drop_db():
         test_db = "music_recommend_test"
-        async with ClientSession() as session:
+        session = None
+        try:
+            session = ClientSession()
             url = (
                 f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
             )
@@ -50,6 +57,9 @@ def setup_test_database():
             )
             await client.execute(f"DROP DATABASE IF EXISTS {test_db}")
             print(f"\n✓ Тестовая БД '{test_db}' удалена")
+        finally:
+            if session:
+                await session.close()
 
     asyncio.run(drop_db())
 
@@ -71,8 +81,15 @@ async def clickhouse_client():
         yield client
 
     finally:
-        if client.client:
-            await client.disconnect()
+        # Всегда закрываем сессию, даже если есть ошибки
+        try:
+            if client.session:
+                await client.session.close()
+                client.session = None
+            if client.client:
+                client.client = None
+        except Exception:
+            pass  # Игнорируем ошибки при закрытии
         settings.clickhouse_database = original_db
 
 

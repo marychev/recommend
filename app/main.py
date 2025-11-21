@@ -1,6 +1,6 @@
 from app.config import settings
 from app.app import app
-from app.routers import health, users, tracks, events, recommendations
+from app.routers import health, users, tracks, events, recommendations, cache_debug
 
 
 @app.get(
@@ -27,6 +27,7 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(tracks.router, prefix="/api/v1")
 app.include_router(events.router, prefix="/api/v1")
 app.include_router(recommendations.router, prefix="/api/v1")
+app.include_router(cache_debug.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":

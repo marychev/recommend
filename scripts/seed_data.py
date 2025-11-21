@@ -1,6 +1,8 @@
 """
 Скрипт для генерации тестовых данных
 """
+import asyncio
+import traceback
 import sys
 import random
 from datetime import datetime, timedelta
@@ -14,11 +16,14 @@ from app.config import settings
 from app.models.schemas import User, Track, UserTrackInteraction
 
 
-def generate_users(count=100):
+USER_ID_MAX: int = 100_000              # 100
+TRACK_ID_MAX: int = 500_000             # 500
+INTERACTIONS_ID_MAX: int = 1_000_000   # 10000
+
+
+async def generate_users(clickhouse, count):
     """Генерация тестовых пользователей"""
     print(f"📝 Генерация {count} пользователей...")
-    
-    clickhouse = get_clickhouse_client()
     
     usernames = [
         "john_doe", "jane_smith", "alex_brown", "maria_garcia", "david_wilson",
@@ -37,7 +42,7 @@ def generate_users(count=100):
         
         users_data.append([i, username, email, age, country, created_at])
     
-    clickhouse.insert(
+    await clickhouse.insert(
         "users",
         users_data,
         column_names=User.column_names()
@@ -46,11 +51,9 @@ def generate_users(count=100):
     print(f"✅ Создано {count} пользователей")
 
 
-def generate_tracks(count=500):
+async def generate_tracks(clickhouse, count):
     """Генерация тестовых треков"""
     print(f"📝 Генерация {count} треков...")
-    
-    clickhouse = get_clickhouse_client()
     
     genres = ["Rock", "Pop", "Hip-Hop", "Electronic", "Jazz", "Classical", "Metal", "Indie", "R&B", "Country"]
     
@@ -83,7 +86,7 @@ def generate_tracks(count=500):
         
         tracks_data.append([i, title, artist, album, genre, duration, year, created_at])
     
-    clickhouse.insert(
+    await clickhouse.insert(
         "tracks",
         tracks_data,
         column_names=Track.column_names(),
@@ -92,11 +95,9 @@ def generate_tracks(count=500):
     print(f"✅ Создано {count} треков")
 
 
-def generate_interactions(count=10000, user_count=100, track_count=500):
+async def generate_interactions(clickhouse, count, user_count, track_count):
     """Генерация тестовых взаимодействий"""
     print(f"📝 Генерация {count} взаимодействий...")
-    
-    clickhouse = get_clickhouse_client()
     
     actions = ["play", "like", "dislike", "skip", "add_to_playlist", "share"]
     action_weights = [70, 15, 3, 8, 3, 1]  # Веса для более реалистичного распределения
@@ -123,7 +124,7 @@ def generate_interactions(count=10000, user_count=100, track_count=500):
             
             batch_data.append([user_id, track_id, action, listen_duration, timestamp])
         
-        clickhouse.insert(
+        await clickhouse.insert(
             "user_track_interactions",
             batch_data,
             column_names=UserTrackInteraction.column_names()
@@ -134,47 +135,55 @@ def generate_interactions(count=10000, user_count=100, track_count=500):
     print(f"✅ Создано {count} взаимодействий")
 
 
-def main():
-    """Главная функция"""
+async def main_async():
+    """Асинхронная главная функция"""
     print("🚀 Начинаем генерацию тестовых данных...")
     print(f"📊 Подключение к ClickHouse: {settings.clickhouse_host}:{settings.clickhouse_port}")
     
     try:
         # Подключаемся к ClickHouse
         clickhouse = get_clickhouse_client()
-        clickhouse.connect()
+        await clickhouse.connect()
         
         # Проверяем подключение
-        if not clickhouse.is_connected():
+        if not await clickhouse.is_connected():
             print("❌ Не удалось подключиться к ClickHouse")
             return
         
         print("✅ Подключение установлено\n")
         
         # Генерируем данные
-        generate_users(count=100)
-        generate_tracks(count=500)
-        generate_interactions(count=10000, user_count=100, track_count=500)
+        await generate_users(clickhouse, count=USER_ID_MAX)
+        await generate_tracks(clickhouse, count=TRACK_ID_MAX)
+        await generate_interactions(clickhouse, count=INTERACTIONS_ID_MAX, user_count=USER_ID_MAX, track_count=TRACK_ID_MAX)
         
         print("\n🎉 Генерация данных завершена!")
         print("\n📈 Статистика:")
         
         # Выводим статистику
-        users_count = clickhouse.execute("SELECT count() FROM users").result_rows[0][0]
-        tracks_count = clickhouse.execute("SELECT count() FROM tracks").result_rows[0][0]
-        interactions_count = clickhouse.execute("SELECT count() FROM user_track_interactions").result_rows[0][0]
+        users_result = await clickhouse.execute_raw("SELECT count() FROM users")
+        tracks_result = await clickhouse.execute_raw("SELECT count() FROM tracks")
+        interactions_result = await clickhouse.execute_raw("SELECT count() FROM user_track_interactions")
+        
+        users_count = users_result[0][0] if users_result else 0
+        tracks_count = tracks_result[0][0] if tracks_result else 0
+        interactions_count = interactions_result[0][0] if interactions_result else 0
         
         print(f"  👥 Пользователей: {users_count}")
         print(f"  🎵 Треков: {tracks_count}")
         print(f"  📊 Взаимодействий: {interactions_count}")
         
         # Отключаемся
-        clickhouse.disconnect()
+        await clickhouse.disconnect()
         
     except Exception as e:
         print(f"❌ Ошибка: {e}")
-        import traceback
         traceback.print_exc()
+
+
+def main():
+    """Главная функция (синхронная обертка)"""
+    asyncio.run(main_async())
 
 
 if __name__ == "__main__":
