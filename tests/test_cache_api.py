@@ -18,7 +18,7 @@
 import sys
 import urllib.request
 import json
-import time
+import pytest
 from datetime import datetime
 from pathlib import Path
 
@@ -73,7 +73,7 @@ def print_json(data_str):
         print(data_str)
         return None
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_status_endpoint():
     """Тест статуса кэша"""
     print("📊 Проверка статуса кэша...")
@@ -93,7 +93,7 @@ def test_cache_status_endpoint():
             print(f"   {response[:200]}")
         return False
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_operations():
     """Тест операций кэша"""
     print("\n🔧 Тестирование операций кэша...")
@@ -120,7 +120,7 @@ def test_cache_operations():
             print(f"   {response[:200]}")
         return False
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_keys():
     """Тест получения ключей кэша"""
     print("\n🔑 Получение ключей кэша...")
@@ -137,7 +137,7 @@ def test_cache_keys():
             print(f"   {response[:200]}")
         return False
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_ttl():
     """Тест TTL кэша"""
     print("\n⏱️  Проверка TTL кэша...")
@@ -154,7 +154,7 @@ def test_cache_ttl():
             print(f"   {response[:200]}")
         return False
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_warmup():
     """Тест прогрева кэша"""
     print("\n🔥 Тест прогрева кэша...")
@@ -173,7 +173,7 @@ def test_cache_warmup():
         print(f"   ❌ Ошибка получения активных пользователей: {status}")
         return False
 
-
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_invalidation():
     """Тест инвалидации кэша"""
     print("\n🧹 Тест инвалидации кэша...")

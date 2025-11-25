@@ -47,6 +47,12 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:29092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - music_recommend_network
   
@@ -97,9 +103,12 @@ services:
       MIN_INTERACTIONS_FOR_RECOMMENDATIONS: ${MIN_INTERACTIONS_FOR_RECOMMENDATIONS:-5}
       TOP_N_RECOMMENDATIONS: ${TOP_N_RECOMMENDATIONS:-10}
     depends_on:
-      - clickhouse
-      - kafka
-      - redis
+      clickhouse:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - .:/app
     networks:

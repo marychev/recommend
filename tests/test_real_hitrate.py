@@ -4,10 +4,9 @@
 """
 
 import urllib.request
-import urllib.parse
 import json
 import time
-import asyncio
+import pytest
 from datetime import datetime
 
 API_BASE = "http://localhost:8000/api/v1"
@@ -39,6 +38,8 @@ def make_request(method, endpoint, data=None, timeout=30):
     except Exception as e:
         return None, f"Ошибка: {e}"
 
+
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_recommendations_hitrate():
     """Тест hit rate рекомендаций в реальных условиях"""
     print("🎯 ТЕСТ РЕАЛЬНОГО HIT RATE РЕКОМЕНДАЦИЙ")

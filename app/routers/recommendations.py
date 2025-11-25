@@ -123,11 +123,13 @@ async def get_recommendations(request: RecommendationRequest):
             )
 
         # Collaborative Filtering: находим похожих пользователей
+        # Добавляем SETTINGS для увеличения лимита памяти и использования внешней сортировки
         similar_users_query = f"""
         WITH user_tracks AS (
             SELECT track_id, implicit_rating
             FROM user_track_matrix
             WHERE user_id = {request.user_id} AND implicit_rating > 0
+            LIMIT 1000
         )
         SELECT
             m2.user_id,
@@ -142,6 +144,10 @@ async def get_recommendations(request: RecommendationRequest):
         HAVING similarity > 0.1
         ORDER BY similarity DESC
         LIMIT 50
+        SETTINGS 
+            max_memory_usage = 2000000000,
+            max_bytes_before_external_group_by = 1000000000,
+            max_bytes_before_external_sort = 1000000000
         """
 
         similar_users_start = time.perf_counter()
@@ -193,6 +199,10 @@ async def get_recommendations(request: RecommendationRequest):
                  t.duration_seconds, t.release_year, t.created_at
         ORDER BY total_score DESC
         LIMIT {request.top_n}
+        SETTINGS 
+            max_memory_usage = 2000000000,
+            max_bytes_before_external_group_by = 1000000000,
+            max_bytes_before_external_sort = 1000000000
         """
 
         recommendations_start = time.perf_counter()
@@ -299,9 +309,26 @@ async def get_recommendations(request: RecommendationRequest):
     except HTTPException:
         raise
     except Exception as e:
+        error_str = str(e)
+        # Если ошибка памяти ClickHouse, возвращаем популярные треки как fallback
+        if "Code: 241" in error_str or "MEMORY_LIMIT_EXCEEDED" in error_str:
+            logger.warning(
+                "Memory limit exceeded for recommendations, falling back to popular tracks: %s",
+                error_str
+            )
+            try:
+                return await get_popular_recommendations(
+                    request, metrics, start_time
+                )
+            except Exception as fallback_error:
+                logger.error("Fallback to popular recommendations also failed: %s", fallback_error)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Ошибка при генерации рекомендаций (memory limit): {error_str[:200]}",
+                )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при генерации рекомендаций: {str(e)}",
+            detail=f"Ошибка при генерации рекомендаций: {error_str[:200]}",
         )
 
 
@@ -346,6 +373,9 @@ async def get_popular_recommendations(
              t.duration_seconds, t.release_year, t.created_at
     ORDER BY play_count DESC
     LIMIT {request.top_n}
+    SETTINGS 
+        max_memory_usage = 2000000000,
+        max_bytes_before_external_group_by = 1000000000
     """
 
     popular_query_start = time.perf_counter()

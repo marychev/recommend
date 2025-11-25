@@ -94,6 +94,10 @@ async def consume_events(
                 )
                 # Продолжаем обработку остальных событий
 
+    except asyncio.CancelledError:
+        # Нормальная отмена - не логируем как ошибку
+        logger.debug("Consumer cancelled")
+        raise
     except KafkaError as e:
         logger.error("Kafka consumer error: %s", e)
         raise
@@ -102,7 +106,10 @@ async def consume_events(
         raise
     finally:
         if consumer is not None:
-            await close_kafka_consumer(consumer)
+            try:
+                await close_kafka_consumer(consumer)
+            except Exception as e:
+                logger.debug("Error closing consumer in finally: %s", e)
 
 
 async def start_background_consumer(

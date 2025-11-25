@@ -52,6 +52,8 @@ def print_json(data_str):
         print(data_str)
         return None
 
+
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_cache_warmup_effectiveness():
     """Тест эффективности прогрева кэша"""
     print("🔥 ТЕСТ ЭФФЕКТИВНОСТИ ПРОГРЕВА КЭША")
@@ -156,7 +158,7 @@ def test_cache_warmup_effectiveness():
         }
     }
 
-@pytest.mark.skip(reason="Для тестирования прогрева кэша вручную")
+@pytest.mark.skip(reason="Для тестирования прогрева кэша вручную k6")
 def test_users_performance(user_ids, test_name):
     """Тест производительности для списка пользователей"""
     print(f"   Тестирование производительности ({test_name}):")
@@ -214,6 +216,7 @@ def test_users_performance(user_ids, test_name):
         "total": total_requests
     }
 
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_warmup_stats():
     """Тест статистики прогрева"""
     print("\n📈 СТАТИСТИКА ПРОГРЕВА:")

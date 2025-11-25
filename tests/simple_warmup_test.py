@@ -6,8 +6,10 @@
 import urllib.request
 import json
 import time
+import pytest
 
 API_BASE = "http://localhost:8000/api/v1"
+
 
 def make_request(method, endpoint, data=None):
     """Простой HTTP запрос"""
@@ -29,6 +31,8 @@ def make_request(method, endpoint, data=None):
     except Exception as e:
         return None, {"error": str(e)}
 
+
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_warmup_simple():
     print("🔥 ПРОСТОЙ ТЕСТ ПРОГРЕВА КЭША")
     print("=" * 35)

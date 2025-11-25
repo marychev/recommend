@@ -44,7 +44,8 @@ async def send_event(event: Dict[str, Any]) -> bool:
         bool: True если успешно отправлено
     """
     try:
-        producer = await get_kafka_producer()
+        # Используем таймаут для запуска producer
+        producer = await get_kafka_producer(start_timeout=10.0)
 
         # Сериализуем событие
         message = serialize_event(event)
@@ -93,10 +94,12 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
     success_count = 0
 
     try:
-        producer = await get_kafka_producer()
+        # Используем таймаут для запуска producer
+        producer = await get_kafka_producer(start_timeout=10.0)
 
         # Создаем batch
         batch = producer.create_batch()
+        batch_size = 0  # Счетчик событий в текущем batch
 
         for event in events:
             message = serialize_event(event)
@@ -106,22 +109,27 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
             metadata = batch.append(key=key, value=message, timestamp=None)
 
             if metadata is None:
-                # Batch полон, отправляем
-                await producer.send_batch(
-                    batch, settings.kafka_topic_events, partition=0
-                )
-                success_count += len(batch)
+                # Batch полон, отправляем текущий batch
+                if batch_size > 0:
+                    await producer.send_batch(
+                        batch, settings.kafka_topic_events, partition=0
+                    )
+                    success_count += batch_size
 
-                # Создаем новый batch
+                # Создаем новый batch и добавляем текущее событие
                 batch = producer.create_batch()
                 batch.append(key=key, value=message, timestamp=None)
+                batch_size = 1
+            else:
+                # Событие успешно добавлено в batch
+                batch_size += 1
 
         # Отправляем оставшиеся события
-        if len(batch) > 0:
+        if batch_size > 0:
             await producer.send_batch(
                 batch, settings.kafka_topic_events, partition=0
             )
-            success_count += len(batch)
+            success_count += batch_size
 
         logger.info("Batch events sent to Kafka: count=%s", success_count)
 

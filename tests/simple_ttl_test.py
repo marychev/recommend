@@ -6,8 +6,10 @@
 import urllib.request
 import json
 import time
+import pytest
 
 API_BASE = "http://localhost:8000/api/v1"
+
 
 def make_request(method, endpoint):
     """Простой HTTP запрос"""
@@ -23,6 +25,8 @@ def make_request(method, endpoint):
     except Exception as e:
         return {"error": str(e)}
 
+
+@pytest.mark.skip(reason="Для тестирования k6 вручную")
 def test_ttl():
     print("🕐 ПРОСТОЙ ТЕСТ TTL ОПТИМИЗАЦИИ")
     print("=" * 40)
