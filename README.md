@@ -15,13 +15,10 @@ Music Recommendation System - это полнофункциональная ре
 ### ✨ Основные возможности
 
 - 🎯 **Персонализированные рекомендации** на основе Collaborative Filtering
-- 🎨 **Современный Web UI** для просмотра пользователей и рекомендаций
 - 📊 **Аналитика в реальном времени** на ClickHouse (OLAP)
 - 🔄 **Стриминг событий** через Kafka
 - ⚡ **Оптимизированное Redis кэширование** рекомендаций (85-90% hit rate, ускорение в 100-800x)
 - 📡 **REST API** с автоматической документацией (Swagger/ReDoc)
-- 🧪 **60+ автоматических тестов** (92% покрытие)
-- 🐳 **Docker Compose** для запуска одной командой
 
 ---
 
@@ -37,19 +34,14 @@ make quickstart
 make up          # Запустить Docker сервисы
 make db-init     # Создать таблицы
 
-# Посмотреть все доступные команды
-make help
+make help        # Посмотреть все доступные команды
+make down        # Остановить все сервисы
 ```
 
 **Откройте:**
-- 🎨 **Frontend UI**: http://localhost:8080
-- 📊 **Kafka UI**: http://localhost:8081
-- 📖 **Swagger API**: http://localhost:8000/docs
-
-**Остановить:**
-```bash
-make down        # Остановить все сервисы
-```
+- Kafka UI: http://localhost:8081
+- Swagger API: http://localhost:8000/docs
+- ClickHouse: http://localhost:8123/play
 
 
 ### Вариант 2: Локальная разработка 💻
@@ -68,11 +60,6 @@ make db-init
 
 # 4. Запустите API локально
 make run-api            # или python -m app.main
-
-# 5. Откройте API
-http://localhost:8000/docs
-http://localhost:8123/play
-
 ```
 ---
 
@@ -182,48 +169,6 @@ http://localhost:8123/play
 
 ---
 
-## 🎨 Web UI - Интерфейс пользователя
-
-### Возможности Frontend
-
-Frontend предоставляет удобный веб-интерфейс для работы с системой:
-
-✨ **Основные функции:**
-- 👥 **Список пользователей** - просмотр всех пользователей с поиском и пагинацией
-- 🔍 **Поиск** - быстрый поиск по имени или email
-- 👤 **Профиль пользователя** - детальная информация, возраст, страна
-- 📊 **Статистика** - взаимодействия, уникальные треки, время прослушивания, любимый жанр
-- 🎯 **Рекомендации** - генерация и просмотр персонализированных рекомендаций
-
-### Запуск Frontend
-
-**Вариант 1: Через Makefile (рекомендуется)**
-```bash
-make ui          # Запустить на порту 8080
-make ui-open     # Открыть в браузере
-make ui-stop     # Остановить
-```
-
-**Вариант 2: Вручную через HTTP сервер**
-```bash
-cd frontend
-python -m http.server 8080
-# Откройте: http://localhost:8080
-```
-
-**Вариант 3: Прямое открытие (без сервера)**
-```bash
-# Просто откройте в браузере
-frontend/index.html
-```
-
----
-
-## 📡 API Эндпоинты
-
-> 📖 **Полная документация API**: http://localhost:8000/docs (после запуска)
-
----
 
 ## 🗄️ База данных
 
@@ -254,134 +199,12 @@ frontend/index.html
 ## 🧪 Тестирование
 
 ```bash
+make test
 # Пересоздайте ClickHouse с правильной конфигурацией
 bash scripts/docker-reset-clickhouse.sh
-
-# Запустите все тесты
-pytest -v
-
-# Только ClickHouse тесты
-pytest tests/clickhouse/ -v
-
 # С покрытием кода
 pytest --cov=app --cov-report=html
 ```
-
-### 📊 Покрытие тестами
-
-- ✅ **Подключения** (15 тестов) - ClickHouse, Redis
-- ✅ **CRUD операции** (20+ тестов) - Users, Tracks, Events
-- ✅ **Сложные запросы** (15+ тестов) - JOIN, агрегация, оконные функции
-- ✅ **Производительность** (10+ тестов) - Bulk insert, query speed
-- ✅ **Схема БД** (10+ тестов) - Структура, движки, партиции
-- ✅ **API** (10+ тестов) - Endpoints, валидация
----
-
-
-### Скрипты
-
-```bash
-# Генерация 10,000 тестовых событий
-python scripts/seed_data.py
-
-# Пересоздание ClickHouse контейнера
-bash scripts/docker-reset-clickhouse.sh
-```
-
----
-
-
-## 📂 Структура проекта
-
-```
-recommend/
-├── 📱 app/                          # Приложение
-│   ├── api/                         # API роутеры (5 модулей)
-│   │   ├── events.py                # Обработка событий
-│   │   ├── recommendations.py       # Генерация рекомендаций ⭐
-│   │   ├── users.py                 # Управление пользователями
-│   │   ├── tracks.py                # Управление треками
-│   │   └── health.py                # Health check
-│   ├── db/                          # Подключения к БД
-│   │   ├── clickhouse.py            # ClickHouse client
-│   │   ├── redis_client.py          # Redis client
-│   │   └── clickhouse_schemas.sql   # SQL схемы
-│   ├── models/schemas.py            # Pydantic модели
-│   ├── config.py                    # Конфигурация
-│   └── main.py                      # FastAPI приложение
-│
-├── 🎨 frontend/                     # Web UI ⭐ НОВОЕ!
-│   ├── index.html                   # Главная страница
-│   ├── styles.css                   # Современный темный дизайн
-│   ├── app.js                       # JavaScript логика
-│   ├── start.sh                     # Запуск (Linux/Mac)
-│   ├── start.bat                    # Запуск (Windows)
-│   └── README.md                    # Документация Frontend
-│
-├── 🧪 tests/                        # Тесты (60+)
-│   ├── clickhouse/                  # ClickHouse тесты (50+)
-│   └── test_api.py                  # API тесты
-│
-├── 📚 docs/                         # Документация (8 файлов)
-│   ├── INDEX.md                     # Навигация
-│   ├── SUMMARY.md                   # Краткая сводка
-│   ├── QUICK_REFERENCE.md           # Быстрая справка
-│   ├── RUN_TESTS.md                 # Запуск тестов
-│   └── PORTS.md                     # Справочник портов
-│
-├── 🔧 scripts/                      # Утилиты
-│   ├── seed_data.py                 # Генерация тестовых данных
-│   └── docker-reset-clickhouse.sh   # Setup ClickHouse
-│
-├── ⚙️ clickhouse-config/            # Конфигурация ClickHouse
-│   └── users.xml                    # Пользователи без пароля (dev)
-│
-├── 🐳 docker-compose.yml            # Docker Compose конфигурация
-├── 📝 Makefile                       # Команды для управления проектом
-├── 📦 requirements.txt              # Python зависимости
-├── 📖 README.md                     # Этот файл
-└── 📚 docs/                          # Документация
-    ├── MAKEFILE.md                  # Руководство по Makefile
-    ├── API_ERROR_500.md             # Решение ошибки 500
-    ├── DB_INIT.md                   # Инициализация БД
-    └── ... другие документы
-```
-
----
-
-## 📊 Статистика проекта
-
-<table>
-<tr>
-<td>
-
-### Код
-- 📝 2000+ строк кода
-- 📄 20+ файлов Python
-- 🎯 15+ API эндпоинтов
-- 🗄️ 4 таблицы + 3 view
-
-</td>
-<td>
-
-### Тесты
-- ✅ 60+ автоматических тестов
-- 📊 92% покрытие кода
-- ⚡ < 10 сек выполнение
-- 🔄 Изолированные тесты
-
-</td>
-<td>
-
-### Документация
-- 📚 10+ документов
-- 🔗 Все ссылки рабочие
-- 📖 Примеры кода
-- 🎯 Навигация
-
-</td>
-</tr>
-</table>
 
 ---
 
@@ -426,7 +249,6 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 
 | Сервис | Порт | URL | Назначение |
 |--------|------|-----|------------|
-| **Frontend UI** | 8080 | http://localhost:8080 | Web интерфейс ⭐ |
 | **Kafka UI** | 8081 | http://localhost:8081 | Мониторинг Kafka 📊 |
 | FastAPI | 8000 | http://localhost:8000 | REST API |
 | Swagger UI | 8000 | http://localhost:8000/docs | Интерактивная документация |
@@ -437,40 +259,6 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 | Zookeeper | 2181 | - | Kafka coordination |
 
 > 🔍 **Подробнее**: [docs/PORTS.md](docs/PORTS.md)
-
----
-
-## 🧪 Тестирование
-
-### Статистика тестов
-
-```
-tests/
-├── API тесты..................... 10+ ✅
-├── ClickHouse подключение....... 15+ ✅
-├── ClickHouse операции.......... 20+ ✅
-├── Сложные запросы.............. 10+ ✅
-├── Производительность........... 5+  ✅
-└── Схема БД..................... 10+ ✅
-                                 ─────
-                          Всего: 60+ ✅
-```
-
-### Запуск
-
-```bash
-# Быстрый старт
-bash scripts/docker-reset-clickhouse.sh && pytest tests/clickhouse/ -v
-
-# С покрытием
-pytest --cov=app --cov-report=html
-
-# Результат
-====== 60 passed in 8.5s ====== ✅
-Coverage: 92% ✅
-```
-
-> 📖 **Подробнее**: [docs/RUN_TESTS.md](docs/RUN_TESTS.md)
 
 ---
 
@@ -499,14 +287,6 @@ make help            # Все команды
 
 > 📖 **Полный список команд**: [docs/MAKEFILE.md](docs/MAKEFILE.md)
 
-**Или напрямую через Docker Compose:**
-```bash
-docker compose up -d            # Запустить все
-docker compose down             # Остановить все
-docker compose ps               # Статус
-docker compose logs -f api      # Логи API
-docker compose restart api      # Перезапустить API
-```
 
 ---
 
@@ -543,10 +323,10 @@ docker compose restart api      # Перезапустить API
 - [x] 60+ автоматических тестов
 - [x] Docker Compose
 
-### 🚧 v1.1 - Kafka Integration (В процессе)
-- [ ] Kafka producer для событий
-- [ ] Kafka consumer для обработки
-- [ ] Асинхронная обработка потока
+### 🚧 v1.1 - Kafka Integration (Готово)
+- [x] Kafka producer для событий
+- [x] Kafka consumer для обработки
+- [x] Асинхронная обработка потока
 
 ### 🔮 v1.2 - ML Improvements (Планируется)
 - [ ] Content-Based Filtering
@@ -560,40 +340,6 @@ docker compose restart api      # Перезапустить API
 - [ ] Логирование (ELK)
 - [ ] CI/CD pipeline
 - [ ] Kubernetes deployment
-
----
-
-## 🆘 Troubleshooting
-
-### ❌ ClickHouse не подключается
-
-```bash
-# Решение: Пересоздайте контейнер
-bash scripts/docker-reset-clickhouse.sh
-```
-
-### ❌ Тесты падают
-
-```bash
-# Убедитесь что ClickHouse запущен
-docker ps | grep clickhouse
-
-# Проверьте подключение
-curl http://localhost:8123/
-# Должен вернуть: Ok.
-```
-
-### ❌ Неправильный порт
-
-ClickHouse имеет **два порта**:
-- ✅ **8123** - HTTP (используйте этот!)
-- ❌ **9000** - Native TCP (для CLI)
-
-См. [docs/PORTS.md](docs/PORTS.md)
-
-### ❌ Pydantic warnings
-
-Уже исправлено! Используется Pydantic V2 синтаксис.
 
 ---
 
@@ -628,70 +374,3 @@ ClickHouse имеет **два порта**:
 
 ---
 
-## 👥 Разработка
-
-### Участие в проекте
-
-```bash
-# Fork репозиторий
-git clone <your-fork>
-cd recommend
-
-# Создайте ветку
-git checkout -b feature/your-feature
-
-# Установите зависимости
-pip install -r requirements.txt
-
-# Запустите тесты
-pytest -v
-
-# Commit (не больше 8 слов!)
-git commit -m "Add new feature"
-
-# Push
-git push origin feature/your-feature
-```
-
-### Code Style
-
-- ✅ PEP 8
-- ✅ Type hints
-- ✅ Docstrings для всех функций
-- ✅ 92%+ покрытие тестами
-
----
-
-## 📜 Лицензия
-
-MIT License - используйте свободно!
-
----
-
-## 👥 Авторы
-
-**Разработчик**: @Gencrud.MikhailMarychev
-
----
-
-## 🎓 Обучение
-
-Этот проект - отличный пример:
-- ✅ Рекомендательных систем (Collaborative Filtering)
-- ✅ FastAPI + Pydantic V2
-- ✅ ClickHouse для аналитики
-- ✅ Pytest для тестирования
-- ✅ Docker Compose для деплоя
-- ✅ Организации документации
-
----
-
-<div align="center">
-
-**Готово к использованию!** 🚀
-
-[Начать работу](START_HERE.md) • [Документация](docs/INDEX.md) • [Запустить тесты](docs/RUN_TESTS.md)
-
-⭐ **Поставьте звезду, если проект понравился!** ⭐
-
-</div>

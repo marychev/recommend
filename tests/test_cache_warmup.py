@@ -7,6 +7,7 @@ import urllib.request
 import json
 import time
 from datetime import datetime
+import pytest
 
 API_BASE = "http://localhost:8000/api/v1"
 
@@ -155,6 +156,7 @@ def test_cache_warmup_effectiveness():
         }
     }
 
+@pytest.mark.skip(reason="Для тестирования прогрева кэша вручную")
 def test_users_performance(user_ids, test_name):
     """Тест производительности для списка пользователей"""
     print(f"   Тестирование производительности ({test_name}):")
