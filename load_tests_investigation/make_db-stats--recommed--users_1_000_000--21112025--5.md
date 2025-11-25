@@ -1,4 +1,4 @@
-> PYTEST  126 passed, 12 skipped, 10 warnings in 37.76s
+> PYTEST 126 passed, 12 skipped, 10 warnings in 35.65s | 33.13s 
 > ...... 126 passed, 12 skipped, 11 warnings in 39.76s
 > ...... 124 passed, 7 skipped, 10 warnings in 27.29s 
 
@@ -606,9 +606,9 @@ ClickHouse - ИТОГО:
    avg: 3.00ms | med: 0.53ms | p95: 9.22ms | p99: 0.00ms  
    min: 0.39ms | max: 10.82ms 
 
-• Похожих пользователей (среднее): 17.3   || 15.8 || 15.0 || 15.3   || 12.3   || 16.8   
-• Похожих пользователей (мин):     4      || 5    || 13   || 12  || 11     || 9     || 6
-• Похожих пользователей (макс):    34     || 39   || 18   || 12  || 14     || 28    || 14
+• Похожих пользователей (среднее): 17.3   || 15.8 || 15.0 || 15.3    || 12.3   || 16.8   
+• Похожих пользователей (мин):     4      || 5    || 13   || 12      || 11     || 9     || 6
+• Похожих пользователей (макс):    34     || 39   || 18   || 12      || 14     || 28    || 14
 
 ⏱️  ОБЩЕЕ ВРЕМЯ ОТВЕТА:                       
 Total Response Time:   
@@ -632,6 +632,7 @@ Total Response Time:
    ---------------------------------------------------------------
    avg: 1179.78ms | med: 943.75ms | p95: 2456.45ms | p99: 0.00ms
    min: 313.70ms  | max: 2743.56ms
+
 
 📈 АНАЛИЗ РАСПРЕДЕЛЕНИЯ ВРЕМЕНИ (среднее):     
 • Redis:
@@ -731,86 +732,148 @@ WARN[0917] The test has generated metrics with 400006 unique time series, which 
 ════════════════════════════════════════════════════════
 📊 РЕЗУЛЬТАТЫ СТРЕСС-ТЕСТИРОВАНИЯ
 ════════════════════════════════════════════════════════
-⏱️  Длительность:           1740.35s       || 1740.23s   ||  1740.44s
+⏱️  Длительность:           
+- 1642.21s        # ADDED CLICKHOUSE INDEXES
+- 1740.35s       
+- 1740.23s   
+- 1740.44s
+
 👥 Максимальная нагрузка:   500 пользователей    
-📤 Всего запросов:          110930        || 102821      || 138461
-📈 RPS:                     63.74         || 59.084661   || 79.56                    
+
+📤 Всего запросов:          
+- 123905          # ADDED CLICKHOUSE INDEXES
+- 110930
+- 102821
+- 138461
+
+📈 RPS:                     
+- 75.45           # ADDED CLICKHOUSE INDEXES
+- 63.74         
+- 59.084661
+- 79.56                    
 
 📊 Время ответа:                              
-• Среднее: 3247.24ms || 3541.18ms         || 2501.01ms
-• 95%: 9627.86ms     || 95%: 7305.90ms    || 95%: 5953.82ms
+• Среднее: 
+- 2703.58ms       # ADDED CLICKHOUSE INDEXES
+- 3247.24ms
+- 3541.18ms
+- 2501.01ms
+
+• 95%: 
+- 8046.37ms       # ADDED CLICKHOUSE INDEXES
+- 9627.86ms
+- 7305.90ms    
+- 5953.82ms
 
 ERRO[1741] TypeError: Cannot read property 'toFixed' of undefined or null
 running at handleSummary (file:///home/recommend/load_tests/k6_stress_test.js:74:70(129))  hint="script exception"
 
 █ THRESHOLDS
 
-    http_req_duration
-    ✓ 'p(95)<10000' p(95)=9.62s || 5.95s || 7.3s  
+http_req_duration
+✓ 'p(95)<10000' p(95)=8.04s     # ADDED CLICKHOUSE INDEXES
+✓ 'p(95)<10000' p(95)=9.62s 
+- 5.95s
+- 7.3s  
 
-    http_req_failed
-    ✗ 'rate<0.20' rate=82.62% || 75.02% || 74.87% || 
-
-
-  █ TOTAL RESULTS
-
-    checks_total.......: 110930                       || 102821 59.084661/s
-    checks_succeeded...: 69.81% 77445 out of 110930   || 99.93% 102752 out of 102821   || 99.83% 138235 out of 138461
-    checks_failed......: 30.18% 33485 out of 110930   || 0.06%  69 out of 102821       || 0.16%  226 out of 138461
-
-    ✗ recommendations status ok
-      ↳  69% — ✓ 38918 / ✗ 16815
-    ✗ statistics status ok
-      ↳  69% — ✓ 19308 / ✗ 8313
-    ✗ 100 users list status ok
-      ↳  69% — ✓ 19219 / ✗ 8357
-   ---------------------------------
-    ✗ recommendations status ok
-      ↳  99% — ✓ 51138 / ✗ 39       || ✓ 69258 / ✗ 127
-    ✗ 100 users list status ok      
-      ↳  99% — ✓ 25750 / ✗ 10       || ✓ 34475 / ✗ 57
-    ✗ statistics status ok
-      ↳  99% — ✓ 25864 / ✗ 20       || ✓ 34502 / ✗ 42
-
-    CUSTOM
-    requests.......................: 110930  || 102821
-
-    HTTP
-    http_req_duration..............: 
-      avg=3.24s min=11.51ms  med=2.46s max=40.33s p(90)=7.64s p(95)=9.62s
-      avg=3.54s min=10.86ms  med=3.51s max=32.87s p(90)=6.67s p(95)=7.3s
-      avg=2.5s  min=10.52ms  med=2.01s max=34.73s p(90)=5.23s p(95)=5.95s
-      
-   { expected_response:true }...: 
-      avg=3.95s min=17.53ms  med=3.57s max=40.33s p(90)=8.51s p(95)=10.46s
-      avg=3.49s min=16.03ms  med=3.44s max=32.87s p(90)=6.59s p(95)=7.23s
-      avg=2.42s min=15.8ms   med=1.9s  max=34.73s p(90)=5.12s p(95)=5.82s
-    
-    http_req_failed................: 
-      82.62% 91657 out of 110930
-      74.87% 76989 out of 102821
-      75.02% 103883 out of 138461
-    
-    http_reqs......................: 
-      110930 63.740061/s
-      102821 59.084661/s
-      138461 79.55533/s
-
-    EXECUTION
-    iteration_duration.............: 
-      avg=3.75s min=512.82ms med=2.97s max=40.83s p(90)=8.15s p(95)=10.13s
-      avg=4.04s min=511.58ms med=4.01s max=33.37s p(90)=7.17s p(95)=7.8s
-      avg=3s min=511.26ms med=2.51s max=35.23s p(90)=5.74s p(95)=6.45s
-    
-    iterations.....................: 110930 || 102821 || 
-    vus............................: 2      min=1               max=500
-    vus_max........................: 500    min=500             max=500
-
-    NETWORK
-    data_received..................: 307 MB 176 kB/s     || 400 MB 230 kB/s     || 536 MB 308 kB/s
-    data_sent......................:  11 MB  6.5 kB/s     ||  11 MB  6.0 kB/s     || 14 MB  8.1 kB/s
+http_req_failed
+✗ 'rate<0.20' rate=87.52%
+✗ 'rate<0.20' rate=82.62% || 75.02% || 74.87% || 
 
 
+█ TOTAL RESULTS
+
+checks_total.......: 
+- 123905 75.450015/s
+- 110930                       
+- 102821 59.084661/s
+
+checks_succeeded...: 
+- 50.19% 62196 out of 123905
+- 69.81% 77445 out of 110930   
+- 99.93% 102752 out of 102821
+- 99.83% 138235 out of 138461
+
+checks_failed......: 
+- 49.80% 61709 out of 123905
+- 30.18% 33485 out of 110930
+- 0.06%  69 out of 102821
+- 0.16%  226 out of 138461
+
+✗ statistics status ok
+↳  50% — ✓ 15745 / ✗ 15488
+✗ 100 users list status ok
+↳  49% — ✓ 15401 / ✗ 15447
+✗ recommendations status ok
+↳  50% — ✓ 31050 / ✗ 30774
+---------------------------------
+✗ recommendations status ok
+↳  69% — ✓ 38918 / ✗ 16815
+✗ statistics status ok
+↳  69% — ✓ 19308 / ✗ 8313
+✗ 100 users list status ok
+↳  69% — ✓ 19219 / ✗ 8357
+---------------------------------
+✗ recommendations status ok
+↳  99% — ✓ 51138 / ✗ 39       || ✓ 69258 / ✗ 127
+✗ 100 users list status ok      
+↳  99% — ✓ 25750 / ✗ 10       || ✓ 34475 / ✗ 57
+✗ statistics status ok
+↳  99% — ✓ 25864 / ✗ 20       || ✓ 34502 / ✗ 42
+
+HTTP
+http_req_duration..............: 
+avg=2.7s  min=-4231ns  med=1.09s max=56.4s  p(90)=6.96s p(95)=8.04s
+avg=3.24s min=11.51ms  med=2.46s max=40.33s p(90)=7.64s p(95)=9.62s
+avg=3.54s min=10.86ms  med=3.51s max=32.87s p(90)=6.67s p(95)=7.3s
+avg=2.5s  min=10.52ms  med=2.01s max=34.73s p(90)=5.23s p(95)=5.95s
+
+{ expected_response:true }...: 
+- avg=3.15s min=47.92µs  med=1.44s max=38.06s p(90)=7.12s p(95)=8.12s
+- avg=3.95s min=17.53ms  med=3.57s max=40.33s p(90)=8.51s p(95)=10.46s
+- avg=3.49s min=16.03ms  med=3.44s max=32.87s p(90)=6.59s p(95)=7.23s
+- avg=2.42s min=15.8ms   med=1.9s  max=34.73s p(90)=5.12s p(95)=5.82s
+
+http_req_failed................: 
+- 87.52% 108452 out of 123905
+- 82.62% 91657 out of 110930
+- 74.87% 76989 out of 102821
+- 75.02% 103883 out of 138461
+
+http_reqs......................: 
+- 123905 75.450015/s
+- 110930 63.740061/s
+- 102821 59.084661/s
+- 138461 79.55533/s
+
+EXECUTION
+iteration_duration.............: 
+avg=3.35s min=512.02ms med=1.65s max=1m0s    p(90)=7.77s p(95)=8.85s
+avg=3.75s min=512.82ms med=2.97s max=40.83s  p(90)=8.15s p(95)=10.13s
+avg=4.04s min=511.58ms med=4.01s max=33.37s  p(90)=7.17s p(95)=7.8s
+avg=3s    min=511.26ms med=2.51s max=35.23s p(90)=5.74s  p(95)=6.45s
+
+iterations.....................: 
+- 123905 75.450015/s
+- 110930
+- 102821 || 
+vus............................: 2      min=1               max=500
+vus_max........................: 500    min=500             max=500
+
+NETWORK
+data_received..................: 
+- 255 MB 155 kB/s
+- 307 MB 176 kB/s
+- 400 MB 230 kB/s     
+- 536 MB 308 kB/s
+
+data_sent......................:  
+- 13 MB  7.7 kB/s
+- 11 MB  6.5 kB/s
+- 11 MB  6.0 kB/s
+- 14 MB  8.1 kB/s
+
+running (27m22.2s), 000/500 VUs, 123905 complete and 0 interrupted iterations
 running (29m00.3s), 000/500 VUs, 110930 complete and 0 interrupted iterations
 running (29m00.2s), 000/500 VUs, 102821 complete and 0 interrupted iterations
 
