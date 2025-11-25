@@ -4,6 +4,8 @@
  * Используется всеми тестами для избежания дублирования кода
  */
 
+import http from 'k6/http';
+
 // ════════════════════════════════════════════════════════
 // Конфигурация
 // ════════════════════════════════════════════════════════
@@ -38,6 +40,50 @@ export function getRandomUserId() {
  */
 export function getRandomTrackId() {
   return Math.floor(Math.random() * (TRACK_ID_MAX - TRACK_ID_MIN + 1)) + TRACK_ID_MIN;
+}
+
+/**
+ * Получает реальные ID пользователей из API
+ * Возвращает массив user_id или пустой массив при ошибке
+ */
+export function getRealUserIds(baseUrl = BASE_URL, limit = 100) {
+  try {
+    const res = http.get(`${baseUrl}/api/v1/users?limit=${limit}`);
+    if (res.status === 200) {
+      const users = JSON.parse(res.body);
+      return users.map(u => u.user_id).filter(id => id != null);
+    }
+  } catch (e) {
+    console.error(`Failed to get real user IDs: ${e}`);
+  }
+  return [];
+}
+
+/**
+ * Получает реальные ID треков из API
+ * Возвращает массив track_id или пустой массив при ошибке
+ */
+export function getRealTrackIds(baseUrl = BASE_URL, limit = 100) {
+  try {
+    const res = http.get(`${baseUrl}/api/v1/tracks?limit=${limit}`);
+    if (res.status === 200) {
+      const tracks = JSON.parse(res.body);
+      return tracks.map(t => t.track_id).filter(id => id != null);
+    }
+  } catch (e) {
+    console.error(`Failed to get real track IDs: ${e}`);
+  }
+  return [];
+}
+
+/**
+ * Получает случайный ID из массива существующих ID
+ */
+export function getRandomIdFromArray(ids) {
+  if (!ids || ids.length === 0) {
+    return null;
+  }
+  return ids[Math.floor(Math.random() * ids.length)];
 }
 
 /**

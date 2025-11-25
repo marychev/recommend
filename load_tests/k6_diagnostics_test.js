@@ -10,7 +10,7 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
-import { BASE_URL, getRandomUserId, getRandomTrackId, urlUsersList10, urlTracksList10 } from './k6-helpers.js';
+import { BASE_URL, getRandomUserId, getRandomTrackId, urlUsersList10, urlTracksList10, getRandomIdFromArray } from './k6-helpers.js';
 
 // Метрики по эндпоинтам
 const usersListDuration = new Trend('users_list_duration');
@@ -22,15 +22,60 @@ const trackByIdDuration = new Trend('track_by_id_duration');
 const usersListErrors = new Counter('users_list_errors');
 const tracksListErrors = new Counter('tracks_list_errors');
 const recommendationsErrors = new Counter('recommendations_errors');
+// Кастомная метрика для реальных ошибок (5xx, таймауты, сеть) - без 404
+const realErrors = new Counter('real_errors');
 
 export const options = {
   vus: 10,
   duration: '1m',
   thresholds: {}, // БЕЗ thresholds - только диагностика
+  // Настройка: только реальные ошибки (5xx, таймауты, сеть)
+  noConnectionErrors: true,
+  // Настраиваем, что считать ошибкой
+  // 404 (Not Found) - это валидный ответ для несуществующих ресурсов
 };
 
+// Setup: получаем реальные ID один раз перед тестом
+export function setup() {
+  console.log('🔍 Загрузка реальных ID пользователей и треков...');
+  
+  // Получаем реальные ID пользователей
+  let userIds = [];
+  try {
+    const usersRes = http.get(`${BASE_URL}/api/v1/users?limit=100`);
+    if (usersRes.status === 200) {
+      const users = JSON.parse(usersRes.body);
+      userIds = users.map(u => u.user_id).filter(id => id != null);
+    }
+  } catch (e) {
+    console.error(`Failed to get real user IDs: ${e}`);
+  }
+  
+  // Получаем реальные ID треков
+  let trackIds = [];
+  try {
+    const tracksRes = http.get(`${BASE_URL}/api/v1/tracks?limit=100`);
+    if (tracksRes.status === 200) {
+      const tracks = JSON.parse(tracksRes.body);
+      trackIds = tracks.map(t => t.track_id).filter(id => id != null);
+    }
+  } catch (e) {
+    console.error(`Failed to get real track IDs: ${e}`);
+  }
+  
+  console.log(`✅ Загружено ${userIds.length} пользователей и ${trackIds.length} треков`);
+  return {
+    userIds: userIds,
+    trackIds: trackIds,
+  };
+}
 
-export default function () {
+
+export default function (data) {
+  // Используем реальные ID из setup, если они доступны
+  const availableUserIds = (data && data.userIds && data.userIds.length > 0) ? data.userIds : null;
+  const availableTrackIds = (data && data.trackIds && data.trackIds.length > 0) ? data.trackIds : null;
+
   // Тест 1: Users List
   group('Users List', () => {
     const start = Date.now();
@@ -43,6 +88,10 @@ export default function () {
     
     if (!success) {
       usersListErrors.add(1);
+      // Считаем только реальные ошибки (5xx)
+      if (res.status >= 500 || res.status === 0) {
+        realErrors.add(1);
+      }
       console.log(`❌ 10 Users List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
     }
   });
@@ -61,6 +110,10 @@ export default function () {
     
     if (!success) {
       tracksListErrors.add(1);
+      // Считаем только реальные ошибки (5xx)
+      if (res.status >= 500 || res.status === 0) {
+        realErrors.add(1);
+      }
       console.log(`❌ 10 Tracks List ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
     }
   });
@@ -68,29 +121,43 @@ export default function () {
   sleep(0.3);
 
   // Тест 3: Recommendations (самый тяжелый)
+  // Используем реальный ID, если доступен, иначе случайный
   group('Recommendations', () => {
-    const userId = getRandomUserId();
+    const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/recommendations/${userId}`);
+    const res = http.get(`${BASE_URL}/api/v1/recommendations/${userId}`, {
+      tags: { name: 'Recommendations' },
+    });
     recommendationsDuration.add(Date.now() - start);
     
+    // 200 или 404 - это валидные ответы (404 = пользователь не найден)
     const success = check(res, {
       'recommendations status OK': (r) => r.status === 200 || r.status === 404,
     });
     
-    if (!success) {
+    // Считаем ошибкой только 5xx статусы и сетевые ошибки (не 404!)
+    if (res.status >= 500) {
       recommendationsErrors.add(1);
+      realErrors.add(1);
       console.log(`❌ Recommendations ERROR: ${res.status} - ${res.body?.substring(0, 100)}`);
+    } else if (res.status === 0 || res.status === null) {
+      // Сетевые ошибки
+      recommendationsErrors.add(1);
+      realErrors.add(1);
+      console.log(`❌ Recommendations NETWORK ERROR`);
     }
   });
 
   sleep(0.3);
 
   // Тест 4: User by ID
+  // Используем реальный ID, если доступен
   group('User by ID', () => {
-    const userId = getRandomUserId();
+    const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/users/${userId}`);
+    const res = http.get(`${BASE_URL}/api/v1/users/${userId}`, {
+      tags: { name: 'UserById' },
+    });
     userByIdDuration.add(Date.now() - start);
     
     check(res, {
@@ -101,10 +168,13 @@ export default function () {
   sleep(0.3);
 
   // Тест 5: Track by ID
+  // Используем реальный ID, если доступен
   group('Track by ID', () => {
-    const trackId = getRandomTrackId();
+    const trackId = availableTrackIds ? getRandomIdFromArray(availableTrackIds) : getRandomTrackId();
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/tracks/${trackId}`);
+    const res = http.get(`${BASE_URL}/api/v1/tracks/${trackId}`, {
+      tags: { name: 'TrackById' },
+    });
     trackByIdDuration.add(Date.now() - start);
     
     check(res, {
@@ -123,12 +193,15 @@ export function handleSummary(data) {
   console.log('');
   
   const totalReqs = data.metrics.http_reqs?.values?.count || 0;
-  const failRate = (data.metrics.http_req_failed?.values?.rate || 0) * 100;
+  const failRateRaw = (data.metrics.http_req_failed?.values?.rate || 0) * 100;
+  const realErrorsCount = data.metrics.real_errors?.values?.count || 0;
+  const realErrorsRate = totalReqs > 0 ? (realErrorsCount / totalReqs) * 100 : 0;
   
   console.log(`📊 Общая статистика:`);
   console.log(`   • Виртуальных пользователей: 10`);
   console.log(`   • Всего запросов:            ${totalReqs}`);
-  console.log(`   • Общий процент ошибок:      ${failRate.toFixed(2)}%`);
+  console.log(`   • Процент ошибок (все):      ${failRateRaw.toFixed(2)}% (включает 404)`);
+  console.log(`   • Реальных ошибок (5xx/сеть): ${realErrorsRate.toFixed(2)}% (${realErrorsCount} из ${totalReqs})`);
   console.log('');
   
   console.log(`📈 Время ответа по эндпоинтам:`);
@@ -202,12 +275,35 @@ export function handleSummary(data) {
   }
   
   // Анализ ошибок
-  if (failRate > 10) {
+  // Примечание: http_req_failed включает 404, поэтому используем realErrors для анализа
+  if (realErrorsRate > 5) {
     console.log('');
-    console.log(`   ❌ Высокий процент ошибок (${failRate.toFixed(2)}%)`);
+    console.log(`   ❌ Высокий процент РЕАЛЬНЫХ ошибок (${realErrorsRate.toFixed(2)}%)`);
+    console.log(`      • Реальные ошибки = 5xx статусы, таймауты, сетевые ошибки`);
+    console.log(`      • 404 (Not Found) НЕ считается ошибкой - это нормально для несуществующих ресурсов`);
     console.log(`      1. Проверьте логи: make logs-errors`);
-    console.log(`      2. Проверьте подключение к БД`);
-    console.log(`      3. Проверьте, что данные сгенерированы: make db-stats`);
+    console.log(`      2. Проверьте подключение к БД: docker-compose logs clickhouse`);
+    console.log(`      3. Проверьте, что сервисы запущены: docker-compose ps`);
+    console.log(`      4. Проверьте ресурсы: docker stats`);
+    console.log(`      5. Проверьте доступность API: curl ${BASE_URL}/health`);
+  } else if (realErrorsRate > 0) {
+    console.log('');
+    console.log(`   ⚠️  Небольшой процент реальных ошибок (${realErrorsRate.toFixed(2)}%)`);
+    console.log(`      • Это может быть нормально для нагрузочных тестов`);
+    console.log(`      • 404 (Not Found) не считается ошибкой`);
+  } else {
+    console.log('');
+    console.log(`   ✅ Нет реальных ошибок!`);
+    console.log(`      • Все запросы успешно обработаны`);
+    console.log(`      • 404 (Not Found) - это нормально для случайных ID`);
+  }
+  
+  // Дополнительная информация о 404
+  if (failRateRaw > 50 && realErrorsRate < 5) {
+    console.log('');
+    console.log(`   ℹ️  Примечание: Высокий процент 404 (${(failRateRaw - realErrorsRate).toFixed(2)}%)`);
+    console.log(`      • Это означает, что многие случайные ID не существуют в БД`);
+    console.log(`      • Тест теперь использует реальные ID из API для более точных результатов`);
   }
   
   // Анализ рекомендаций

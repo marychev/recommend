@@ -188,31 +188,49 @@ else
 fi
 
 echo ""
-echo "📝 Добавление индексов (если их нет)..."
+echo "📝 Добавление индексов для оптимизации запросов..."
 
-# Проверяем наличие индексов и добавляем только если их нет
-for index_name in "idx_track_id" "idx_action_type"; do
+# Функция для проверки и добавления индекса
+add_index_if_not_exists() {
+    local table=$1
+    local index_name=$2
+    local index_expr=$3
+    local index_type=$4
+    local granularity=${5:-4}
+    
     EXISTS=$(docker exec "$CONTAINER_NAME" clickhouse-client -q \
         "SELECT count() FROM system.data_skipping_indices 
          WHERE database='$DB_NAME' 
-         AND table='user_track_interactions' 
+         AND table='$table' 
          AND name='$index_name'" 2>/dev/null || echo "0")
     
     if [ "$EXISTS" = "0" ]; then
-        echo "   Добавление индекса $index_name..."
-        if [ "$index_name" = "idx_track_id" ]; then
-            docker exec "$CONTAINER_NAME" clickhouse-client -q \
-                "ALTER TABLE $DB_NAME.user_track_interactions 
-                 ADD INDEX idx_track_id track_id TYPE minmax GRANULARITY 4" 2>/dev/null || true
-        elif [ "$index_name" = "idx_action_type" ]; then
-            docker exec "$CONTAINER_NAME" clickhouse-client -q \
-                "ALTER TABLE $DB_NAME.user_track_interactions 
-                 ADD INDEX idx_action_type action_type TYPE set(0) GRANULARITY 4" 2>/dev/null || true
-        fi
+        echo "   ➕ Добавление индекса $table.$index_name..."
+        docker exec "$CONTAINER_NAME" clickhouse-client -q \
+            "ALTER TABLE $DB_NAME.$table 
+             ADD INDEX $index_name $index_expr TYPE $index_type GRANULARITY $granularity" 2>/dev/null || true
+        echo "      ✅ Индекс добавлен"
     else
-        echo "   ✓ Индекс $index_name уже существует"
+        echo "   ✓ Индекс $table.$index_name уже существует"
     fi
-done
+}
+
+echo ""
+echo "   🔧 Индексы для user_track_interactions:"
+add_index_if_not_exists "user_track_interactions" "idx_track_id" "track_id" "minmax" "4"
+add_index_if_not_exists "user_track_interactions" "idx_action_type" "action_type" "set(0)" "4"
+add_index_if_not_exists "user_track_interactions" "idx_timestamp" "timestamp" "minmax" "4"
+add_index_if_not_exists "user_track_interactions" "idx_action_timestamp" "(action_type, timestamp)" "minmax" "4"
+
+echo ""
+echo "   🔧 Индексы для user_track_matrix (критично для рекомендаций):"
+add_index_if_not_exists "user_track_matrix" "idx_implicit_rating" "implicit_rating" "minmax" "4"
+add_index_if_not_exists "user_track_matrix" "idx_track_id" "track_id" "minmax" "4"
+add_index_if_not_exists "user_track_matrix" "idx_rating_track" "(implicit_rating, track_id)" "minmax" "4"
+
+echo ""
+echo "   🔧 Индексы для user_recommendations:"
+add_index_if_not_exists "user_recommendations" "idx_score" "score" "minmax" "4"
 
 echo ""
 echo "📋 Список таблиц в базе данных:"

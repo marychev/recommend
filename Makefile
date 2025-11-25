@@ -7,7 +7,7 @@
 	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \ 
 	test test-clickhouse test-kafka   \
-	db-init db-reset db-shell db-tables db-stats \
+	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats \
 	lint lint-install format
 
 # Цвета для вывода
@@ -117,6 +117,16 @@ db-init: ## Создать таблицы в ClickHouse (безопасно, и�
 	# @bash scripts/safe_db_init.sh
 	python scripts/seed_data.py
 
+db-indexes: ## Добавить индексы для оптимизации запросов (безопасно)
+	@echo "$(BLUE)📊 Добавление индексов для оптимизации...$(NC)"
+	@bash scripts/safe_add_indexes.sh
+
+db-optimize: ## Оптимизировать таблицы (применить индексы к существующим данным)
+	@echo "$(BLUE)📊 Оптимизация таблиц...$(NC)"
+	@docker exec music_recommend_clickhouse clickhouse-client --query "OPTIMIZE TABLE music_recommend.user_track_matrix FINAL" || true
+	@docker exec music_recommend_clickhouse clickhouse-client --query "OPTIMIZE TABLE music_recommend.user_track_interactions FINAL" || true
+	@docker exec music_recommend_clickhouse clickhouse-client --query "OPTIMIZE TABLE music_recommend.user_recommendations FINAL" || true
+	@echo "$(GREEN)✅ Таблицы оптимизированы$(NC)"
 
 db-reset: ## Пересоздать ClickHouse контейнер и таблицы
 	@echo "$(YELLOW)⚠️ Пересоздание ClickHouse (данные будут удалены)...$(NC)"

@@ -12,7 +12,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
-import { BASE_URL, getRandomUserId } from './k6-helpers.js';
+import { BASE_URL, getRandomUserId, getRandomIdFromArray } from './k6-helpers.js';
 
 // ════════════════════════════════════════════════════════
 // Конфигурация теста - всего 10 итераций для быстрой проверки
@@ -21,7 +21,36 @@ import { BASE_URL, getRandomUserId } from './k6-helpers.js';
 export const options = {
   iterations: 10,
   vus: 1,
+  // Настройка: только реальные ошибки (5xx, таймауты, сеть)
+  noConnectionErrors: true,
 };
+
+// Setup: получаем реальные ID пользователей перед тестом
+export function setup() {
+  console.log('🔍 Загрузка реальных ID пользователей для quick performance test...');
+  
+  // Получаем реальные ID пользователей
+  let userIds = [];
+  try {
+    const usersRes = http.get(`${BASE_URL}/api/v1/users?limit=100`);
+    if (usersRes.status === 200) {
+      const users = JSON.parse(usersRes.body);
+      userIds = users.map(u => u.user_id).filter(id => id != null);
+    }
+  } catch (e) {
+    console.error(`Failed to get real user IDs: ${e}`);
+  }
+  
+  console.log(`✅ Загружено ${userIds.length} пользователей`);
+  
+  if (userIds.length === 0) {
+    console.warn('⚠️  Не удалось загрузить реальные ID. Тест будет использовать случайные ID (возможны 404 ошибки).');
+  }
+  
+  return {
+    userIds: userIds,
+  };
+}
 
 // Метрики для сбора данных
 const totalTime = new Trend('perf_total_time');
@@ -39,8 +68,10 @@ const cacheMisses = new Counter('perf_cache_misses');
 // Основная функция тестирования
 // ════════════════════════════════════════════════════════
 
-export default function () {
-  const userId = getRandomUserId();
+export default function (data) {
+  // Используем реальный ID из setup, если доступен
+  const availableUserIds = (data && data.userIds && data.userIds.length > 0) ? data.userIds : null;
+  const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();
   
   const payload = JSON.stringify({
     user_id: userId,
@@ -61,8 +92,12 @@ export default function () {
     'status is 200': (r) => r.status === 200,
     'has performance_metrics': (r) => {
       if (r.status === 200) {
-        const body = JSON.parse(r.body);
-        return body.performance_metrics !== null && body.performance_metrics !== undefined;
+        try {
+          const body = JSON.parse(r.body);
+          return body.performance_metrics !== null && body.performance_metrics !== undefined;
+        } catch {
+          return false;
+        }
       }
       return false;
     },
@@ -98,8 +133,14 @@ export default function () {
     } catch (e) {
       console.error(`Error parsing response: ${e}`);
     }
+  } else if (response.status === 404) {
+    // 404 - это не ошибка, просто пользователь не найден
+    console.log(`User ${userId}: ⚠️  Not Found (404) - пользователь не существует в БД`);
+  } else if (response.status >= 500) {
+    // Реальная ошибка сервера
+    console.log(`User ${userId}: ❌ Server Error ${response.status}`);
   } else {
-    console.log(`User ${userId}: ❌ Error ${response.status}`);
+    console.log(`User ${userId}: ⚠️  Error ${response.status}`);
   }
 }
 
@@ -186,10 +227,35 @@ export function handleSummary(data) {
   console.log('\n' + separator + '\n');
   console.log('📊 СТАТИСТИКА:\n');
   
-  console.log(`   • Успешных запросов:          ${data.metrics.checks?.values?.passes || 0}`);
-  console.log(`   • Ошибок:                     ${data.metrics.checks?.values?.fails || 0}`);
+  const totalReqs = data.metrics.http_reqs?.values?.count || 0;
+  const failRateRaw = (data.metrics.http_req_failed?.values?.rate || 0) * 100;
+  const successChecks = data.metrics.checks?.values?.passes || 0;
+  const failedChecks = data.metrics.checks?.values?.fails || 0;
+  const status200Count = successChecks; // Предполагаем, что успешные checks = 200 статусы
+  
+  console.log(`   • Всего запросов:             ${totalReqs}`);
+  console.log(`   • Успешных запросов (200):    ${successChecks}`);
+  console.log(`   • Неуспешных checks:          ${failedChecks}`);
+  console.log(`   • Процент ошибок (все):       ${failRateRaw.toFixed(2)}% (включает 404)`);
   console.log(`   • Среднее время HTTP:         ${(data.metrics.http_req_duration?.values?.avg || 0).toFixed(2)}ms`);
   console.log(`   • p95 HTTP:                   ${(data.metrics.http_req_duration?.values?.['p(95)'] || 0).toFixed(2)}ms`);
+  
+  // Предупреждение, если нет успешных запросов
+  if (successChecks === 0 && totalReqs > 0) {
+    console.log('\n' + separator + '\n');
+    console.log('⚠️  ВНИМАНИЕ:\n');
+    console.log('   • Нет успешных запросов (status 200)');
+    console.log('   • Все запросы вернули ошибки или 404');
+    console.log('   • Возможные причины:');
+    console.log('     - Использовались случайные ID, которых нет в БД');
+    console.log('     - Проверьте, что данные сгенерированы: make db-stats');
+    console.log('     - Убедитесь, что API работает: curl ' + BASE_URL + '/health');
+    console.log('     - Проверьте логи: make logs-api');
+  } else if (successChecks > 0 && successChecks < totalReqs) {
+    const notFoundRate = ((totalReqs - successChecks) / totalReqs) * 100;
+    console.log(`\n   ℹ️  Примечание: ${notFoundRate.toFixed(1)}% запросов вернули 404 (пользователь не найден)`);
+    console.log(`      Это нормально, если использовались случайные ID`);
+  }
 
   console.log('\n' + line + '\n');
 
