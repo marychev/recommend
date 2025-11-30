@@ -17,6 +17,7 @@ load_tests/
 ├── 💥 k6_spike_test_extreme.js      # Extreme spike - 500 VUs (без thresholds)
 ├── 💪 k6_stress_test.js              # Стресс-тест (30min)
 ├── 🕐 k6_soak_test.js                # Soak test (70min)
+├── 📝 k6_post_load_test.js           # POST запросы тест (5min)
 ├── 🐍 generate_test_data.py          # Генерация 1M записей
 ├── 📖 README.md                      # Основная документация
 ├── 📖 QUICKSTART.md                  # Быстрый старт
@@ -39,6 +40,7 @@ load_tests/
 | ⚡ **Устойчивость к пикам** | Spike | `make load-test-spike` |
 | 💪 **Найти предел** | Stress | `make load-test-stress` |
 | 🕐 **Утечки памяти?** | Soak | `make load-test-soak` |
+| 📝 **Тест POST запросов** | POST Load | `make load-test-post` |
 
 ---
 
@@ -255,6 +257,79 @@ k6 run load_tests/k6_soak_test.js
 
 ---
 
+### 8. 📝 POST Load Test
+
+**Файл:** `k6_post_load_test.js`
+
+**Когда использовать:**
+- ✅ Тестирование создания ресурсов (users, tracks, events)
+- ✅ Проверка производительности POST запросов
+- ✅ Определение пропускной способности для записи данных
+- ✅ Тестирование получения рекомендаций через POST
+
+**Характеристики:**
+- VUs: 50 (по умолчанию, настраивается через VUS)
+- Длительность: 5 минут (настраивается через DURATION)
+- Thresholds: p95 < 5s, errors < 5%
+
+**Команды:**
+```bash
+# Стандартный тест (50 VUs, 5 минут)
+make load-test-post
+
+# Быстрый тест (10 VUs, 1 минута)
+make load-test-post-quick
+
+# Кастомная нагрузка
+make load-test-post VUS=100 DURATION=10m
+# или напрямую
+k6 run load_tests/k6_post_load_test.js --vus 100 --duration 10m
+```
+
+**Что тестирует:**
+- **POST /api/v1/users** - создание пользователя
+  - Генерирует случайные данные (username, email, age, country)
+  - Проверяет успешное создание (201) и наличие user_id в ответе
+  
+- **POST /api/v1/tracks** - создание трека
+  - Генерирует случайные данные (title, artist, album, genre, duration, year)
+  - Проверяет успешное создание (201) и наличие track_id в ответе
+  
+- **POST /api/v1/events** - создание события взаимодействия
+  - Использует реальные ID пользователей и треков (если доступны)
+  - Генерирует случайные действия (play, like, dislike, skip, add_to_playlist, share)
+  - Проверяет успешное создание (201) или 404 (если ID не существует)
+  
+- **POST /api/v1/recommendations** - получение рекомендаций
+  - Использует реальные ID пользователей (если доступны)
+  - Генерирует различные параметры запроса (top_n, exclude_listened, include_performance_metrics)
+  - Проверяет успешный ответ (200) или 404 (если пользователь не найден)
+
+**Профиль нагрузки:**
+```
+0-30s:   20% VUs  (разогрев)
+30-90s:  50% VUs  (рост)
+90s-5m:  100% VUs (стабильная нагрузка)
+5-6m:    150% VUs (пиковая нагрузка)
+6-6.5m:  0 VUs    (завершение)
+```
+
+**Метрики:**
+- Время ответа каждого POST endpoint (avg, p95, p99, max)
+- Процент успешных запросов
+- Количество ошибок по endpoint
+- RPS (запросов в секунду)
+- Максимальное количество параллельных пользователей
+
+**Особенности:**
+- Автоматическая генерация тестовых данных
+- Использование реальных ID из БД (если доступны)
+- Детальная статистика по каждому endpoint
+- Рекомендации по масштабированию
+- Настраиваемая нагрузка через переменные окружения
+
+---
+
 ## 🛠️ k6-helpers.js - Общие функции
 
 **Назначение:** Устранение дублирования кода во всех тестах
@@ -333,7 +408,8 @@ make load-test-diagnostics    # 1 минута
 # Полное тестирование
 make load-test-diagnostics    # 1 минута - диагностика
 make load-test-smoke          # 2 минуты - smoke
-make load-test-basic          # 15 минут - основной тест
+make load-test-basic          # 15 минут - основной тест (GET)
+make load-test-post           # 5 минут - POST запросы
 make load-test-spike          # 2 минуты - пики
 make load-test-stress         # 30 минут - пределы
 

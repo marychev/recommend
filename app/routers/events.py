@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List
+import asyncio
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 
 from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
@@ -49,8 +50,8 @@ async def process_event_async(event: UserTrackInteraction):
             )
         else:
             print(
-                f"⚠️  Не удалось отправить событие в Kafka "
-                f"(событие сохранено в ClickHouse)"
+                "⚠️  Не удалось отправить событие в Kafka "
+                "(событие сохранено в ClickHouse)"
             )
     except Exception as e:
         print(f"❌ Ошибка отправки в Kafka: {e}")
@@ -93,10 +94,33 @@ async def create_event(
     clickhouse = get_clickhouse_client()
 
     try:
-        _ = await clickhouse.exists_user(event.user_id)
-        _ = await clickhouse.exists_track(event.track_id)
-
+        # Оптимизация: проверяем существование пользователя и трека параллельно
+        # для уменьшения задержек
         timestamp = event.timestamp if event.timestamp else datetime.now()
+        
+        # Проверяем существование параллельно (быстрее чем последовательно)
+        user_check, track_check = await asyncio.gather(
+            clickhouse.execute_raw(
+                f"SELECT 1 FROM users WHERE user_id = {event.user_id} LIMIT 1"
+            ),
+            clickhouse.execute_raw(
+                f"SELECT 1 FROM tracks WHERE track_id = {event.track_id} LIMIT 1"
+            ),
+            return_exceptions=True
+        )
+        
+        # Проверяем результаты
+        if isinstance(user_check, Exception) or not user_check or len(user_check) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Пользователь с ID {event.user_id} не найден",
+            )
+        
+        if isinstance(track_check, Exception) or not track_check or len(track_check) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Трек с ID {event.track_id} не найден",
+            )
 
         await clickhouse.save_event(event, timestamp)
 

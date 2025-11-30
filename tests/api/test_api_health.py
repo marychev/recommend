@@ -38,6 +38,7 @@ def check_endpoint(method, endpoint, description):
         print(f"❌ {description}: {e}")
         return False
 
+
 def main():
     print("🏥 ПРОВЕРКА ЗДОРОВЬЯ API")
     print("=" * 30)

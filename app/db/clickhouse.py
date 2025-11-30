@@ -1,5 +1,6 @@
 from re import T
 from typing import Optional, Any, List
+import time
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from fastapi import HTTPException, status
@@ -142,30 +143,31 @@ class ClickHouseClient:
         except Exception as e:
             raise RuntimeError(f"Insert failed: {e}")
 
-    async def exists_user(self, user_id: int) -> List[tuple]:
-        """Проверяем существование пользователя"""
+    async def exists_user(self, user_id: int) -> bool:
+        """Проверяем существование пользователя (оптимизированная версия)"""
+        # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
         user_check = await self.execute_raw(
-            f"SELECT count() FROM users WHERE user_id = {user_id}"
+            f"SELECT 1 FROM users WHERE user_id = {user_id} LIMIT 1"
         )
-        if user_check[0][0] == 0:
+        if not user_check or len(user_check) == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Пользователь с ID {user_id} не найден",
             )
+        return True
 
-        return user_check
-
-    async def exists_track(self, track_id: int) -> List[tuple]:
-        """Проверяем существование трека"""
+    async def exists_track(self, track_id: int) -> bool:
+        """Проверяем существование трека (оптимизированная версия)"""
+        # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
         track_check = await self.execute_raw(
-            f"SELECT count() FROM tracks WHERE track_id = {track_id}"
+            f"SELECT 1 FROM tracks WHERE track_id = {track_id} LIMIT 1"
         )
-        if track_check[0][0] == 0:
+        if not track_check or len(track_check) == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Трек с ID {track_id} не найден",
             )
-        return track_check
+        return True
 
     async def save_event(
         self, event: UserTrackInteraction, timestamp: datetime
@@ -186,13 +188,28 @@ class ClickHouseClient:
         )
 
     async def save_track(self, track: Track) -> int:
-        """Сохраняем трек"""
-        # Генерируем ID
-        result = await self.execute_raw(
-            "SELECT max(track_id) as max_id FROM tracks"
+        """Сохраняем трек (оптимизированная версия)"""
+        # Оптимизация: используем timestamp-based ID для избежания блокировок
+        # Это намного быстрее чем SELECT max() при высокой нагрузке
+        timestamp_part = int(time.time() * 1000) % 1000000  # последние 6 цифр timestamp
+        random_part = hash(track.title + track.artist) % 10000  # хэш от названия и артиста
+        
+        # Пробуем сгенерировать уникальный ID
+        # Если коллизия - используем fallback через max (редко)
+        new_id = timestamp_part * 10000 + random_part
+        
+        # Проверяем, не существует ли уже такой ID (очень редко)
+        check = await self.execute_raw(
+            f"SELECT 1 FROM tracks WHERE track_id = {new_id} LIMIT 1"
         )
-        max_id = result[0][0] if result and result[0][0] else 0
-        new_id = (max_id or 0) + 1
+        
+        if check and len(check) > 0:
+            # Коллизия! Используем fallback (редко)
+            result = await self.execute_raw(
+                "SELECT max(track_id) as max_id FROM tracks"
+            )
+            max_id = result[0][0] if result and result[0][0] else 0
+            new_id = (max_id or 0) + 1
 
         # Вставляем трек
         await self.insert(
@@ -214,13 +231,28 @@ class ClickHouseClient:
         return new_id
 
     async def save_user(self, user: User) -> int:
-        """Сохраняем пользователя"""
-        # Генерируем ID (в реальности нужно использовать автоинкремент или UUID)
-        result = await self.execute_raw(
-            "SELECT max(user_id) as max_id FROM users"
+        """Сохраняем пользователя (оптимизированная версия)"""
+        # Оптимизация: используем timestamp-based ID для избежания блокировок
+        # Это намного быстрее чем SELECT max() при высокой нагрузке
+        timestamp_part = int(time.time() * 1000) % 1000000  # последние 6 цифр timestamp
+        random_part = hash(user.username + (user.email or "")) % 10000  # хэш от username и email
+        
+        # Пробуем сгенерировать уникальный ID
+        # Если коллизия - используем fallback через max (редко)
+        new_id = timestamp_part * 10000 + random_part
+        
+        # Проверяем, не существует ли уже такой ID (очень редко)
+        check = await self.execute_raw(
+            f"SELECT 1 FROM users WHERE user_id = {new_id} LIMIT 1"
         )
-        max_id = result[0][0] if result and result[0][0] else 0
-        new_id = (max_id or 0) + 1
+        
+        if check and len(check) > 0:
+            # Коллизия! Используем fallback (редко)
+            result = await self.execute_raw(
+                "SELECT max(user_id) as max_id FROM users"
+            )
+            max_id = result[0][0] if result and result[0][0] else 0
+            new_id = (max_id or 0) + 1
 
         await self.insert(
             "users",

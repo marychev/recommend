@@ -3,10 +3,10 @@
 	load-test-install load-test-data-generate load-test-diagnostics \
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
-	load-test-recommendations load-test-recommendations-quick \
+	load-test-recommendations load-test-recommendations-quick load-test-post load-test-post-quick \
 	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \ 
-	test test-clickhouse test-kafka   \
+	test test-api test-cache test-clickhouse test-kafka   \
 	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats \
 	lint lint-install format
 
@@ -164,6 +164,11 @@ test-clickhouse: ## Запустить только тесты ClickHouse
 test-kafka: ## Запустить все тесты Kafka (требует запущенный Kafka)
 	pytest tests/kafka/ -s
 
+test-api: 
+	pytest tests/api/ -s
+
+test-cache: 
+	pytest tests/cache/ -s
 
 # ═══════════════════════════════════════════════
 # ⚡ Нагрузочное тестирование (k6)
@@ -240,6 +245,18 @@ load-test-recommendations-quick: ## Быстрый анализ производ
 	@echo "$(YELLOW)Всего 10 запросов | Детальная статистика каждого компонента$(NC)"
 	k6 run load_tests/k6_quick_performance_test.js
 
+load-test-post: ## Нагрузочный тест POST запросов (создание пользователей, треков, событий, рекомендации)
+	@echo "$(BLUE)📝 Запуск нагрузочного теста POST запросов...$(NC)"
+	@echo "$(YELLOW)Тестирует: POST /users, POST /tracks, POST /events, POST /recommendations$(NC)"
+	@echo "$(YELLOW)Длительность: ~5 минут | VUs: 50 (можно изменить через VUS=100 DURATION=10m)$(NC)"
+	@echo "$(GREEN)Пример: make load-test-post VUS=100 DURATION=10m$(NC)"
+	k6 run load_tests/k6_post_load_test.js
+
+load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)
+	@echo "$(BLUE)⚡ Быстрый тест POST запросов...$(NC)"
+	@echo "$(YELLOW)Длительность: 1 минута | VUs: 10$(NC)"
+	k6 run load_tests/k6_post_load_test.js --vus 10 --duration 1m
+
 load-test-results: ## Показать результаты последних тестов
 	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"
 	@echo ""
@@ -286,11 +303,11 @@ diagnose: ## Полная диагностика системы (API, БД, да
 
 diagnose-cache: ## Диагностика кэширования Redis
 	@echo "$(BLUE)🔍 Диагностика кэширования...$(NC)"
-	@python tests/test_cache_api.py
-	@python tests/test_cache_simple.py
+	@python tests/cache/test_cache_api.py
+	@python tests/cache/test_cache_simple.py
 	@echo "$(BLUE)🎯 Тест реального hit rate...$(NC)"
 	@echo "$(YELLOW)Проверяем производительность в реальных условиях$(NC)"
-	@python tests/test_real_hitrate.py
+	@python tests/cache/test_real_hitrate.py
 
 test-ttl-optimization: ## Тест оптимизации TTL для повышения hit rate
 	@echo "$(BLUE)🕐 Тест оптимизации TTL...$(NC)"
@@ -304,7 +321,7 @@ test-cache-warmup: ## Тест эффективности прогрева кэ�
 
 test-api-health: ## Проверка здоровья API
 	@echo "$(BLUE)🏥 Проверка API...$(NC)"
-	@python tests/test_api_health.py
+	@python tests/api/test_api_health.py
 
 diagnose-cache-curl: ## Диагностика кэширования через curl
 	@echo "$(BLUE)🔍 Диагностика кэширования (curl)...$(NC)"
