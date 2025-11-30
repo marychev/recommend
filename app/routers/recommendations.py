@@ -104,9 +104,10 @@ async def get_recommendations(request: RecommendationRequest):
             ) * 1000
 
         # Проверяем минимальное количество взаимодействий
+        # Оптимизация: используем PREWHERE для фильтрации до чтения всех колонок
         interactions_count_start = time.perf_counter()
         interaction_count = await clickhouse.execute(
-            f"SELECT count() FROM user_track_interactions WHERE user_id = {request.user_id}"
+            f"SELECT count() FROM user_track_interactions PREWHERE user_id = {request.user_id}"
         )
         if metrics is not None:
             metrics["clickhouse_interactions_count_time_ms"] = (
@@ -128,7 +129,7 @@ async def get_recommendations(request: RecommendationRequest):
         WITH user_tracks AS (
             SELECT track_id, implicit_rating
             FROM user_track_matrix
-            WHERE user_id = {request.user_id} AND implicit_rating > 0
+            PREWHERE user_id = {request.user_id} AND implicit_rating > 0
             LIMIT 1000
         )
         SELECT
@@ -138,7 +139,7 @@ async def get_recommendations(request: RecommendationRequest):
                  sqrt(sum(ut.implicit_rating * ut.implicit_rating))) as similarity
         FROM user_track_matrix m2
         INNER JOIN user_tracks ut ON m2.track_id = ut.track_id
-        WHERE m2.user_id != {request.user_id}
+        PREWHERE m2.user_id != {request.user_id}
           AND m2.implicit_rating > 0
         GROUP BY m2.user_id
         HAVING similarity > 0.1
@@ -170,15 +171,18 @@ async def get_recommendations(request: RecommendationRequest):
         similar_user_ids_str = ",".join(map(str, similar_user_ids))
 
         # Находим треки, которые понравились похожим пользователям
-        exclude_clause = ""
+        # Оптимизация: используем LEFT JOIN вместо NOT IN (быстрее в ClickHouse)
+        exclude_join = ""
+        exclude_where = ""
         if request.exclude_listened:
-            exclude_clause = f"""
-            AND t.track_id NOT IN (
+            exclude_join = f"""
+            LEFT JOIN (
                 SELECT DISTINCT track_id
                 FROM user_track_interactions
-                WHERE user_id = {request.user_id}
-            )
+                PREWHERE user_id = {request.user_id}
+            ) excluded ON t.track_id = excluded.track_id
             """
+            exclude_where = "AND excluded.track_id IS NULL"
 
         recommendations_query = f"""
         SELECT
@@ -193,9 +197,11 @@ async def get_recommendations(request: RecommendationRequest):
             sum(m.implicit_rating) as total_score
         FROM user_track_matrix m
         INNER JOIN tracks t ON m.track_id = t.track_id
-        WHERE m.user_id IN ({similar_user_ids_str})
+        {exclude_join}
+        PREWHERE m.user_id IN ({similar_user_ids_str})
           AND m.implicit_rating > 0
-          {exclude_clause}
+        WHERE 1=1
+        {exclude_where}
         GROUP BY t.track_id, t.title, t.artist, t.album, t.genre,
                  t.duration_seconds, t.release_year, t.created_at
         ORDER BY total_score DESC
@@ -336,15 +342,18 @@ async def get_popular_recommendations(
     """
     clickhouse = get_clickhouse_client()
 
-    exclude_clause = ""
+    # Оптимизация: используем LEFT JOIN вместо NOT IN (быстрее в ClickHouse)
+    exclude_join = ""
+    exclude_where = ""
     if request.exclude_listened:
-        exclude_clause = f"""
-        AND t.track_id NOT IN (
+        exclude_join = f"""
+        LEFT JOIN (
             SELECT DISTINCT track_id
             FROM user_track_interactions
-            WHERE user_id = {request.user_id}
-        )
+            PREWHERE user_id = {request.user_id}
+        ) excluded ON t.track_id = excluded.track_id
         """
+        exclude_where = "AND excluded.track_id IS NULL"
 
     query = f"""
     SELECT
@@ -359,9 +368,11 @@ async def get_popular_recommendations(
         count(*) as play_count
     FROM user_track_interactions i
     INNER JOIN tracks t ON i.track_id = t.track_id
-    WHERE i.action_type = 'play'
+    {exclude_join}
+    PREWHERE i.action_type = 'play'
       AND i.timestamp >= now() - INTERVAL 30 DAY
-      {exclude_clause}
+    WHERE 1=1
+    {exclude_where}
     GROUP BY t.track_id, t.title, t.artist, t.album, t.genre,
              t.duration_seconds, t.release_year, t.created_at
     ORDER BY play_count DESC

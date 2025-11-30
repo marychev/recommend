@@ -177,6 +177,18 @@ export function setup() {
   };
 }
 
+
+function gerResultPost(url, payload, tagName) {
+  return http.post(
+    url,
+    payload,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      tags: { name: tagName },
+    }
+  );
+}
+
 // ════════════════════════════════════════════════════════
 // Основной тест
 // ════════════════════════════════════════════════════════
@@ -191,14 +203,7 @@ export default function (data) {
     const payload = JSON.stringify(userData);
     
     const start = Date.now();
-    const res = http.post(
-      `${BASE_URL}/api/v1/users`,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        tags: { name: 'POST_CreateUser' },
-      }
-    );
+    const res = gerResultPost(`${BASE_URL}/api/v1/users`, payload, 'POST_CreateUser');
     const duration = Date.now() - start;
     createUserDuration.add(duration);
     createUserRequests.add(1);
@@ -233,14 +238,7 @@ export default function (data) {
     const payload = JSON.stringify(trackData);
     
     const start = Date.now();
-    const res = http.post(
-      `${BASE_URL}/api/v1/tracks`,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        tags: { name: 'POST_CreateTrack' },
-      }
-    );
+    const res = gerResultPost(`${BASE_URL}/api/v1/tracks`, payload, 'POST_CreateTrack');
     const duration = Date.now() - start;
     createTrackDuration.add(duration);
     createTrackRequests.add(1);
@@ -283,14 +281,7 @@ export default function (data) {
     const payload = JSON.stringify(eventData);
     
     const start = Date.now();
-    const res = http.post(
-      `${BASE_URL}/api/v1/events`,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        tags: { name: 'POST_CreateEvent' },
-      }
-    );
+    const res = gerResultPost(`${BASE_URL}/api/v1/events`, payload, 'POST_CreateEvent');
     const duration = Date.now() - start;
     createEventDuration.add(duration);
     createEventRequests.add(1);
@@ -323,14 +314,7 @@ export default function (data) {
     const payload = JSON.stringify(requestData);
     
     const start = Date.now();
-    const res = http.post(
-      `${BASE_URL}/api/v1/recommendations`,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        tags: { name: 'POST_GetRecommendations' },
-      }
-    );
+    const res = gerResultPost(`${BASE_URL}/api/v1/recommendations`, payload, 'POST_GetRecommendations');
     const duration = Date.now() - start;
     getRecommendationsDuration.add(duration);
     getRecommendationsRequests.add(1);
