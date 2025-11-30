@@ -17,7 +17,12 @@ router = APIRouter(
 
 async def process_event_async(event: UserTrackInteraction):
     """
-    Отправка события в Kafka для дальнейшей обработки
+    Отправка события в очередь для батчинга перед отправкой в Kafka
+
+    Преимущества батчинга:
+    - Меньше запросов к Kafka (50 событий в одном запросе)
+    - Лучшая пропускная способность
+    - Меньше нагрузка на Kafka broker
 
     Kafka используется для:
     - Асинхронной обработки событий
@@ -26,6 +31,8 @@ async def process_event_async(event: UserTrackInteraction):
     - Расчета метрик в реальном времени
     """
     try:
+        from app.services.event_queue import get_event_queue
+
         # Преобразуем Pydantic модель в словарь
         event_dict = {
             "user_id": event.user_id,
@@ -36,25 +43,42 @@ async def process_event_async(event: UserTrackInteraction):
                 else event.action_type
             ),
             "listen_duration_seconds": event.listen_duration_seconds,
-            "timestamp": event.timestamp,
+            "timestamp": (
+                event.timestamp.isoformat()
+                if hasattr(event.timestamp, "isoformat")
+                else str(event.timestamp)
+            ),
         }
 
-        # Отправляем в Kafka
-        success = await send_event(event_dict)
+        # Добавляем в очередь (быстро, не блокирует)
+        # Очередь автоматически отправляет батчами
+        queue = get_event_queue()
+        await queue.add_event(event_dict)
 
-        if success:
-            print(
-                f"✅ Событие отправлено в Kafka: "
-                f"user={event.user_id}, track={event.track_id}, "
-                f"action={event.action_type}"
-            )
-        else:
-            print(
-                "⚠️  Не удалось отправить событие в Kafka "
-                "(событие сохранено в ClickHouse)"
-            )
+        print(
+            f"✅ Событие добавлено в очередь: "
+            f"user={event.user_id}, track={event.track_id}, "
+            f"action={event.action_type}, queue_size={queue.get_queue_size()}"
+        )
     except Exception as e:
-        print(f"❌ Ошибка отправки в Kafka: {e}")
+        print(f"❌ Ошибка добавления события в очередь: {e}")
+        # Fallback: пытаемся отправить напрямую в Kafka
+        try:
+            from app.kafka.producer import send_event
+            event_dict = {
+                "user_id": event.user_id,
+                "track_id": event.track_id,
+                "action_type": (
+                    event.action_type.value
+                    if hasattr(event.action_type, "value")
+                    else event.action_type
+                ),
+                "listen_duration_seconds": event.listen_duration_seconds,
+                "timestamp": event.timestamp,
+            }
+            await send_event(event_dict)
+        except Exception as fallback_error:
+            print(f"❌ Fallback отправка в Kafka также не удалась: {fallback_error}")
 
 
 async def _get_user_track_interaction_bu_row(row: tuple) -> UserTrackInteraction:

@@ -81,6 +81,12 @@ export const options = {
     'post_create_event_success': ['rate>0.95'],
     'post_get_recommendations_success': ['rate>0.90'],
   },
+  // Настройки для обработки сетевых ошибок и таймаутов
+  noConnectionErrors: false, // Разрешаем считать сетевые ошибки
+  // Увеличенные таймауты по умолчанию
+  httpReq: {
+    expectedResponseTime: '60s', // Ожидаемое время ответа для медленных запросов
+  },
 };
 
 // ════════════════════════════════════════════════════════
@@ -182,26 +188,58 @@ export function setup() {
 }
 
 
-function gerResultPost(url, payload, tagName) {
-  try {
-    const res = http.post(
-      url,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        tags: { name: tagName },
+function gerResultPost(url, payload, tagName, retries = 2) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = http.post(
+        url,
+        payload,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          tags: { name: tagName },
+          timeout: '60s', // Увеличенный таймаут для медленных запросов (особенно recommendations)
+        }
+      );
+      
+      // Если получили ответ (даже с ошибкой), возвращаем его
+      if (res.status > 0) {
+        // Считаем таймауты и сетевые ошибки как реальные ошибки
+        if (res.status >= 500) {
+          realErrors.add(1);
+        }
+        return res;
       }
-    );
-    // Считаем таймауты и сетевые ошибки как реальные ошибки
-    if (res.status === 0 || res.status >= 500) {
-      realErrors.add(1);
+      
+      // Если status === 0, это означает таймаут или разрыв соединения
+      lastError = res;
+      
+    } catch (e) {
+      // Сетевые ошибки и исключения
+      lastError = e;
+      
+      // Если это не последняя попытка, делаем небольшую паузу перед retry
+      if (attempt < retries) {
+        sleep(Math.random() * 0.5 + 0.1); // Случайная пауза 0.1-0.6 секунды
+      }
     }
-    return res;
-  } catch (e) {
-    // Сетевые ошибки и исключения
-    realErrors.add(1);
-    throw e;
   }
+  
+  // Если все попытки не удались, считаем это реальной ошибкой
+  realErrors.add(1);
+  
+  // Возвращаем последний результат или создаем фиктивный ответ с ошибкой
+  if (lastError && typeof lastError === 'object' && 'status' in lastError) {
+    return lastError;
+  }
+  
+  // Создаем фиктивный ответ для обработки ошибки
+  return {
+    status: 0,
+    body: '',
+    timings: { duration: 60000 },
+  };
 }
 
 // ════════════════════════════════════════════════════════

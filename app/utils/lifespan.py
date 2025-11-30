@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.config import settings
 from app.db.clickhouse import connect_clickhouse, shutdown_clickhouse
 from app.services.cache_redis_client import connect_redis, shutdown_redis
+from app.services.event_queue import start_event_queue, stop_event_queue
 from app.kafka.client import close_kafka_producer, connect_kafka
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,11 @@ async def lifespan(_app: FastAPI):
     clickhouse_connected = await connect_clickhouse()
     redis_connected = await connect_redis()
     kafka_connected = await connect_kafka()
+    
+    # Запускаем очередь для батчинга событий в Kafka
+    if kafka_connected:
+        await start_event_queue()
+        print("✅ Очередь событий запущена (батчинг Kafka)")
 
     print("\n" + "=" * 60)
     if clickhouse_connected and redis_connected and kafka_connected:
@@ -50,6 +56,9 @@ async def lifespan(_app: FastAPI):
     print("🛑 Остановка приложения...")
     print("=" * 60)
 
+    # Останавливаем очередь событий (сбросит оставшиеся события)
+    await stop_event_queue()
+    
     await close_kafka_producer()
     await shutdown_clickhouse()
     await shutdown_redis()
