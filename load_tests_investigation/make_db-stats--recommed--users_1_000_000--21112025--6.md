@@ -1,5 +1,5 @@
-> 
-> PYTEST 126 passed, 12 skipped, 10 warnings in 35.65s | 33.13s 
+> PYTEST
+> ...... 126 passed, 12 skipped, 10 warnings in 35.65s | 33.13s 
 > ...... 126 passed, 12 skipped, 11 warnings in 39.76s
 > ...... 124 passed, 7 skipped, 10 warnings in 27.29s 
 

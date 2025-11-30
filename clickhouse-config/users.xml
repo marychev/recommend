@@ -21,17 +21,17 @@
         <default>
             <!-- Увеличенные лимиты памяти для запросов рекомендаций -->
             <!-- Запросы рекомендаций требуют много памяти из-за JOIN операций -->
-            <max_memory_usage>6000000000</max_memory_usage> <!-- 6GB вместо дефолтных 2GB -->
-            <max_memory_usage_for_all_queries>8000000000</max_memory_usage_for_all_queries> <!-- 8GB -->
+            <max_memory_usage>12000000000</max_memory_usage> <!-- 12GB вместо дефолтных 2GB -->
+            <max_memory_usage_for_all_queries>15000000000</max_memory_usage_for_all_queries> <!-- 15GB -->
             
             <!-- Использовать диск при превышении памяти (критично для больших запросов) -->
-            <max_bytes_before_external_group_by>2000000000</max_bytes_before_external_group_by> <!-- 2GB -->
-            <max_bytes_before_external_sort>2000000000</max_bytes_before_external_sort> <!-- 2GB -->
+            <max_bytes_before_external_group_by>6000000000</max_bytes_before_external_group_by> <!-- 6GB -->
+            <max_bytes_before_external_sort>6000000000</max_bytes_before_external_sort> <!-- 6GB -->
             
             <!-- Оптимизация для JOIN операций -->
             <join_algorithm>auto</join_algorithm>
-            <max_rows_in_join>1000000</max_rows_in_join>
-            <max_bytes_in_join>1000000000</max_bytes_in_join> <!-- 1GB -->
+            <max_rows_in_join>2000000</max_rows_in_join>
+            <max_bytes_in_join>3000000000</max_bytes_in_join> <!-- 3GB -->
         </default>
     </profiles>
     

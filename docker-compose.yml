@@ -61,18 +61,18 @@ services:
     networks:
       - music_recommend_network
   
-  kafka-ui:
-    image: provectuslabs/kafka-ui:v0.7.0
-    container_name: music_recommend_kafka_ui
-    depends_on:
-      - kafka
-    ports:
-      - "8081:8080"
-    environment:
-      - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=kafka:29092
-      - KAFKA_CLUSTERS_0_NAME=kafka
-    networks:
-      - music_recommend_network
+  # kafka-ui:
+  #   image: provectuslabs/kafka-ui:v0.7.0
+  #   container_name: music_recommend_kafka_ui
+  #   depends_on:
+  #     - kafka
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=kafka:29092
+  #     - KAFKA_CLUSTERS_0_NAME=kafka
+  #   networks:
+  #     - music_recommend_network
 
   redis:
     image: redis:7-alpine
