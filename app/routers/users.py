@@ -91,6 +91,17 @@ async def get_user(
         )
 
 
+def _get_user_by_row(row: tuple) -> User:
+    return User(
+        user_id=row[0],
+        username=row[1],
+        email=row[2],
+        age=row[3],
+        country=row[4],
+        created_at=row[5],
+    )
+
+
 @router.get(
     "",
     response_model=List[User],
@@ -116,19 +127,7 @@ async def list_users(
             """
         )
 
-        users = [
-            User(
-                user_id=row[0],
-                username=row[1],
-                email=row[2],
-                age=row[3],
-                country=row[4],
-                created_at=row[5],
-            )
-            for row in result
-        ]
-
-        return users
+        return [_get_user_by_row(row) for row in result]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import APIRouter, HTTPException, status, Path, Query
 
 from app.models.schemas import Track, TrackCreate, TrackStatistics
@@ -56,6 +56,19 @@ async def create_track(track: TrackCreate):
         )
 
 
+def _get_track_by_row(row: Union[tuple, dict]) -> Track:
+    return Track(
+        track_id=row[0],
+        title=row[1],
+        artist=row[2],
+        album=row[3],
+        genre=row[4],
+        duration_seconds=row[5],
+        release_year=row[6],
+        created_at=row[7],
+    )
+
+
 @router.get(
     "/popular/top",
     response_model=List[Track],
@@ -64,7 +77,7 @@ async def create_track(track: TrackCreate):
 )
 async def get_popular_tracks(
     limit: int = Query(20, description="Количество треков", ge=1, le=100)
-):
+) -> List[Track]:
     """
     Получение топа популярных треков
     """
@@ -89,23 +102,7 @@ async def get_popular_tracks(
         """
 
         result = await clickhouse.execute_raw(query)
-
-        tracks = []
-        for row in result:
-            tracks.append(
-                Track(
-                    track_id=row[0],
-                    title=row[1],
-                    artist=row[2],
-                    album=row[3],
-                    genre=row[4],
-                    duration_seconds=row[5],
-                    release_year=row[6],
-                    created_at=row[7],
-                )
-            )
-
-        return tracks
+        return [_get_track_by_row(row) for row in result]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -141,16 +138,7 @@ async def get_track(
             )
 
         row = result[0]
-        return Track(
-            track_id=row[0],
-            title=row[1],
-            artist=row[2],
-            album=row[3],
-            genre=row[4],
-            duration_seconds=row[5],
-            release_year=row[6],
-            created_at=row[7],
-        )
+        return _get_track_by_row(row)
     except HTTPException:
         raise
     except Exception as e:
@@ -175,7 +163,7 @@ async def list_tracks(
     ),
     limit: int = Query(100, description="Количество записей", ge=1, le=1000),
     offset: int = Query(0, description="Смещение", ge=0),
-):
+) -> List[Track]:
     """
     Получение списка треков с фильтрацией и пагинацией
     """
@@ -203,22 +191,7 @@ async def list_tracks(
         """
 
         result = await clickhouse.execute_raw(query)
-
-        tracks = [
-            Track(
-                track_id=row[0],
-                title=row[1],
-                artist=row[2],
-                album=row[3],
-                genre=row[4],
-                duration_seconds=row[5],
-                release_year=row[6],
-                created_at=row[7],
-            )
-            for row in result
-        ]
-
-        return tracks
+        return [_get_track_by_row(row) for row in result]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

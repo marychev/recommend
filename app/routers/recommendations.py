@@ -2,15 +2,15 @@ import logging
 import time
 from datetime import datetime
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, status, Path
+from fastapi import APIRouter, HTTPException, status
 
 from app.models.schemas import (
     RecommendationRequest,
     RecommendationResponse,
     RecommendedTrack,
-    Track,
     PerformanceMetrics,
 )
+from app.routers.tracks import _get_track_by_row
 from app.db.clickhouse import get_clickhouse_client
 from app.config import settings
 from app.services.cache import (
@@ -224,16 +224,7 @@ async def get_recommendations(request: RecommendationRequest):
         max_score = result[0][8] if result else 1.0
 
         for row in result:
-            track = Track(
-                track_id=row[0],
-                title=row[1],
-                artist=row[2],
-                album=row[3],
-                genre=row[4],
-                duration_seconds=row[5],
-                release_year=row[6],
-                created_at=row[7],
-            )
+            track = _get_track_by_row(row)
 
             # Нормализуем score от 0 до 1
             normalized_score = row[8] / max_score if max_score > 0 else 0.0
@@ -390,16 +381,7 @@ async def get_popular_recommendations(
     max_score = result[0][8] if result else 1.0
 
     for row in result:
-        track = Track(
-            track_id=row[0],
-            title=row[1],
-            artist=row[2],
-            album=row[3],
-            genre=row[4],
-            duration_seconds=row[5],
-            release_year=row[6],
-            created_at=row[7],
-        )
+        track = _get_track_by_row(row)
 
         normalized_score = row[8] / max_score if max_score > 0 else 0.0
 
@@ -468,22 +450,22 @@ async def get_popular_recommendations(
     return response
 
 
-@router.get(
-    "/{user_id}",
-    response_model=RecommendationResponse,
-    summary="Получить рекомендации (GET)",
-    description="Генерирует рекомендации для пользователя (упрощенный метод через GET)",
-)
-async def get_recommendations_simple(
-    user_id: int = Path(..., description="ID пользователя", examples=[1001])
-):
-    """
-    Упрощенный метод получения рекомендаций через GET запрос
-    с параметрами по умолчанию
-    """
-    request = RecommendationRequest(
-        user_id=user_id,
-        top_n=settings.top_n_recommendations,
-        exclude_listened=True,
-    )
-    return await get_recommendations(request)
+# @router.get(
+#     "/{user_id}",
+#     response_model=RecommendationResponse,
+#     summary="Получить рекомендации (GET)",
+#     description="Генерирует рекомендации для пользователя (упрощенный метод через GET)",
+# )
+# async def get_recommendations_simple(
+#     user_id: int = Path(..., description="ID пользователя", examples=[1001])
+# ):
+#     """
+#     Упрощенный метод получения рекомендаций через GET запрос
+#     с параметрами по умолчанию
+#     """
+#     request = RecommendationRequest(
+#         user_id=user_id,
+#         top_n=settings.top_n_recommendations,
+#         exclude_listened=True,
+#     )
+#     return await get_recommendations(request)

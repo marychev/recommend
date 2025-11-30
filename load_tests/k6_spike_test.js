@@ -18,7 +18,7 @@ const realErrors = new Counter('real_errors');
 export const options = {
   stages: [
     { duration: '10s', target: 4 },   // Базовая нагрузка
-    { duration: '20s', target: 50 },  // Резкий скачок до 50 пользователей (было 200)
+    { duration: '20s', target: 50 },  // Резкий скачок до 50 пользователей 
     { duration: '30s', target: 50 },   // Удержание пиковой нагрузки
     { duration: '10s', target: 10 },   // Резкое снижение
     { duration: '10s', target: 0 },    // Завершение

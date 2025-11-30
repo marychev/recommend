@@ -56,6 +56,16 @@ async def process_event_async(event: UserTrackInteraction):
         print(f"❌ Ошибка отправки в Kafka: {e}")
 
 
+async def _get_user_track_interaction_bu_row(row: tuple) -> UserTrackInteraction:
+    return UserTrackInteraction(
+        user_id=row[0],
+        track_id=row[1],
+        action_type=row[2],
+        listen_duration_seconds=row[3],
+        timestamp=row[4],
+    )
+
+
 @router.post(
     "",
     response_model=UserTrackInteraction,
@@ -147,25 +157,16 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        events = [
-            UserTrackInteraction(
-                user_id=row[0],
-                track_id=row[1],
-                action_type=row[2],
-                listen_duration_seconds=row[3],
-                timestamp=row[4],
-            )
+        return [
+            _get_user_track_interaction_bu_row(row)
             for row in result
         ]
-
-        return events
-
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий: {str(e)}",
+            detail=f"Ошибка при получении событий: {str(e)}"
         )
 
 
@@ -194,18 +195,10 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        events = [
-            UserTrackInteraction(
-                user_id=row[0],
-                track_id=row[1],
-                action_type=row[2],
-                listen_duration_seconds=row[3],
-                timestamp=row[4],
-            )
+        return [
+            _get_user_track_interaction_bu_row(row)
             for row in result
         ]
-
-        return events
 
     except HTTPException:
         raise
