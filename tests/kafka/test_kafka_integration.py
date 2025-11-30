@@ -79,17 +79,9 @@ class TestKafkaIntegration:
         if not kafka_connected:
             pytest.skip("Kafka недоступна")
 
-        # Отправляем событие
-        sent = await send_event(sample_test_event)
-        assert sent is True
-
-        # Даем больше времени на доставку и обработку Kafka
-        await asyncio.sleep(2)
-
         # Читаем событие с таймаутом
         received_events = []
         stop_consuming = asyncio.Event()
-        consumer_task = None
 
         async def test_handler(event):
             # Проверяем, что это наше тестовое событие
@@ -103,11 +95,23 @@ class TestKafkaIntegration:
         import uuid
         unique_group_id = f"test_consumer_{uuid.uuid4().hex[:8]}"
 
+        consumer_task = None
         try:
-            # Запускаем consumer в фоне с уникальным group_id
+            # ВАЖНО: Запускаем consumer ПЕРЕД отправкой события
+            # чтобы он успел подписаться на топик
             consumer_task = asyncio.create_task(
                 consume_events(test_handler, group_id=unique_group_id)
             )
+            
+            # Даем время consumer'у подключиться и подписаться
+            await asyncio.sleep(1)
+            
+            # Теперь отправляем событие
+            sent = await send_event(sample_test_event)
+            assert sent is True
+
+            # Даем время на доставку и обработку Kafka
+            await asyncio.sleep(1)
             
             # Ждем либо получения события (через stop_consuming), либо таймаута
             try:

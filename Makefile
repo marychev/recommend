@@ -7,7 +7,7 @@
 	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \ 
 	test test-api test-cache test-clickhouse test-kafka   \
-	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats \
+	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
 	lint lint-install format
 
 # Цвета для вывода
@@ -131,6 +131,26 @@ db-optimize: ## Оптимизировать таблицы (применить 
 db-reset: ## Пересоздать ClickHouse контейнер и таблицы
 	@echo "$(YELLOW)⚠️ Пересоздание ClickHouse (данные будут удалены)...$(NC)"
 	bash scripts/docker-reset-clickhouse.sh
+
+fix-clickhouse: ## Восстановить ClickHouse после проблем с конфигурацией
+	@echo "$(YELLOW)🔧 Восстановление ClickHouse...$(NC)"
+	@bash scripts/fix_clickhouse.sh
+
+diagnose-performance: ## Диагностика производительности (ClickHouse, индексы, медленные запросы)
+	@echo "$(BLUE)🔍 Диагностика производительности...$(NC)"
+	@bash scripts/diagnose_performance.sh
+
+.PHONY: help up down build rebuild ps shell \
+	logs logs-api logs-clickhouse logs-kafka logs-errors logs-redis \
+	load-test-install load-test-data-generate load-test-diagnostics \
+	load-test-spike-extreme load-test-results \
+	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
+	load-test-recommendations load-test-recommendations-quick load-test-post load-test-post-quick \
+	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
+	clean clean-all \ 
+	test test-api test-cache test-clickhouse test-kafka   \
+	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
+	lint lint-install format
 
 db-shell: ## Открыть clickhouse-client
 	docker exec -it music_recommend_clickhouse clickhouse-client

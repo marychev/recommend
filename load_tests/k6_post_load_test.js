@@ -39,6 +39,12 @@ const createTrackSuccess = new Rate('post_create_track_success');
 const createEventSuccess = new Rate('post_create_event_success');
 const getRecommendationsSuccess = new Rate('post_get_recommendations_success');
 
+// Счетчики запросов для расчета RPS по каждому эндпоинту
+const createUserRequests = new Counter('post_create_user_requests');
+const createTrackRequests = new Counter('post_create_track_requests');
+const createEventRequests = new Counter('post_create_event_requests');
+const getRecommendationsRequests = new Counter('post_get_recommendations_requests');
+
 // ════════════════════════════════════════════════════════
 // Конфигурация теста
 // ════════════════════════════════════════════════════════
@@ -195,6 +201,7 @@ export default function (data) {
     );
     const duration = Date.now() - start;
     createUserDuration.add(duration);
+    createUserRequests.add(1);
     
     const success = check(res, {
       'create user status 201': (r) => r.status === 201,
@@ -236,6 +243,7 @@ export default function (data) {
     );
     const duration = Date.now() - start;
     createTrackDuration.add(duration);
+    createTrackRequests.add(1);
     
     const success = check(res, {
       'create track status 201': (r) => r.status === 201,
@@ -285,6 +293,7 @@ export default function (data) {
     );
     const duration = Date.now() - start;
     createEventDuration.add(duration);
+    createEventRequests.add(1);
     
     // 201 - успех, 404 - пользователь/трек не найден (нормально для случайных ID)
     const success = check(res, {
@@ -324,6 +333,7 @@ export default function (data) {
     );
     const duration = Date.now() - start;
     getRecommendationsDuration.add(duration);
+    getRecommendationsRequests.add(1);
     
     // 200 - успех, 404 - пользователь не найден (нормально для случайных ID)
     const success = check(res, {
@@ -379,6 +389,17 @@ export function handleSummary(data) {
   
   console.log(`📈 Время ответа по эндпоинтам:`);
   
+  // Вычисляем RPS для каждого эндпоинта
+  const testDurationSeconds = testDuration / 1000;
+  const createUserCount = data.metrics.post_create_user_requests?.values?.count || 0;
+  const createUserRPS = testDurationSeconds > 0 ? (createUserCount / testDurationSeconds).toFixed(2) : '0.00';
+  const createTrackCount = data.metrics.post_create_track_requests?.values?.count || 0;
+  const createTrackRPS = testDurationSeconds > 0 ? (createTrackCount / testDurationSeconds).toFixed(2) : '0.00';
+  const createEventCount = data.metrics.post_create_event_requests?.values?.count || 0;
+  const createEventRPS = testDurationSeconds > 0 ? (createEventCount / testDurationSeconds).toFixed(2) : '0.00';
+  const getRecCount = data.metrics.post_get_recommendations_requests?.values?.count || 0;
+  const getRecRPS = testDurationSeconds > 0 ? (getRecCount / testDurationSeconds).toFixed(2) : '0.00';
+  
   // POST Create User
   const createUserAvg = data.metrics.post_create_user_duration?.values?.avg || 0;
   const createUserP95 = data.metrics.post_create_user_duration?.values?.['p(95)'] || 0;
@@ -387,7 +408,7 @@ export function handleSummary(data) {
   const createUserSuccessRate = (data.metrics.post_create_user_success?.values?.rate || 0) * 100;
   console.log(`   👤 POST /users (create):`);
   console.log(`      Среднее: ${createUserAvg.toFixed(0)}ms | p95: ${createUserP95.toFixed(0)}ms | p99: ${createUserP99.toFixed(0)}ms | Max: ${createUserMax.toFixed(0)}ms`);
-  console.log(`      Успешность: ${createUserSuccessRate.toFixed(2)}%`);
+  console.log(`      Успешность: ${createUserSuccessRate.toFixed(2)}% | RPS: ${createUserRPS} req/sec`);
   
   // POST Create Track
   const createTrackAvg = data.metrics.post_create_track_duration?.values?.avg || 0;
@@ -397,7 +418,7 @@ export function handleSummary(data) {
   const createTrackSuccessRate = (data.metrics.post_create_track_success?.values?.rate || 0) * 100;
   console.log(`   🎵 POST /tracks (create):`);
   console.log(`      Среднее: ${createTrackAvg.toFixed(0)}ms | p95: ${createTrackP95.toFixed(0)}ms | p99: ${createTrackP99.toFixed(0)}ms | Max: ${createTrackMax.toFixed(0)}ms`);
-  console.log(`      Успешность: ${createTrackSuccessRate.toFixed(2)}%`);
+  console.log(`      Успешность: ${createTrackSuccessRate.toFixed(2)}% | RPS: ${createTrackRPS} req/sec`);
   
   // POST Create Event
   const createEventAvg = data.metrics.post_create_event_duration?.values?.avg || 0;
@@ -407,7 +428,7 @@ export function handleSummary(data) {
   const createEventSuccessRate = (data.metrics.post_create_event_success?.values?.rate || 0) * 100;
   console.log(`   📝 POST /events (create):`);
   console.log(`      Среднее: ${createEventAvg.toFixed(0)}ms | p95: ${createEventP95.toFixed(0)}ms | p99: ${createEventP99.toFixed(0)}ms | Max: ${createEventMax.toFixed(0)}ms`);
-  console.log(`      Успешность: ${createEventSuccessRate.toFixed(2)}%`);
+  console.log(`      Успешность: ${createEventSuccessRate.toFixed(2)}% | RPS: ${createEventRPS} req/sec`);
   
   // POST Get Recommendations
   const getRecAvg = data.metrics.post_get_recommendations_duration?.values?.avg || 0;
@@ -417,7 +438,7 @@ export function handleSummary(data) {
   const getRecSuccessRate = (data.metrics.post_get_recommendations_success?.values?.rate || 0) * 100;
   console.log(`   🎯 POST /recommendations (get):`);
   console.log(`      Среднее: ${getRecAvg.toFixed(0)}ms | p95: ${getRecP95.toFixed(0)}ms | p99: ${getRecP99.toFixed(0)}ms | Max: ${getRecMax.toFixed(0)}ms`);
-  console.log(`      Успешность: ${getRecSuccessRate.toFixed(2)}%`);
+  console.log(`      Успешность: ${getRecSuccessRate.toFixed(2)}% | RPS: ${getRecRPS} req/sec`);
   
   console.log('');
   console.log(`❌ Ошибки по эндпоинтам:`);

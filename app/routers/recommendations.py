@@ -145,9 +145,10 @@ async def get_recommendations(request: RecommendationRequest):
         ORDER BY similarity DESC
         LIMIT 50
         SETTINGS 
-            max_memory_usage = 2000000000,
-            max_bytes_before_external_group_by = 1000000000,
-            max_bytes_before_external_sort = 1000000000
+            max_memory_usage = 5000000000,
+            max_bytes_before_external_group_by = 2000000000,
+            max_bytes_before_external_sort = 2000000000,
+            max_bytes_in_join = 1000000000
         """
 
         similar_users_start = time.perf_counter()
@@ -200,9 +201,10 @@ async def get_recommendations(request: RecommendationRequest):
         ORDER BY total_score DESC
         LIMIT {request.top_n}
         SETTINGS 
-            max_memory_usage = 2000000000,
-            max_bytes_before_external_group_by = 1000000000,
-            max_bytes_before_external_sort = 1000000000
+            max_memory_usage = 5000000000,
+            max_bytes_before_external_group_by = 2000000000,
+            max_bytes_before_external_sort = 2000000000,
+            max_bytes_in_join = 1000000000
         """
 
         recommendations_start = time.perf_counter()
@@ -365,8 +367,10 @@ async def get_popular_recommendations(
     ORDER BY play_count DESC
     LIMIT {request.top_n}
     SETTINGS 
-        max_memory_usage = 2000000000,
-        max_bytes_before_external_group_by = 1000000000
+        max_memory_usage = 5000000000,
+        max_bytes_before_external_group_by = 2000000000,
+        max_bytes_before_external_sort = 2000000000,
+        max_bytes_in_join = 1000000000
     """
 
     popular_query_start = time.perf_counter()

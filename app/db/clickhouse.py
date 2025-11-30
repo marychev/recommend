@@ -1,6 +1,4 @@
-from re import T
 from typing import Optional, Any, List
-import time
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from fastapi import HTTPException, status
@@ -102,8 +100,7 @@ class ClickHouseClient:
 
         try:
             # aiochclient не поддерживает параметры напрямую, выполняем простой запрос
-            result = await self.client.fetch(query)
-            return result
+            return await self.client.fetch(query)
         except Exception as e:
             raise RuntimeError(f"Query execution failed: {e}")
 
@@ -188,30 +185,14 @@ class ClickHouseClient:
         )
 
     async def save_track(self, track: Track) -> int:
-        """Сохраняем трек (оптимизированная версия)"""
-        # Оптимизация: используем timestamp-based ID для избежания блокировок
-        # Это намного быстрее чем SELECT max() при высокой нагрузке
-        timestamp_part = int(time.time() * 1000) % 1000000  # последние 6 цифр timestamp
-        random_part = hash(track.title + track.artist) % 10000  # хэш от названия и артиста
-        
-        # Пробуем сгенерировать уникальный ID
-        # Если коллизия - используем fallback через max (редко)
-        new_id = timestamp_part * 10000 + random_part
-        
-        # Проверяем, не существует ли уже такой ID (очень редко)
-        check = await self.execute_raw(
-            f"SELECT 1 FROM tracks WHERE track_id = {new_id} LIMIT 1"
+        """Сохраняем трек"""
+        # Простая генерация ID через max() - работает быстро и надежно
+        result = await self.execute_raw(
+            "SELECT max(track_id) as max_id FROM tracks"
         )
-        
-        if check and len(check) > 0:
-            # Коллизия! Используем fallback (редко)
-            result = await self.execute_raw(
-                "SELECT max(track_id) as max_id FROM tracks"
-            )
-            max_id = result[0][0] if result and result[0][0] else 0
-            new_id = (max_id or 0) + 1
+        max_id = result[0][0] if result and result[0][0] else 0
+        new_id = (max_id or 0) + 1
 
-        # Вставляем трек
         await self.insert(
             "tracks",
             [
@@ -231,28 +212,13 @@ class ClickHouseClient:
         return new_id
 
     async def save_user(self, user: User) -> int:
-        """Сохраняем пользователя (оптимизированная версия)"""
-        # Оптимизация: используем timestamp-based ID для избежания блокировок
-        # Это намного быстрее чем SELECT max() при высокой нагрузке
-        timestamp_part = int(time.time() * 1000) % 1000000  # последние 6 цифр timestamp
-        random_part = hash(user.username + (user.email or "")) % 10000  # хэш от username и email
-        
-        # Пробуем сгенерировать уникальный ID
-        # Если коллизия - используем fallback через max (редко)
-        new_id = timestamp_part * 10000 + random_part
-        
-        # Проверяем, не существует ли уже такой ID (очень редко)
-        check = await self.execute_raw(
-            f"SELECT 1 FROM users WHERE user_id = {new_id} LIMIT 1"
+        """Сохраняем пользователя"""
+        # Простая генерация ID через max() - работает быстро и надежно
+        result = await self.execute_raw(
+            "SELECT max(user_id) as max_id FROM users"
         )
-        
-        if check and len(check) > 0:
-            # Коллизия! Используем fallback (редко)
-            result = await self.execute_raw(
-                "SELECT max(user_id) as max_id FROM users"
-            )
-            max_id = result[0][0] if result and result[0][0] else 0
-            new_id = (max_id or 0) + 1
+        max_id = result[0][0] if result and result[0][0] else 0
+        new_id = (max_id or 0) + 1
 
         await self.insert(
             "users",
@@ -268,7 +234,6 @@ class ClickHouseClient:
             ],
             column_names=User.column_names(),
         )
-
         return new_id
 
 
