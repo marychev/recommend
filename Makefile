@@ -248,10 +248,6 @@ load-test-recommendations: ## Детальный анализ производи
 	@echo "$(GREEN)Этот тест собирает подробную статистику о времени выполнения каждого компонента$(NC)"
 	k6 run load_tests/k6_recommendations_performance_test.js
 
-load-test-recommendations-quick: ## Быстрый анализ производительности рекомендаций (10 запросов)
-	@echo "$(BLUE)⚡ Быстрый анализ производительности рекомендаций...$(NC)"
-	@echo "$(YELLOW)Всего 10 запросов | Детальная статистика каждого компонента$(NC)"
-	k6 run load_tests/k6_quick_performance_test.js
 
 load-test-post: ## Нагрузочный тест POST запросов (создание пользователей, треков, событий, рекомендации)
 	@echo "$(BLUE)📝 Запуск нагрузочного теста POST запросов...$(NC)"
@@ -263,7 +259,23 @@ load-test-post: ## Нагрузочный тест POST запросов (соз
 load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)
 	@echo "$(BLUE)⚡ Быстрый тест POST запросов...$(NC)"
 	@echo "$(YELLOW)Длительность: 1 минута | VUs: 10$(NC)"
-	k6 run load_tests/k6_post_load_test.js --vus 10 --duration 1m
+	k6 run load_tests/k6_post_load_test.js --vus 100 --duration 1m
+
+load-test-events-post: ## Тест POST /events (отдельный эндпоинт)
+	@echo "$(BLUE)📝 Запуск теста POST /events...$(NC)"
+	k6 run load_tests/k6_test_events_post.js
+
+load-test-tracks-post: ## Тест POST /tracks (отдельный эндпоинт)
+	@echo "$(BLUE)📝 Запуск теста POST /tracks...$(NC)"
+	k6 run load_tests/k6_test_tracks_post.js
+
+load-test-users-post: ## Тест POST /users (отдельный эндпоинт)
+	@echo "$(BLUE)📝 Запуск теста POST /users...$(NC)"
+	k6 run load_tests/k6_test_users_post.js
+
+load-test-recommendations-post: ## Тест POST /recommendations (отдельный эндпоинт)
+	@echo "$(BLUE)📝 Запуск теста POST /recommendations...$(NC)"
+	k6 run load_tests/k6_test_recommendations_post.js
 
 load-test-results: ## Показать результаты последних тестов
 	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"
