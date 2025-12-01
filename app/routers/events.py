@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Union
 import asyncio
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from app.services.event_queue import get_event_queue
@@ -13,6 +13,9 @@ from app.services.cache import (
     exists_user_cached,
     exists_track_cached,
 )
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/events",
@@ -35,56 +38,53 @@ async def process_event_async(event: UserTrackInteraction):
     - Обновления материализованных представлений
     - Расчета метрик в реальном времени
     """
+    # Преобразуем Pydantic модель в словарь
+    event_dict = {
+        "user_id": event.user_id,
+        "track_id": event.track_id,
+        "action_type": (
+            event.action_type.value
+            if hasattr(event.action_type, "value")
+            else event.action_type
+        ),
+        "listen_duration_seconds": event.listen_duration_seconds,
+        "timestamp": (
+            event.timestamp.isoformat()
+            if hasattr(event.timestamp, "isoformat")
+            else str(event.timestamp)
+        ),
+    }
+
     try:
-
-        # Преобразуем Pydantic модель в словарь
-        event_dict = {
-            "user_id": event.user_id,
-            "track_id": event.track_id,
-            "action_type": (
-                event.action_type.value
-                if hasattr(event.action_type, "value")
-                else event.action_type
-            ),
-            "listen_duration_seconds": event.listen_duration_seconds,
-            "timestamp": (
-                event.timestamp.isoformat()
-                if hasattr(event.timestamp, "isoformat")
-                else str(event.timestamp)
-            ),
-        }
-
         # Добавляем в очередь (быстро, не блокирует)
         # Очередь автоматически отправляет батчами
         queue = get_event_queue()
         await queue.add_event(event_dict)
 
-        print(
-            f"✅ Событие добавлено в очередь: "
-            f"user={event.user_id}, track={event.track_id}, "
-            f"action={event.action_type}, queue_size={queue.get_queue_size()}"
+        logger.info(
+            "Событие добавлено в очередь: "
+            "user=%s, track=%s, "
+            "action=%s, queue_size=%s",
+            event.user_id,
+            event.track_id,
+            event.action_type,
+            queue.get_queue_size(),
         )
     except Exception as e:
-        print(f"❌ Ошибка добавления события в очередь: {e}")
+        logger.error("Ошибка добавления события в очередь: %s", e)
         # Fallback: пытаемся отправить напрямую в Kafka
         try:
-            event_dict = {
-                "user_id": event.user_id,
-                "track_id": event.track_id,
-                "action_type": (
-                    event.action_type.value
-                    if hasattr(event.action_type, "value")
-                    else event.action_type
-                ),
-                "listen_duration_seconds": event.listen_duration_seconds,
-                "timestamp": event.timestamp,
-            }
             await send_event(event_dict)
         except Exception as fallback_error:
-            print(f"❌ Fallback отправка в Kafka также не удалась: {fallback_error}")
+            logger.error(
+                "Fallback отправка в Kafka также не удалась: %s",
+                fallback_error,
+            )
 
 
-async def _get_user_track_interaction_bu_row(row: tuple) -> UserTrackInteraction:
+async def _get_user_track_interaction_bu_row(
+    row: tuple,
+) -> UserTrackInteraction:
     return UserTrackInteraction(
         user_id=row[0],
         track_id=row[1],
@@ -124,30 +124,28 @@ async def create_event(
         # Оптимизация: проверяем существование пользователя и трека параллельно
         # с кэшированием в Redis для уменьшения нагрузки на БД
         timestamp = event.timestamp if event.timestamp else datetime.now()
-        
+
         # Проверяем существование параллельно с кэшированием (быстрее чем последовательно)
         user_check, track_check = await asyncio.gather(
             exists_user_cached(event.user_id, clickhouse),
             exists_track_cached(event.track_id, clickhouse),
-            return_exceptions=True
+            return_exceptions=True,
         )
-        
+
+        def _handle_exception_500_(
+            check: Union[bool, Exception], who: str
+        ) -> None:
+            if isinstance(check, Exception):
+                if isinstance(check, HTTPException):
+                    raise check
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Ошибка при проверке %s: %s" % (who, str(check)),
+                )
+
         # Обрабатываем исключения
-        if isinstance(user_check, Exception):
-            if isinstance(user_check, HTTPException):
-                raise user_check
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Ошибка при проверке пользователя: {str(user_check)}"
-            )
-        
-        if isinstance(track_check, Exception):
-            if isinstance(track_check, HTTPException):
-                raise track_check
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Ошибка при проверке трека: {str(track_check)}"
-            )
+        _handle_exception_500_(user_check, "пользователя")
+        _handle_exception_500_(track_check, "трека")
 
         await clickhouse.save_event(event, timestamp)
 
@@ -161,16 +159,29 @@ async def create_event(
 
         # Добавляем задачи в фон
         background_tasks.add_task(process_event_async, interaction)
-        
+
         # Инвалидируем кэш только для значимых действий
         # play и skip не должны сразу инвалидировать кэш
-        if event.action_type in [ActionType.LIKE, ActionType.DISLIKE, ActionType.ADD_TO_PLAYLIST, ActionType.SHARE]:
-            print(f"🗑️  Инвалидация кэша для пользователя {event.user_id} из-за действия {event.action_type}")
+        if event.action_type in [
+            ActionType.LIKE,
+            ActionType.DISLIKE,
+            ActionType.ADD_TO_PLAYLIST,
+            ActionType.SHARE,
+        ]:
+            logger.info(
+                "Инвалидация кэша для пользователя %s из-за действия %s",
+                event.user_id,
+                event.action_type,
+            )
             background_tasks.add_task(
                 invalidate_cached_user_recommendations, event.user_id
             )
         else:
-            print(f"✅ Кэш НЕ инвалидируется для пользователя {event.user_id} из-за действия {event.action_type}")
+            logger.info(
+                "Кэш НЕ инвалидируется для пользователя %s из-за действия %s",
+                event.user_id,
+                event.action_type,
+            )
 
         return interaction
 
@@ -179,7 +190,7 @@ async def create_event(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при создании события: {str(e)}",
+            detail="Ошибка при создании события: %s" % str(e),
         )
 
 
@@ -208,16 +219,13 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        return [
-            _get_user_track_interaction_bu_row(row)
-            for row in result
-        ]
+        return [_get_user_track_interaction_bu_row(r) for r in result]
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий: {str(e)}"
+            detail=f"Ошибка при получении событий: {e}",
         )
 
 
@@ -246,17 +254,14 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        return [
-            _get_user_track_interaction_bu_row(row)
-            for row in result
-        ]
+        return [_get_user_track_interaction_bu_row(r) for r in result]
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении событий трека: {str(e)}",
+            detail="Ошибка при получении событий трека: %s" % str(e),
         )
 
 

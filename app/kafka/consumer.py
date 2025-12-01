@@ -1,7 +1,7 @@
 import json
 import logging
 import asyncio
-from typing import Dict, Any, Callable, Awaitable
+from typing import Dict, Any, Callable, Awaitable, Optional
 from datetime import datetime
 
 from aiokafka.errors import KafkaError
@@ -36,8 +36,8 @@ def deserialize_event(message: bytes) -> Dict[str, Any]:
 
 async def consume_events(
     handler: Callable[[Dict[str, Any]], Awaitable[None]],
-    topic: str = None,
-    group_id: str = None,
+    topic: Optional[str] = None,
+    group_id: Optional[str] = None,
 ):
     """
     Запустить consumer для обработки событий
@@ -55,15 +55,14 @@ async def consume_events(
         await consume_events(process_event)
         ```
     """
-    if topic is None:
+    if not topic:
         topic = settings.kafka_topic_events
 
     consumer = None
-
     try:
         consumer = await get_kafka_consumer(topic, group_id)
 
-        logger.info(f"🎧 Начинаем слушать события из Kafka: topic={topic}")
+        logger.info("Начинаем слушать события из Kafka: topic=%s", topic)
 
         async for message in consumer:
             try:
@@ -71,10 +70,10 @@ async def consume_events(
                 event = deserialize_event(message.value)
 
                 logger.debug(
-                    f"📥 Получено событие из Kafka: "
-                    f"user={event.get('user_id')}, "
-                    f"track={event.get('track_id')}, "
-                    f"action={event.get('action_type')}"
+                    "Получено событие из Kafka: user=%s, track=%s, action=%s",
+                    event.get("user_id"),
+                    event.get("track_id"),
+                    event.get("action_type"),
                 )
 
                 # Обрабатываем событие
@@ -124,7 +123,7 @@ async def start_background_consumer(
     Returns:
         asyncio.Task: Задача consumer
     """
-    task = asyncio.create_task(consume_events(handler))
+    task = asyncio.create_task(consume_events(handler, None, None))
     logger.info("🚀 Background Kafka consumer запущен")
     return task
 
@@ -141,10 +140,10 @@ async def example_event_handler(event: Dict[str, Any]):
     - Обучение ML модели
     """
     logger.info(
-        f"🎯 Обработка события: "
-        f"user_id={event.get('user_id')}, "
-        f"track_id={event.get('track_id')}, "
-        f"action={event.get('action_type')}"
+        "Обработка события: user_id=%s, track_id=%s, action=%s",
+        event.get("user_id"),
+        event.get("track_id"),
+        event.get("action_type"),
     )
 
     # Здесь ваша бизнес-логика

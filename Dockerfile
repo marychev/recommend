@@ -20,5 +20,6 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Запуск приложения
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Параметры таймаутов можно переопределить через переменные окружения
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "65", "--timeout-graceful-shutdown", "30", "--limit-concurrency", "1000", "--limit-max-requests", "10000"]
 

@@ -1,6 +1,13 @@
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, HTTPException, status, Path, Query, BackgroundTasks
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    status,
+    Path,
+    Query,
+    BackgroundTasks,
+)
 
 from app.models.schemas import User, UserCreate, UserStatistics
 from app.db.clickhouse import get_clickhouse_client
@@ -150,7 +157,7 @@ async def get_user_statistics(
     clickhouse = get_clickhouse_client()
 
     try:
-        _ = await exists_user_cached(user_id, clickhouse)   # ?
+        _ = await exists_user_cached(user_id, clickhouse)  # ?
 
         # Получаем статистику
         stats_query = f"""

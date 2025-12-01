@@ -5,6 +5,9 @@ from app.models.schemas import HealthCheckResponse
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache_redis_client import get_redis_client
 from app.kafka.client import check_kafka_health
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/health",
@@ -41,13 +44,15 @@ async def health_check():
     else:
         # Попытка переподключения
         try:
-            print("⚠️  ClickHouse disconnected, попытка переподключения...")
+            logger.warning(
+                "ClickHouse disconnected, попытка переподключения..."
+            )
             await clickhouse.connect()
             if await clickhouse.is_connected():
                 clickhouse_status = "connected"
-                print("   ✅ ClickHouse переподключен!")
+                logger.info("ClickHouse переподключен!")
         except Exception as exc:
-            print(f"   ❌ Не удалось переподключиться: {exc}")
+            logger.error("Не удалось переподключиться: %s", exc)
 
     # Проверяем Kafka
     kafka_health = await check_kafka_health()

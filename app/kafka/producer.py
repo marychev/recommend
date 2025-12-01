@@ -28,6 +28,13 @@ def serialize_event(event: Dict[str, Any]) -> bytes:
     return json.dumps(event, ensure_ascii=False).encode("utf-8")
 
 
+def _get_message_and_key(event: Dict[str, Any]) -> tuple[bytes, bytes]:
+    """Используем user_id как ключ для партиционирования"""
+    message = serialize_event(event)
+    key = str(event.get("user_id", "")).encode("utf-8")
+    return message, key
+
+
 async def send_event(event: Dict[str, Any]) -> bool:
     """
     Отправить событие в Kafka
@@ -46,14 +53,8 @@ async def send_event(event: Dict[str, Any]) -> bool:
     try:
         # Используем таймаут для запуска producer
         producer = await get_kafka_producer(start_timeout=10.0)
+        message, key = _get_message_and_key(event)
 
-        # Сериализуем событие
-        message = serialize_event(event)
-
-        # Используем user_id как ключ для партиционирования
-        key = str(event.get("user_id", "")).encode("utf-8")
-
-        # Отправляем событие
         await producer.send(
             settings.kafka_topic_events, value=message, key=key
         )
@@ -96,14 +97,11 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
     try:
         # Используем таймаут для запуска producer
         producer = await get_kafka_producer(start_timeout=10.0)
-
-        # Создаем batch
         batch = producer.create_batch()
         batch_size = 0  # Счетчик событий в текущем batch
 
         for event in events:
-            message = serialize_event(event)
-            key = str(event.get("user_id", "")).encode("utf-8")
+            message, key = _get_message_and_key(event)
 
             # Добавляем в batch
             metadata = batch.append(key=key, value=message, timestamp=None)

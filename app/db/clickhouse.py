@@ -1,11 +1,16 @@
+import time
+import random
+import logging
+from datetime import datetime
 from typing import Optional, Any, List
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from fastapi import HTTPException, status
-from app.models.schemas import UserTrackInteraction, Track, User
-from datetime import datetime
-
 from app.config import settings
+from app.models.schemas import UserTrackInteraction, Track, User
+
+
+logger = logging.getLogger(__name__)
 
 
 class ClickHouseClient:
@@ -21,7 +26,9 @@ class ClickHouseClient:
             self.session = ClientSession()
 
             # Формируем URL подключения
-            url = f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
+            url = (
+                f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
+            )
 
             self.client = ChClient(
                 self.session,
@@ -31,19 +38,19 @@ class ClickHouseClient:
                 database=settings.clickhouse_database,
             )
 
-            # # Проверяем подключение
-            # await self.client.execute("SELECT 1")
+            # await self.client.execute("SELECT 1")  # Проверяем подключение - Optimized
 
-            print(
-                f"✓ Подключение к ClickHouse установлено: "
-                f"{settings.clickhouse_host}:{settings.clickhouse_port}"
+            logger.info(
+                "Подключение к ClickHouse установлено: %s:%s",
+                settings.clickhouse_host,
+                settings.clickhouse_port,
             )
         except Exception as e:
             if self.session:
                 await self.session.close()
                 self.session = None
             self.client = None
-            print(f"✗ Ошибка подключения к ClickHouse: {e}")
+            logger.error("Ошибка подключения к ClickHouse: %s", e)
             raise
 
     async def disconnect(self):
@@ -56,7 +63,7 @@ class ClickHouseClient:
             finally:
                 self.session = None
                 self.client = None
-                print("✓ Подключение к ClickHouse закрыто")
+                logger.info("Подключение к ClickHouse закрыто")
 
     async def is_connected(self) -> bool:
         """Проверка подключения"""
@@ -94,8 +101,7 @@ class ClickHouseClient:
         self, query: str, parameters: Optional[dict] = None
     ) -> List[dict]:
         """Выполнение запроса с возвратом результатов в виде словарей"""
-        #await self._ensure_connected()
-
+        # await self._ensure_connected() - Optimized
         try:
             # aiochclient не поддерживает параметры напрямую, выполняем простой запрос
             return await self.client.fetch(query)
@@ -106,8 +112,7 @@ class ClickHouseClient:
         self, query: str, parameters: Optional[dict] = None
     ) -> List[tuple]:
         """Выполнение запроса с возвратом сырых результатов (список кортежей)"""
-        #await self._ensure_connected()
-
+        # await self._ensure_connected()
         try:
             # Получаем данные и преобразуем в список кортежей
             result = await self.client.fetch(query)
@@ -123,7 +128,7 @@ class ClickHouseClient:
         column_names: Optional[List[str]] = None,
     ):
         """Вставка данных в таблицу"""
-        #await self._ensure_connected()
+        # await self._ensure_connected()
 
         if not data:
             return
@@ -138,31 +143,23 @@ class ClickHouseClient:
         except Exception as e:
             raise RuntimeError(f"Insert failed: {e}")
 
-    async def exists_user(self, user_id: int) -> bool:
-        """Проверяем существование пользователя (оптимизированная версия)"""
+    async def exists_in_table(self, table: str, field: str, value: Any) -> bool:
         # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
-        user_check = await self.execute_raw(
-            f"SELECT 1 FROM users WHERE user_id = {user_id} LIMIT 1"
+        check = await self.execute_raw(
+            f"SELECT 1 FROM {table} WHERE {field} = {value} LIMIT 1"
         )
-        if not user_check or len(user_check) == 0:
+        if not check or len(check) == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {user_id} не найден",
+                detail=f"{table.title} с ID {value} не найден",
             )
         return True
+    
+    async def exists_user(self, user_id: int) -> bool:
+        return await self.exists_in_table("users", "user_id", user_id)
 
     async def exists_track(self, track_id: int) -> bool:
-        """Проверяем существование трека (оптимизированная версия)"""
-        # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
-        track_check = await self.execute_raw(
-            f"SELECT 1 FROM tracks WHERE track_id = {track_id} LIMIT 1"
-        )
-        if not track_check or len(track_check) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {track_id} не найден",
-            )
-        return True
+        return await self.exists_in_table("tracks", "track_id", track_id)
 
     async def save_event(
         self, event: UserTrackInteraction, timestamp: datetime
@@ -182,21 +179,22 @@ class ClickHouseClient:
             column_names=UserTrackInteraction.column_names(),
         )
 
-    async def save_track(self, track: Track) -> int:
-        """Сохраняем трек"""
+    async def next_id(self, table: str, field: str) -> int:
         # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
         # Это быстрее и использует меньше памяти на больших таблицах
         try:
             result = await self.execute_raw(
-                "SELECT track_id FROM tracks ORDER BY track_id DESC LIMIT 1"
+                f"SELECT {field} FROM {table} ORDER BY {field} DESC LIMIT 1"
             )
             max_id = result[0][0] if result and result[0][0] else 0
         except Exception:
             # Если ошибка (например, таблица пуста или проблема с памятью), начинаем с 1
             max_id = 0
         
-        new_id = (max_id or 0) + 1
-
+        return (max_id or 0) + 1
+    
+    async def save_track(self, track: Track) -> int:
+        new_id = await self.next_id("tracks", "track_id")
         await self.insert(
             "tracks",
             [
@@ -217,19 +215,7 @@ class ClickHouseClient:
 
     async def save_user(self, user: User) -> int:
         """Сохраняем пользователя"""
-        # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
-        # Это быстрее и использует меньше памяти на больших таблицах
-        try:
-            result = await self.execute_raw(
-                "SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1"
-            )
-            max_id = result[0][0] if result and result[0][0] else 0
-        except Exception:
-            # Если ошибка (например, таблица пуста или проблема с памятью), начинаем с 1
-            max_id = 0
-        
-        new_id = (max_id or 0) + 1
-
+        new_id = await self.next_id("users", "user_id")
         await self.insert(
             "users",
             [
@@ -246,6 +232,33 @@ class ClickHouseClient:
         )
         return new_id
 
+        # Fallback: используем запрос к БД
+        try:
+            result = await self.execute_raw(
+                "SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1"
+            )
+            max_id = result[0][0] if result and result[0][0] else 0
+            new_id = (max_id or 0) + 1
+            await self.insert(
+                "users",
+                [
+                    [
+                        new_id,
+                        user.username,
+                        user.email or "",
+                        user.age or 0,
+                        user.country or "",
+                        datetime.now(),
+                    ]
+                ],
+                column_names=User.column_names(),
+            )
+            return new_id
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to save user after {max_retries} attempts: {e}"
+            )
+
 
 clickhouse_client = ClickHouseClient()
 
@@ -258,21 +271,19 @@ async def connect_clickhouse() -> bool:
     """Подключение к ClickHouse"""
     clickhouse_connected = False
     try:
-        print(
-            f"\n📊 Подключение к ClickHouse "
-            f"({settings.clickhouse_host}:{settings.clickhouse_port})..."
+        logger.info(
+            "\nПодключение к ClickHouse (%s:%s)...",
+            settings.clickhouse_host,
+            settings.clickhouse_port,
         )
         clickhouse = get_clickhouse_client()
         await clickhouse.connect()
         clickhouse_connected = True
-        print("   ✅ ClickHouse подключен успешно!")
+        logger.info("ClickHouse подключен успешно!")
     except Exception as exc:
-        print("   ❌ ОШИБКА: Не удалось подключиться к ClickHouse!")
-        print(f"   Детали: {exc}")
-        print("\n   💡 Решение:")
-        print("      docker-compose up -d clickhouse")
-        print("      или")
-        print("      bash scripts/docker-reset-clickhouse.sh")
+        logger.error("ОШИБКА: Не удалось подключиться к ClickHouse!")
+        logger.error("Детали: %s", exc)
+        logger.info("Решение: docker-compose up -d clickhouse или bash scripts/docker-reset-clickhouse.sh")
 
     return clickhouse_connected
 
@@ -284,4 +295,4 @@ async def shutdown_clickhouse() -> None:
         if await clickhouse.is_connected():
             await clickhouse.disconnect()
     except Exception as exc:
-        print(f"⚠️ Ошибка при отключении от ClickHouse: {exc}")
+        logger.error("Ошибка при отключении от ClickHouse: %s", exc)

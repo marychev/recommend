@@ -1,6 +1,13 @@
 from datetime import datetime
 from typing import List, Optional, Union
-from fastapi import APIRouter, HTTPException, status, Path, Query, BackgroundTasks
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    status,
+    Path,
+    Query,
+    BackgroundTasks,
+)
 
 from app.models.schemas import Track, TrackCreate, TrackStatistics
 from app.db.clickhouse import get_clickhouse_client

@@ -16,29 +16,30 @@ _kafka_consumer: Optional[AIOKafkaConsumer] = None
 async def get_kafka_producer(start_timeout: float = 5.0) -> AIOKafkaProducer:
     """
     Получить или создать Kafka Producer
-    
+
     Если producer уже создан, возвращает его.
     Если producer был закрыт или не подключен, создает новый.
-    
+
     Args:
         start_timeout: Таймаут для запуска producer в секундах (по умолчанию 5 секунд)
                        Это не request_timeout_ms, а таймаут для операции start()
     """
     global _kafka_producer
 
-    # Проверяем, существует ли producer и подключен ли он
     if _kafka_producer is not None:
         try:
             # Проверяем, что producer все еще активен
             if _kafka_producer._sender is not None:
                 return _kafka_producer
-            else:
-                # Producer существует, но не подключен - пересоздаем
-                logger.warning("Kafka Producer не подключен, пересоздаем...")
-                _kafka_producer = None
+
+            # Producer существует, но не подключен - пересоздаем
+            logger.warning("Kafka Producer не подключен, пересоздаем...")
+            _kafka_producer = None
         except Exception:
             # Producer в невалидном состоянии - пересоздаем
-            logger.warning("Kafka Producer в невалидном состоянии, пересоздаем...")
+            logger.warning(
+                "Kafka Producer в невалидном состоянии, пересоздаем..."
+            )
             _kafka_producer = None
 
     # Создаем новый producer
@@ -51,22 +52,23 @@ async def get_kafka_producer(start_timeout: float = 5.0) -> AIOKafkaProducer:
         acks="all",  # Надежная доставка
         # retries параметр не поддерживается в AIOKafkaProducer
         # Повторные попытки обрабатываются автоматически через acks="all"
-        request_timeout_ms=30000,  # Таймаут для запросов (30 секунд)
+        request_timeout_ms=60000,  # Таймаут для запросов (30 секунд)
     )
-    
+
     try:
         # Пытаемся запустить producer с таймаутом для операции start()
         await asyncio.wait_for(_kafka_producer.start(), timeout=start_timeout)
         logger.info(
-            f"✅ Kafka Producer запущен: "
-            f"{settings.kafka_bootstrap_servers}"
+            "Kafka Producer запущен: %s", settings.kafka_bootstrap_servers
         )
     except asyncio.TimeoutError:
-        logger.warning(f"Kafka Producer не смог подключиться за {start_timeout} секунд")
+        logger.warning(
+            "Kafka Producer не смог подключиться за %s секунд", start_timeout
+        )
         _kafka_producer = None
         raise
     except Exception as e:
-        logger.error(f"Ошибка при запуске Kafka Producer: {e}")
+        logger.error("Ошибка при запуске Kafka Producer: %s", e)
         _kafka_producer = None
         raise
 
@@ -91,9 +93,41 @@ async def get_kafka_consumer(
     )
 
     await consumer.start()
-    logger.info(f"✅ Kafka Consumer запущен: topic={topic}, group={group_id}")
+    logger.info("Kafka Consumer запущен: topic=%s, group=%s", topic, group_id)
 
     return consumer
+
+
+async def _close_kafka_client(
+    client, client_type: str, force_close_attr: str = None
+):
+    """
+    Общая функция для закрытия Kafka клиента (producer или consumer)
+
+    Args:
+        client: Экземпляр AIOKafkaProducer или AIOKafkaConsumer
+        client_type: Тип клиента для логирования ("Producer" или "Consumer")
+        force_close_attr: Имя атрибута для принудительного закрытия ("_sender" или "_coordinator")
+    """
+    if client is None:
+        return
+
+    try:
+        # Останавливаем клиент с таймаутом, чтобы не зависать
+        await asyncio.wait_for(client.stop(), timeout=3.0)
+        logger.debug("Kafka %s stopped", client_type)
+    except asyncio.TimeoutError:
+        logger.warning("Kafka %s stop timeout, forcing close", client_type)
+        # Пытаемся принудительно закрыть
+        if force_close_attr:
+            try:
+                attr = getattr(client, force_close_attr, None)
+                if attr:
+                    attr.close()
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("Error stopping Kafka %s: %s", client_type, e)
 
 
 async def close_kafka_producer():
@@ -103,21 +137,7 @@ async def close_kafka_producer():
     if _kafka_producer is not None:
         producer = _kafka_producer
         _kafka_producer = None  # Сбрасываем глобальную переменную сразу
-        
-        try:
-            # Останавливаем producer с таймаутом, чтобы не зависать
-            await asyncio.wait_for(producer.stop(), timeout=3.0)
-            logger.debug("Kafka Producer stopped")
-        except asyncio.TimeoutError:
-            logger.warning("Kafka Producer stop timeout, forcing close")
-            # Пытаемся принудительно закрыть
-            try:
-                if hasattr(producer, '_sender') and producer._sender:
-                    producer._sender.close()
-            except Exception:
-                pass
-        except Exception as e:
-            logger.debug("Error stopping Kafka Producer: %s", e)
+        await _close_kafka_client(producer, "Producer", "_sender")
 
 
 async def close_kafka_consumer(consumer: AIOKafkaConsumer):
@@ -127,21 +147,7 @@ async def close_kafka_consumer(consumer: AIOKafkaConsumer):
     Args:
         consumer: Экземпляр consumer для закрытия
     """
-    if consumer is not None:
-        try:
-            # Останавливаем consumer с таймаутом
-            await asyncio.wait_for(consumer.stop(), timeout=3.0)
-            logger.debug("Kafka Consumer stopped")
-        except asyncio.TimeoutError:
-            logger.warning("Kafka Consumer stop timeout, forcing close")
-            # Пытаемся принудительно закрыть
-            try:
-                if hasattr(consumer, '_coordinator') and consumer._coordinator:
-                    consumer._coordinator.close()
-            except Exception:
-                pass
-        except Exception as e:
-            logger.debug("Error stopping Kafka Consumer: %s", e)
+    await _close_kafka_client(consumer, "Consumer", "_coordinator")
 
 
 async def check_kafka_health() -> dict:
@@ -165,24 +171,23 @@ async def check_kafka_health() -> dict:
         return {"status": "error", "error": str(e)}
 
 
-async def connect_kafka(max_retries: int = 5, fast_mode: bool = False) -> bool:
+async def connect_kafka(max_retries: int = 3, fast_mode: bool = False) -> bool:
     """
     Подключение к Kafka с повторными попытками
-    
+
     Args:
         max_retries: Максимальное количество попыток подключения
         fast_mode: Если True, использует короткие задержки (для тестов)
-    
+
     Пытается подключиться к Kafka с экспоненциальной задержкой.
-    По умолчанию: максимум 5 попыток с задержками: 1s, 2s, 4s, 8s, 16s
-    В fast_mode: максимум 3 попытки с задержками: 0.1s, 0.2s, 0.4s
+    По умолчанию: максимум N попыток с задержками: 1s, 2s, 4s, 8s, 16s
+    В fast_mode: максимум N попытки с задержками: 0.1s, 0.2s, 0.4s
     """
     if fast_mode:
         base_delay = 0.1  # Быстрые задержки для тестов
-        max_retries = min(max_retries, 3)  # Максимум 3 попытки в fast режиме
     else:
         base_delay = 1.0  # Обычные задержки
-    
+
     for attempt in range(max_retries):
         try:
             await get_kafka_producer()
@@ -191,23 +196,20 @@ async def connect_kafka(max_retries: int = 5, fast_mode: bool = False) -> bool:
             return True
         except Exception as e:
             if attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt)
+                delay = base_delay * (2**attempt)
                 if not fast_mode:
                     logger.warning(
                         "Kafka недоступна (попытка %d/%d): %s. Повтор через %.1fс...",
                         attempt + 1,
                         max_retries,
                         e,
-                        delay
+                        delay,
                     )
                 await asyncio.sleep(delay)
             else:
-                if not fast_mode:
-                    logger.warning("Kafka unavailable после %d попыток: %s", max_retries, e)
-                    print("⚠️  Kafka недоступна (события не будут отправляться)")
-                    print(f"   Последняя ошибка: {e}")
-                else:
-                    logger.debug("Kafka unavailable после %d попыток: %s", max_retries, e)
+                logger.debug(
+                    "Kafka unavailable после %d попыток: %s", max_retries, e
+                )
                 return False
-    
+
     return False

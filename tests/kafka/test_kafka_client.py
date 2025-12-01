@@ -67,7 +67,7 @@ class TestGetKafkaProducer:
         assert call_kwargs["compression_type"] == "gzip"
         assert call_kwargs["acks"] == "all"
         # retries параметр удален - не поддерживается в AIOKafkaProducer
-        assert call_kwargs["request_timeout_ms"] == 30000
+        assert call_kwargs["request_timeout_ms"] == 60000
 
 
 class TestGetKafkaConsumer:

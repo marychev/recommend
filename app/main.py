@@ -38,4 +38,8 @@ if __name__ == "__main__":
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.api_reload,
+        timeout_keep_alive=settings.api_timeout_keep_alive,
+        timeout_graceful_shutdown=settings.api_timeout_graceful_shutdown,
+        limit_concurrency=settings.api_limit_concurrency,
+        limit_max_requests=settings.api_limit_max_requests,
     )

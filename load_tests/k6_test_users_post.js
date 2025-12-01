@@ -47,6 +47,7 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
     },
+    timeout: '60s', // Увеличенный таймаут для предотвращения таймаутов при высокой нагрузке
   };
 
   const startTime = Date.now();

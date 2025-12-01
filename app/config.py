@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_reload: bool = True
+    
+    # Uvicorn server settings
+    api_timeout_keep_alive: int = 65  # Keep-alive timeout в секундах (больше чем у клиентов)
+    api_timeout_graceful_shutdown: int = 30  # Graceful shutdown timeout
+    api_limit_concurrency: int = 1000  # Максимум одновременных соединений
+    api_limit_max_requests: int = 10000  # Максимум запросов на worker перед перезапуском
 
     # ML Model
     min_interactions_for_recommendations: int = 5
