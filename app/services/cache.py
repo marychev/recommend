@@ -19,9 +19,7 @@ logger = logging.getLogger(__name__)
 EXISTS_CACHE_TTL = 300
 
 
-# TTL для кэша рекомендаций (в секундах) Теперь конфигурируется через settings
 def get_cache_recommendations_ttl() -> int:
-    """Получить TTL для кэша рекомендаций из конфигурации"""
     return settings.recommendations_cache_ttl
 
 
@@ -85,11 +83,8 @@ async def get_cached_recommendations(
             return data
 
         logger.debug("Cache miss for user_id=%s", user_id)
-        return
-
     except Exception as e:
         logger.error("Error getting cached recommendations: %s", e)
-        return
 
 
 async def set_cached_recommendations(
@@ -220,12 +215,10 @@ async def get_cache_stats() -> Dict[str, Any]:
 
 
 def _get_user_exists_cache_key(user_id: int) -> str:
-    """Создать ключ для кэша проверки существования пользователя"""
     return f"exists:user:{user_id}"
 
 
 def _get_track_exists_cache_key(track_id: int) -> str:
-    """Создать ключ для кэша проверки существования трека"""
     return f"exists:track:{track_id}"
 
 

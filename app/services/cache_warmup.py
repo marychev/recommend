@@ -28,10 +28,12 @@ class CacheWarmupService:
             "errors": 0
         }
     
-    async def get_active_users(self, 
-                              hours_back: int = 24, 
-                              min_interactions: int = 3,
-                              limit: int = 100) -> List[int]:
+    async def get_active_users(
+        self, 
+        hours_back: int = 24, 
+        min_interactions: int = 3,
+        limit: int = 100
+    ) -> List[int]:
         """
         Получить список активных пользователей для прогрева кэша
         
@@ -74,9 +76,11 @@ class CacheWarmupService:
             logger.error(f"Ошибка получения активных пользователей: {e}")
             return []
     
-    async def warmup_user_recommendations(self, 
-                                        user_id: int,
-                                        variants: List[Dict[str, Any]] = None) -> bool:
+    async def warmup_user_recommendations(
+        self, 
+        user_id: int,
+        variants: List[Dict[str, Any]] = None
+    ) -> bool:
         """
         Прогрев рекомендаций для конкретного пользователя
         

@@ -1,7 +1,7 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { textSummary, EVENTS_STAGES_OPTIONS, BASE_URL } from './k6_test_events_post.js';
+import { textSummary, BASE_URL } from './k6_test_events_post.js';
 
 const TITLE = "Recommendations POST Load Test Results"
 
@@ -11,7 +11,7 @@ const recommendationSuccessRate = new Rate('recommendation_success_rate');
 const recommendationResponseTime = new Trend('recommendation_response_time');
 
 export const options = {
-  stages: EVENTS_STAGES_OPTIONS,
+  stages: [{ duration: '1m', target: 100 }],
   thresholds: {
     http_req_duration: ['p(95)<2000', 'p(99)<5000'], // 95% запросов < 2s, 99% < 5s (рекомендации медленнее)
     http_req_failed: ['rate<0.05'],                    // Меньше 5% ошибок
@@ -42,14 +42,13 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: '30s', // Увеличенный таймаут для рекомендаций
+    // timeout: '30s', // Увеличенный таймаут для рекомендаций
   };
 
   const startTime = Date.now();
   const response = http.post(API_URL, payload, params);
   const responseTime = Date.now() - startTime;
 
-  // Проверка ответа
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'response has user_id': (r) => {
@@ -78,7 +77,6 @@ export default function () {
     },
   });
 
-  // Обновление метрик
   recommendationSuccessRate.add(success);
   recommendationResponseTime.add(responseTime);
   
@@ -86,7 +84,6 @@ export default function () {
     recommendationErrors.add(1);
   }
 
-  //sleep(0.3); // Пауза между запросами (рекомендации требуют больше времени)
 }
 
 export function handleSummary(data) {

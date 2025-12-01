@@ -1,7 +1,7 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { textSummary, EVENTS_STAGES_OPTIONS, BASE_URL } from './k6_test_events_post.js';
+import { textSummary, BASE_URL } from './k6_test_events_post.js';
 
 // Кастомные метрики
 const TITLE = "Tracks POST Load Test Results"
@@ -10,7 +10,7 @@ const trackSuccessRate = new Rate('track_success_rate');
 const trackResponseTime = new Trend('track_response_time');
 
 export const options = {
-  stages: EVENTS_STAGES_OPTIONS,
+  stages: [{ duration: '1m', target: 100 }],
   thresholds: {
     http_req_duration: ['p(95)<500', 'p(99)<1000'], // 95% запросов < 500ms, 99% < 1000ms
     http_req_failed: ['rate<0.05'],                  // Меньше 5% ошибок
@@ -67,7 +67,6 @@ export default function () {
   const response = http.post(API_URL, payload, params);
   const responseTime = Date.now() - startTime;
 
-  // Проверка ответа
   const success = check(response, {
     'status is 201': (r) => r.status === 201,
     'response has track_id': (r) => {
@@ -88,7 +87,6 @@ export default function () {
     },
   });
 
-  // Обновление метрик
   trackSuccessRate.add(success);
   trackResponseTime.add(responseTime);
   
@@ -96,11 +94,10 @@ export default function () {
     trackErrors.add(1);
   }
 
-  // sleep(2); // Пауза между запросами (создание треков реже)
 }
 
 export function handleSummary(data) {
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }, TITLE),
   };
 }

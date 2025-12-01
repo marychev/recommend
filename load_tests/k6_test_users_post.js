@@ -1,7 +1,7 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { textSummary, EVENTS_STAGES_OPTIONS, BASE_URL } from './k6_test_events_post.js';
+import { textSummary, BASE_URL } from './k6_test_events_post.js';
 
 // Кастомные метрики
 const TITLE = "Users POST Load Test Results"
@@ -10,7 +10,7 @@ const userSuccessRate = new Rate('user_success_rate');
 const userResponseTime = new Trend('user_response_time');
 
 export const options = {
-  stages: EVENTS_STAGES_OPTIONS,
+  stages: [{ duration: '1m', target: 100 },],
   thresholds: {
     http_req_duration: ['p(95)<500', 'p(99)<1000'], // 95% запросов < 500ms, 99% < 1000ms
     http_req_failed: ['rate<0.05'],                  // Меньше 5% ошибок
@@ -47,7 +47,7 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: '60s', // Увеличенный таймаут для предотвращения таймаутов при высокой нагрузке
+    // timeout: '60s', // Увеличенный таймаут для предотвращения таймаутов при высокой нагрузке
   };
 
   const startTime = Date.now();
@@ -75,7 +75,6 @@ export default function () {
     },
   });
 
-  // Обновление метрик
   userSuccessRate.add(success);
   userResponseTime.add(responseTime);
   
@@ -83,7 +82,6 @@ export default function () {
     userErrors.add(1);
   }
 
-  // sleep(2); // Пауза между запросами (создание пользователей реже)
 }
 
 export function handleSummary(data) {

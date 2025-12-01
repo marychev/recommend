@@ -87,7 +87,6 @@ export default function () {
     eventErrors.add(1);
   }
 
-  //sleep(0.2); // Пауза между запросами
 }
 
 export function handleSummary(data) {

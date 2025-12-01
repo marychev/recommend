@@ -6,6 +6,9 @@ from typing import Optional
 import redis.asyncio as redis
 
 from app.config import settings
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class RedisClient:
@@ -26,18 +29,19 @@ class RedisClient:
                 decode_responses=True,
             )
             await self.redis.ping()
-            print(
-                f"✓ Подключение к Redis установлено: {settings.redis_host}:{settings.redis_port}"
+            logger.info(
+                "Подключение к Redis установлено: %s:%s",
+                settings.redis_host, settings.redis_port
             )
         except Exception as e:
-            print(f"✗ Ошибка подключения к Redis: {e}")
+            logger.error("Ошибка подключения к Redis: %s", e)
             raise
 
     async def disconnect(self):
         """Отключение от Redis"""
         if self.redis:
             await self.redis.close()
-            print("✓ Подключение к Redis закрыто")
+            logger.info("Подключение к Redis закрыто")
 
     async def is_connected(self) -> bool:
         """Проверка подключения"""
@@ -97,17 +101,17 @@ async def connect_redis() -> bool:
     """Подключение к Redis при старте приложения"""
     redis_connected = False
     try:
-        print(
-            f"\n🔴 Подключение к Redis "
-            f"({settings.redis_host}:{settings.redis_port})..."
+        logger.info(
+            "Подключение к Redis (%s:%s)...",
+            settings.redis_host, settings.redis_port
         )
         redis = get_redis_client()
         await redis.connect()
         redis_connected = True
-        print("   ✅ Redis подключен успешно!")
+        logger.info("Redis подключен успешно!")
     except Exception as exc:
-        print(f"   ⚠️ Не удалось подключиться к Redis: {exc}")
-        print("   💡 Запустите: docker-compose up -d redis")
+        logger.warning("Не удалось подключиться к Redis: %s", exc)
+        logger.info("Запустите: docker-compose up -d redis")
 
     return redis_connected
 
@@ -119,7 +123,7 @@ async def shutdown_redis() -> None:
         if await redis.is_connected():
             await redis.disconnect()
     except Exception as exc:
-        print(f"⚠️ Ошибка при отключении от Redis: {exc}")
+        logger.warning("Ошибка при отключении от Redis: %s", exc)
 
-    print("✓ Приложение остановлено")
-    print("=" * 60)
+    logger.info("Приложение остановлено")
+    logger.info("=" * 60)
