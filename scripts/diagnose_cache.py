@@ -18,7 +18,7 @@ from app.services.cache import (
     get_cached_recommendations,
     set_cached_recommendations,
     get_cache_stats,
-    _get_cache_key
+    get_cache_key_recommendations
 )
 from app.config import settings
 
@@ -172,7 +172,7 @@ async def test_cache_functions():
             return False
         
         # Проверяем ключ кэша
-        cache_key = _get_cache_key(test_user_id, 10, True)
+        cache_key = get_cache_key_recommendations(test_user_id, 10, True)
         print(f"   🔑 Ключ кэша: {cache_key}")
         
         # Очищаем тестовые данные

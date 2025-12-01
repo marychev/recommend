@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import List, Optional, Union
-from fastapi import APIRouter, HTTPException, status, Path, Query
+from fastapi import APIRouter, HTTPException, status, Path, Query, BackgroundTasks
 
 from app.models.schemas import Track, TrackCreate, TrackStatistics
 from app.db.clickhouse import get_clickhouse_client
+from app.services.cache import invalidate_track_exists_cache
 
 router = APIRouter(
     prefix="/tracks",
@@ -18,7 +19,7 @@ router = APIRouter(
     summary="Создать трек",
     description="Добавляет новый трек в каталог",
 )
-async def create_track(track: TrackCreate):
+async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
     """
     Создание нового трека
 
@@ -38,6 +39,8 @@ async def create_track(track: TrackCreate):
 
     try:
         new_id = await clickhouse.save_track(track)
+        # Инвалидируем кэш проверки существования для нового трека (фоновая задача)
+        background_tasks.add_task(invalidate_track_exists_cache, new_id)
 
         return Track(
             track_id=new_id,

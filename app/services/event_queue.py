@@ -10,6 +10,7 @@
 from collections import deque
 import asyncio
 from typing import Deque, Dict, Any, Optional
+from app.kafka.producer import send_batch_events
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,11 +61,8 @@ class EventQueue:
 
         if events:
             try:
-                from app.kafka.producer import send_batch_events
                 sent_count = await send_batch_events(events)
-                logger.info(
-                    f"Flushed {sent_count}/{len(events)} events to Kafka"
-                )
+                logger.info(f"Flushed {sent_count}/{len(events)} events to Kafka")
             except Exception as e:
                 logger.error(f"Error flushing events to Kafka: {e}")
                 # Возвращаем события обратно в очередь при ошибке
@@ -121,11 +119,10 @@ _event_queue: Optional[EventQueue] = None
 def get_event_queue() -> EventQueue:
     """Получить глобальную очередь событий"""
     global _event_queue
+
     if _event_queue is None:
-        _event_queue = EventQueue(
-            batch_size=50,  # Можно настроить через env
-            flush_interval=2.0  # Можно настроить через env
-        )
+        # TODO: Можно настроить через env
+        _event_queue = EventQueue(batch_size=50, flush_interval=2.0)
     return _event_queue
 
 
@@ -138,7 +135,7 @@ async def start_event_queue():
 async def stop_event_queue():
     """Остановить глобальную очередь событий"""
     global _event_queue
+
     if _event_queue:
         await _event_queue.stop()
         _event_queue = None
-

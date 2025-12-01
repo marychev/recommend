@@ -52,7 +52,7 @@ Redis подключение          ✅ Работает     Подключе�
 
 ```py
 # Проблемный код в app/routers/events.py
-background_tasks.add_task(invalidate_user_recommendations, event.user_id)  # ← Каждое событие!
+background_tasks.add_task(invalidate_cached_user_recommendations, event.user_id)  # ← Каждое событие!
 ```
 
 
@@ -65,7 +65,7 @@ background_tasks.add_task(invalidate_user_recommendations, event.user_id)  # ←
 ```py
 # Инвалидируем кэш только для значимых действий
 if event.action_type in [ActionType.LIKE, ActionType.DISLIKE, ActionType.ADD_TO_PLAYLIST, ActionType.SHARE]:
-   background_tasks.add_task(invalidate_user_recommendations, event.user_id)
+   background_tasks.add_task(invalidate_cached_user_recommendations, event.user_id)
 ```
 
 Логирование инвалидации:

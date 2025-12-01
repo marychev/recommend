@@ -102,7 +102,7 @@ async def create_event(event, background_tasks):
     
     # 3. Инвалидировать кэш рекомендаций (фоновая задача)
     background_tasks.add_task(
-        invalidate_user_recommendations,
+        invalidate_cached_user_recommendations,
         event.user_id
     )
 ```
@@ -150,10 +150,10 @@ await set_cached_recommendations(
 ### 3. Инвалидировать кэш
 
 ```python
-from app.services.cache import invalidate_user_recommendations
+from app.services.cache import invalidate_cached_user_recommendations
 
 # Удалить все рекомендации для пользователя
-await invalidate_user_recommendations(user_id=1001)
+await invalidate_cached_user_recommendations(user_id=1001)
 ```
 
 ### 4. Статистика кэша
@@ -325,7 +325,7 @@ if cached:
 
 Инвалидация происходит в фоне, не замедляя API:
 ```python
-background_tasks.add_task(invalidate_user_recommendations, user_id)
+background_tasks.add_task(invalidate_cached_user_recommendations, user_id)
 # API сразу возвращает 201 Created
 ```
 
@@ -360,7 +360,7 @@ DEL "recommendations:user:1001:*"
 
 Или через код:
 ```python
-await invalidate_user_recommendations(user_id=1001)
+await invalidate_cached_user_recommendations(user_id=1001)
 ```
 
 ## 📊 Примеры
@@ -451,7 +451,7 @@ else:
 ```python
 # Инвалидировать только для значимых действий
 if event.action_type in [ActionType.LIKE, ActionType.DISLIKE]:
-    await invalidate_user_recommendations(event.user_id)
+    await invalidate_cached_user_recommendations(event.user_id)
 # PLAY и SKIP не инвалидируют кэш
 ```
 

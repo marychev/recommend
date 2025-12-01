@@ -16,6 +16,7 @@ from app.config import settings
 from app.services.cache import (
     get_cached_recommendations,
     set_cached_recommendations,
+    exists_user_cached,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,9 +96,9 @@ async def get_recommendations(request: RecommendationRequest):
     clickhouse = get_clickhouse_client()
 
     try:
-        # Проверка существования пользователя
+        # Проверка существования пользователя (с кэшированием)
         user_check_start = time.perf_counter()
-        _ = await clickhouse.exists_user(request.user_id)
+        _ = await exists_user_cached(request.user_id, clickhouse)
         if metrics is not None:
             metrics["clickhouse_user_check_time_ms"] = (
                 time.perf_counter() - user_check_start
@@ -145,7 +146,7 @@ async def get_recommendations(request: RecommendationRequest):
         HAVING similarity > 0.1
         ORDER BY similarity DESC
         LIMIT 50
-        SETTINGS 
+        SETTINGS
             max_memory_usage = 10000000000,
             max_bytes_before_external_group_by = 4000000000,
             max_bytes_before_external_sort = 4000000000,
@@ -206,7 +207,7 @@ async def get_recommendations(request: RecommendationRequest):
                  t.duration_seconds, t.release_year, t.created_at
         ORDER BY total_score DESC
         LIMIT {request.top_n}
-        SETTINGS 
+        SETTINGS
             max_memory_usage = 10000000000,
             max_bytes_before_external_group_by = 4000000000,
             max_bytes_before_external_sort = 4000000000,
@@ -377,7 +378,7 @@ async def get_popular_recommendations(
              t.duration_seconds, t.release_year, t.created_at
     ORDER BY play_count DESC
     LIMIT {request.top_n}
-    SETTINGS 
+    SETTINGS
         max_memory_usage = 10000000000,
         max_bytes_before_external_group_by = 4000000000,
         max_bytes_before_external_sort = 4000000000,

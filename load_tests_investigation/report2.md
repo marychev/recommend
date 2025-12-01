@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
 **Динамическое получение TTL в `app/services/cache.py`:**
 ```python
-def get_cache_ttl() -> int:
+def get_cache_recommendations_ttl() -> int:
     """Получить TTL для кэша рекомендаций из конфигурации"""
     return settings.recommendations_cache_ttl
 ```
@@ -65,7 +65,7 @@ async def set_cached_recommendations(
 ) -> bool:
     # Используем TTL из настроек, если не передан явно
     if ttl is None:
-        ttl = get_cache_ttl()
+        ttl = get_cache_recommendations_ttl()
 ```
 
 ---

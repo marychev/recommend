@@ -1,14 +1,26 @@
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, HTTPException, status, Path, Query
+from fastapi import APIRouter, HTTPException, status, Path, Query, BackgroundTasks
 
 from app.models.schemas import User, UserCreate, UserStatistics
 from app.db.clickhouse import get_clickhouse_client
+from app.services.cache import exists_user_cached, invalidate_user_exists_cache
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
 )
+
+
+def _get_user_by_row(row: tuple) -> User:
+    return User(
+        user_id=row[0],
+        username=row[1],
+        email=row[2],
+        age=row[3],
+        country=row[4],
+        created_at=row[5],
+    )
 
 
 @router.post(
@@ -18,7 +30,7 @@ router = APIRouter(
     summary="Создать пользователя",
     description="Создает новый профиль пользователя в системе",
 )
-async def create_user(user: UserCreate):
+async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     """
     Создание нового пользователя
 
@@ -36,6 +48,8 @@ async def create_user(user: UserCreate):
 
     try:
         new_id = await clickhouse.save_user(user)
+        # Инвалидируем кэш проверки существования для нового пользователя (фоновая задача)
+        background_tasks.add_task(invalidate_user_exists_cache, new_id)
         return User(
             user_id=new_id,
             username=user.username,
@@ -74,14 +88,7 @@ async def get_user(
             )
 
         row = result[0]
-        return User(
-            user_id=row[0],
-            username=row[1],
-            email=row[2],
-            age=row[3],
-            country=row[4],
-            created_at=row[5],
-        )
+        return _get_user_by_row(row)
     except HTTPException:
         raise
     except Exception as e:
@@ -89,17 +96,6 @@ async def get_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при получении пользователя: {str(e)}",
         )
-
-
-def _get_user_by_row(row: tuple) -> User:
-    return User(
-        user_id=row[0],
-        username=row[1],
-        email=row[2],
-        age=row[3],
-        country=row[4],
-        created_at=row[5],
-    )
 
 
 @router.get(
@@ -154,7 +150,7 @@ async def get_user_statistics(
     clickhouse = get_clickhouse_client()
 
     try:
-        _ = await clickhouse.exists_user(user_id)
+        _ = await exists_user_cached(user_id, clickhouse)   # ?
 
         # Получаем статистику
         stats_query = f"""

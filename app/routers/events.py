@@ -2,12 +2,17 @@ from datetime import datetime
 from typing import List
 import asyncio
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from app.services.event_queue import get_event_queue
+from app.kafka.producer import send_event
 
 from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
 from app.models.schemas.action_type import ActionType
 from app.db.clickhouse import get_clickhouse_client
-from app.kafka.producer import send_event
-from app.services.cache import invalidate_user_recommendations
+from app.services.cache import (
+    invalidate_cached_user_recommendations,
+    exists_user_cached,
+    exists_track_cached,
+)
 
 router = APIRouter(
     prefix="/events",
@@ -31,7 +36,6 @@ async def process_event_async(event: UserTrackInteraction):
     - Расчета метрик в реальном времени
     """
     try:
-        from app.services.event_queue import get_event_queue
 
         # Преобразуем Pydantic модель в словарь
         event_dict = {
@@ -64,7 +68,6 @@ async def process_event_async(event: UserTrackInteraction):
         print(f"❌ Ошибка добавления события в очередь: {e}")
         # Fallback: пытаемся отправить напрямую в Kafka
         try:
-            from app.kafka.producer import send_event
             event_dict = {
                 "user_id": event.user_id,
                 "track_id": event.track_id,
@@ -119,31 +122,31 @@ async def create_event(
 
     try:
         # Оптимизация: проверяем существование пользователя и трека параллельно
-        # для уменьшения задержек
+        # с кэшированием в Redis для уменьшения нагрузки на БД
         timestamp = event.timestamp if event.timestamp else datetime.now()
         
-        # Проверяем существование параллельно (быстрее чем последовательно)
+        # Проверяем существование параллельно с кэшированием (быстрее чем последовательно)
         user_check, track_check = await asyncio.gather(
-            clickhouse.execute_raw(
-                f"SELECT 1 FROM users WHERE user_id = {event.user_id} LIMIT 1"
-            ),
-            clickhouse.execute_raw(
-                f"SELECT 1 FROM tracks WHERE track_id = {event.track_id} LIMIT 1"
-            ),
+            exists_user_cached(event.user_id, clickhouse),
+            exists_track_cached(event.track_id, clickhouse),
             return_exceptions=True
         )
         
-        # Проверяем результаты
-        if isinstance(user_check, Exception) or not user_check or len(user_check) == 0:
+        # Обрабатываем исключения
+        if isinstance(user_check, Exception):
+            if isinstance(user_check, HTTPException):
+                raise user_check
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Пользователь с ID {event.user_id} не найден",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при проверке пользователя: {str(user_check)}"
             )
         
-        if isinstance(track_check, Exception) or not track_check or len(track_check) == 0:
+        if isinstance(track_check, Exception):
+            if isinstance(track_check, HTTPException):
+                raise track_check
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек с ID {event.track_id} не найден",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при проверке трека: {str(track_check)}"
             )
 
         await clickhouse.save_event(event, timestamp)
@@ -164,7 +167,7 @@ async def create_event(
         if event.action_type in [ActionType.LIKE, ActionType.DISLIKE, ActionType.ADD_TO_PLAYLIST, ActionType.SHARE]:
             print(f"🗑️  Инвалидация кэша для пользователя {event.user_id} из-за действия {event.action_type}")
             background_tasks.add_task(
-                invalidate_user_recommendations, event.user_id
+                invalidate_cached_user_recommendations, event.user_id
             )
         else:
             print(f"✅ Кэш НЕ инвалидируется для пользователя {event.user_id} из-за действия {event.action_type}")
@@ -193,7 +196,7 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
     clickhouse = get_clickhouse_client()
 
     try:
-        _ = await clickhouse.exists_user(user_id)
+        _ = await exists_user_cached(user_id, clickhouse)
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,
@@ -231,7 +234,7 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
     clickhouse = get_clickhouse_client()
 
     try:
-        _ = await clickhouse.exists_track(track_id)
+        _ = await exists_track_cached(track_id, clickhouse)
         result = await clickhouse.execute_raw(
             f"""
             SELECT user_id, track_id, action_type,

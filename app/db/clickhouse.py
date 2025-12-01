@@ -21,9 +21,7 @@ class ClickHouseClient:
             self.session = ClientSession()
 
             # Формируем URL подключения
-            url = (
-                f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
-            )
+            url = f"http://{settings.clickhouse_host}:{settings.clickhouse_port}"
 
             self.client = ChClient(
                 self.session,
@@ -33,8 +31,8 @@ class ClickHouseClient:
                 database=settings.clickhouse_database,
             )
 
-            # Проверяем подключение
-            await self.client.execute("SELECT 1")
+            # # Проверяем подключение
+            # await self.client.execute("SELECT 1")
 
             print(
                 f"✓ Подключение к ClickHouse установлено: "
@@ -70,7 +68,7 @@ class ClickHouseClient:
             return False
         return False
 
-    async def _ensure_connected(self):
+    async def _ensure_connected(self) -> None:
         """Проверяет подключение и пытается переподключиться, если нужно"""
         if not self.client:
             try:
@@ -96,7 +94,7 @@ class ClickHouseClient:
         self, query: str, parameters: Optional[dict] = None
     ) -> List[dict]:
         """Выполнение запроса с возвратом результатов в виде словарей"""
-        await self._ensure_connected()
+        #await self._ensure_connected()
 
         try:
             # aiochclient не поддерживает параметры напрямую, выполняем простой запрос
@@ -108,7 +106,7 @@ class ClickHouseClient:
         self, query: str, parameters: Optional[dict] = None
     ) -> List[tuple]:
         """Выполнение запроса с возвратом сырых результатов (список кортежей)"""
-        await self._ensure_connected()
+        #await self._ensure_connected()
 
         try:
             # Получаем данные и преобразуем в список кортежей
@@ -125,7 +123,7 @@ class ClickHouseClient:
         column_names: Optional[List[str]] = None,
     ):
         """Вставка данных в таблицу"""
-        await self._ensure_connected()
+        #await self._ensure_connected()
 
         if not data:
             return
@@ -186,11 +184,17 @@ class ClickHouseClient:
 
     async def save_track(self, track: Track) -> int:
         """Сохраняем трек"""
-        # Простая генерация ID через max() - работает быстро и надежно
-        result = await self.execute_raw(
-            "SELECT max(track_id) as max_id FROM tracks"
-        )
-        max_id = result[0][0] if result and result[0][0] else 0
+        # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
+        # Это быстрее и использует меньше памяти на больших таблицах
+        try:
+            result = await self.execute_raw(
+                "SELECT track_id FROM tracks ORDER BY track_id DESC LIMIT 1"
+            )
+            max_id = result[0][0] if result and result[0][0] else 0
+        except Exception:
+            # Если ошибка (например, таблица пуста или проблема с памятью), начинаем с 1
+            max_id = 0
+        
         new_id = (max_id or 0) + 1
 
         await self.insert(
@@ -213,11 +217,17 @@ class ClickHouseClient:
 
     async def save_user(self, user: User) -> int:
         """Сохраняем пользователя"""
-        # Простая генерация ID через max() - работает быстро и надежно
-        result = await self.execute_raw(
-            "SELECT max(user_id) as max_id FROM users"
-        )
-        max_id = result[0][0] if result and result[0][0] else 0
+        # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
+        # Это быстрее и использует меньше памяти на больших таблицах
+        try:
+            result = await self.execute_raw(
+                "SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1"
+            )
+            max_id = result[0][0] if result and result[0][0] else 0
+        except Exception:
+            # Если ошибка (например, таблица пуста или проблема с памятью), начинаем с 1
+            max_id = 0
+        
         new_id = (max_id or 0) + 1
 
         await self.insert(

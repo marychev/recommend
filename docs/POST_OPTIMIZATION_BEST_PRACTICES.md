@@ -242,7 +242,7 @@ async def invalidate_user_cache(user_id: int):
 ```python
 # app/services/cache.py
 
-async def invalidate_user_recommendations_pipelined(user_ids: List[int]):
+async def invalidate_cached_user_recommendations_pipelined(user_ids: List[int]):
     """Инвалидировать кэш для нескольких пользователей через pipeline"""
     redis = await get_redis()
     
@@ -517,4 +517,6 @@ user_exists, track_exists = await asyncio.gather(
 - [Redis Caching](./REDIS_CACHING.md)
 - [SQL Optimization](./SQL_OPTIMIZATION.md)
 - [Performance Issues](../PERFORMANCE_ISSUES.md)
+
+
 
