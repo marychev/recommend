@@ -54,6 +54,7 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
     },
+    timeout: '30s',  // Таймаут для запроса (30 секунд)
   };
 
   const startTime = Date.now();

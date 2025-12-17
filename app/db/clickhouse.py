@@ -1,16 +1,14 @@
-import time
-import random
 import logging
 import asyncio
 from datetime import datetime
 from typing import Optional, Any, List, Dict
 from collections import deque
 from aiochclient import ChClient
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from fastapi import HTTPException, status
 from app.config import settings
 from app.models.schemas import UserTrackInteraction, Track, User
-
+from app.kafka.constants import DATA_HANDLER_BATCH_SIZE, DATA_HANDLER_FLUSH_INTERVAL 
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +26,8 @@ class ClickHouseClient:
             'tracks': deque(),
             'user_track_interactions': deque(),
         }
-        self._buffer_size = 200  # Размер батча (увеличен для лучшей производительности)
-        self._flush_interval = 3.0  # Интервал автоматического flush в секундах (уменьшен для более быстрой обработки)
+        self._buffer_size = DATA_HANDLER_BATCH_SIZE  # Размер батча (увеличен для лучшей производительности)
+        self._flush_interval = DATA_HANDLER_FLUSH_INTERVAL  # Интервал автоматического flush в секундах (уменьшен для более быстрой обработки)
         self._flush_task: Optional[asyncio.Task] = None
         self._flush_lock = asyncio.Lock()
         self._running = False
@@ -37,7 +35,9 @@ class ClickHouseClient:
     async def connect(self):
         """Подключение к ClickHouse"""
         try:
-            self.session = ClientSession()
+            # Создаем ClientSession с таймаутами для избежания зависаний
+            timeout = ClientTimeout(total=30, connect=10)  # 30 сек общий, 10 сек на подключение
+            self.session = ClientSession(timeout=timeout)
 
             # Формируем URL подключения
             url = (

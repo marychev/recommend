@@ -53,7 +53,7 @@ const getRecommendationsRequests = new Counter('post_get_recommendations_request
 // ════════════════════════════════════════════════════════
 
 const VUS = parseInt(__ENV.VUS) || 100;
-const DURATION = __ENV.DURATION || '1m';
+const DURATION = __ENV.DURATION || '4m';
 
 export const options = {
   stages: [

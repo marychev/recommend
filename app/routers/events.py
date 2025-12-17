@@ -23,12 +23,13 @@ router = APIRouter(
 )
 
 
-async def process_event_async(event: UserTrackInteraction):
+async def process_event_async(event: UserTrackInteraction, clickhouse_client):
     """
     Отправка события в очередь для батчинга перед отправкой в Kafka
+    С fallback на прямой INSERT в ClickHouse если очередь/Kafka недоступны
 
     Преимущества батчинга:
-    - Меньше запросов к Kafka (50 событий в одном запросе)
+    - Меньше запросов к Kafka (100 событий в одном запросе)
     - Лучшая пропускная способность
     - Меньше нагрузка на Kafka broker
 
@@ -61,25 +62,33 @@ async def process_event_async(event: UserTrackInteraction):
         queue = get_event_queue()
         await queue.add_event(event_dict)
 
-        logger.info(
+        logger.debug(
             "Событие добавлено в очередь: "
-            "user=%s, track=%s, "
-            "action=%s, queue_size=%s",
+            "user=%s, track=%s, action=%s, queue_size=%s",
             event.user_id,
             event.track_id,
             event.action_type,
             queue.get_queue_size(),
         )
     except Exception as e:
-        logger.error("Ошибка добавления события в очередь: %s", e)
-        # Fallback: пытаемся отправить напрямую в Kafka
+        logger.warning("Ошибка добавления события в очередь: %s. Пробуем fallback.", e)
+        # Fallback 1: пытаемся отправить напрямую в Kafka
         try:
-            await send_event(event_dict)
-        except Exception as fallback_error:
-            logger.error(
-                "Fallback отправка в Kafka также не удалась: %s",
-                fallback_error,
-            )
+            success = await send_event(event_dict)
+            if not success:
+                raise Exception("send_event вернул False")
+        except Exception as kafka_error:
+            logger.warning("Fallback отправка в Kafka не удалась: %s. Используем прямой INSERT в ClickHouse.", kafka_error)
+            # Fallback 2: прямой INSERT в ClickHouse (как в users/tracks)
+            try:
+                await clickhouse_client.save_event_buffered(event, event.timestamp)
+                logger.debug(
+                    "Событие сохранено в ClickHouse через fallback: user=%s, track=%s",
+                    event.user_id,
+                    event.track_id,
+                )
+            except Exception as fallback_error:
+                logger.error("Fallback INSERT в ClickHouse также не удался: %s", fallback_error)
 
 
 async def _get_user_track_interaction_bu_row(
@@ -121,20 +130,36 @@ async def create_event(
     clickhouse = get_clickhouse_client()
 
     try:
-        # Оптимизация: проверяем существование пользователя и трека параллельно
-        # с кэшированием в Redis для уменьшения нагрузки на БД
         timestamp = event.timestamp if event.timestamp else datetime.now()
 
-        # Проверяем существование параллельно с кэшированием (быстрее чем последовательно)
-        user_check, track_check = await asyncio.gather(
-            exists_user_cached(event.user_id, clickhouse),
-            exists_track_cached(event.track_id, clickhouse),
-            return_exceptions=True,
-        )
+        # Оптимизация: проверяем существование пользователя и трека параллельно
+        # с таймаутом для избежания блокировки при высокой нагрузке
+        # Используем return_exceptions=True для обработки ошибок без блокировки
+        try:
+            user_check, track_check = await asyncio.wait_for(
+                asyncio.gather(
+                    exists_user_cached(event.user_id, clickhouse),
+                    exists_track_cached(event.track_id, clickhouse),
+                    return_exceptions=True,
+                ),
+                timeout=5.0  # Таймаут 5 секунд для проверок существования
+            )
+        except asyncio.TimeoutError:
+            # Если проверка заняла слишком долго, логируем предупреждение и продолжаем
+            # (события могут быть валидными, но проверка заняла слишком много времени)
+            logger.warning(
+                "Таймаут при проверке существования user_id=%s, track_id=%s. Продолжаем обработку.",
+                event.user_id,
+                event.track_id,
+            )
+            user_check = True  # Предполагаем что существует
+            track_check = True
 
         def _handle_exception_500_(
-            check: Union[bool, Exception], who: str
+            check: Union[bool, BaseException], who: str
         ) -> None:
+            # asyncio.gather с return_exceptions=True может вернуть BaseException
+            # но мы обрабатываем только Exception (HTTPException наследуется от Exception)
             if isinstance(check, Exception):
                 if isinstance(check, HTTPException):
                     raise check
@@ -144,6 +169,8 @@ async def create_event(
                 )
 
         # Обрабатываем исключения
+        # asyncio.gather с return_exceptions=True может вернуть BaseException,
+        # но функция обрабатывает только Exception, что безопасно
         _handle_exception_500_(user_check, "пользователя")
         _handle_exception_500_(track_check, "трека")
 
@@ -157,8 +184,9 @@ async def create_event(
             timestamp=timestamp,
         )
 
-        # Отправляем в Kafka (асинхронно, не блокирует ответ)
-        background_tasks.add_task(process_event_async, interaction)
+        # Отправляем в Kafka с fallback (асинхронно, не блокирует ответ)
+        # Передаем clickhouse_client для fallback на прямой INSERT
+        background_tasks.add_task(process_event_async, interaction, clickhouse)
 
         # Инвалидируем кэш только для значимых действий
         # play и skip не должны сразу инвалидировать кэш

@@ -370,15 +370,16 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 Events POST Load Test Results
 # 9. POST через Kafka, батчинг в Consumer  # + [#7, #8]
 ==============================
- RPS (req/sec): 0.54 req/sec
- Total Requests: 50
- Success Rate: 0.00%
- Error Rate: 100.00%
- Avg Response Time: 61502.50ms
- P95 Response Time: 61648.46ms
+ RPS (req/sec): 31.21 req/sec
+ Total Requests: 2046
+ Success Rate: 100.00%
+ Error Rate: 0.00%
+ Avg Response Time: 1642.77ms
+ P95 Response Time: 3914.13ms
  P99 Response Time: 0.00ms
-running (1m32.4s), 000/100 VUs, 50 complete and 49 interrupted iterations
-default ✓ [======================================] 049/100 VUs  1m0s
+running (1m05.5s), 000/100 VUs, 2046 complete and 0 interrupted iterations
+default ✓ [======================================] 000/100 VUs  1m0s
+ERRO[0062] thresholds on metrics 'http_req_duration' have been crossed
  =============================
  RPS (req/sec): 10.93 req/sec
  Total Requests: 984
@@ -393,17 +394,15 @@ default ✓ [======================================] 077/100 VUs  1m0s
 
 Users POST Load Test Results
 9+============================9+
-RPS (req/sec): 72.84 req/sec
- Total Requests: 4568
+ RPS (req/sec): 80.66 req/sec
+ Total Requests: 5274
  Success Rate: 0.00%
  Error Rate: 0.00%
- Avg Response Time: 686.88ms
- P95 Response Time: 1486.72ms
+ Avg Response Time: 637.14ms
+ P95 Response Time: 1477.47ms
  P99 Response Time: 0.00ms
-
-running (1m02.7s), 000/100 VUs, 4568 complete and 0 interrupted iterations
+running (1m05.4s), 000/100 VUs, 5274 complete and 0 interrupted iterations
 default ✓ [======================================] 000/100 VUs  1m0s
-ERRO[0061] thresholds on metrics 'http_req_duration' have been crossed
  ============================
  RPS (req/sec): 24.10 req/sec
  Total Requests: 1607
@@ -417,3 +416,32 @@ default ✓ [======================================] 000/100 VUs  1m0s
 ERRO[0067] thresholds on metrics 'http_req_duration' have been crossed
 
 
+
+Tracks POST Load Test Results
+9+============================9+
+ RPS (req/sec): 26.08 req/sec
+ Total Requests: 2501
+ Success Rate: 0.00%
+ Error Rate: 1.64%
+ Avg Response Time: 383.82ms
+ P95 Response Time: 850.82ms
+ P99 Response Time: 0.00ms
+running (1m35.9s), 000/100 VUs, 2501 complete and 99 interrupted iterations
+default ✓ [======================================] 099/100 VUs  1m0s
+=============================
+
+
+Recommendations POST Load Test Results
+9+============================9+
+ RPS (req/sec): 3.81 req/sec
+ Total Requests: 284
+ Success Rate: 100.00%
+ Error Rate: 0.00%
+ Avg Response Time: 13329.99ms
+ P95 Response Time: 27387.43ms
+ P99 Response Time: 0.00ms
+running (1m14.5s), 000/100 VUs, 284 complete and 0 interrupted iterations
+default ✓ [======================================] 000/100 VUs  1m0s
+ERRO[0070] thresholds on metrics 'http_req_duration' have been crossed
+make: *** [Makefile:278: load-test-recommendations-post] Error 99
+======================================
