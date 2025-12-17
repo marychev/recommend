@@ -13,8 +13,7 @@ from app.db.clickhouse import (
 from app.services.cache_redis_client import connect_redis, shutdown_redis
 from app.services.event_queue import start_event_queue, stop_event_queue
 from app.kafka.client import close_kafka_producer, connect_kafka
-from app.kafka.consumer import start_background_consumer
-from app.kafka.event_handler import process_event_handler
+from app.kafka.multi_consumer import start_multi_consumer, stop_multi_consumer
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,29 +29,21 @@ async def lifespan(_app: FastAPI):
     redis_connected = await connect_redis()
     kafka_connected = await connect_kafka()
     
-    consumer_task: Optional[asyncio.Task] = None
+    consumer_tasks: list[asyncio.Task] = []
     
-    # Запускаем периодический flush буферов ClickHouse для батчинга INSERT
-    if clickhouse_connected:
-        try:
-            clickhouse = get_clickhouse_client()
-            await clickhouse.start_periodic_flush()
-            logger.info("Периодический flush буферов ClickHouse запущен (батчинг INSERT)")
-        except Exception as e:
-            logger.warning("Не удалось запустить периодический flush: %s", e)
-    
-    # Запускаем очередь для батчинга событий в Kafka
+    # Запускаем очередь для батчинга событий в Kafka (для отправки)
     if kafka_connected:
         await start_event_queue()
         logger.info("Очередь событий запущена (батчинг Kafka)")
         
-        # Запускаем Kafka Consumer для обработки событий
-        try:
-            consumer_task = await start_background_consumer(process_event_handler)
-            logger.info("Kafka Consumer запущен (обработка событий)")
-        except Exception as e:
-            logger.warning("Не удалось запустить Kafka Consumer: %s", e)
-            logger.warning("Kafka Consumer не запущен: %s", e)
+        # Запускаем мульти-consumer для обработки всех топиков (users, tracks, events)
+        # Consumer будет писать в ClickHouse батчами
+        if clickhouse_connected:
+            try:
+                consumer_tasks = await start_multi_consumer()
+                logger.info("Kafka Multi-Consumer запущен (обработка users, tracks, events → ClickHouse)")
+            except Exception as e:
+                logger.warning("Не удалось запустить Kafka Multi-Consumer: %s", e)
 
     if clickhouse_connected and redis_connected and kafka_connected:
         logger.info("Все сервисы подключены!")
@@ -79,29 +70,16 @@ async def lifespan(_app: FastAPI):
     logger.info("Остановка приложения...")
     logger.info("=" * 60)
 
-    # Останавливаем Kafka Consumer
-    if consumer_task is not None:
+    # Останавливаем Kafka Multi-Consumer
+    if consumer_tasks:
         try:
-            consumer_task.cancel()
-            try:
-                await consumer_task
-            except asyncio.CancelledError:
-                pass
-            logger.info("Kafka Consumer остановлен")
+            await stop_multi_consumer(consumer_tasks)
+            logger.info("Kafka Multi-Consumer остановлен")
         except Exception as e:
-            logger.warning("Ошибка при остановке Consumer: %s", e)
+            logger.warning("Ошибка при остановке Multi-Consumer: %s", e)
 
     # Останавливаем очередь событий (сбросит оставшиеся события)
     await stop_event_queue()
-    
-    # Останавливаем периодический flush буферов ClickHouse (сбросит все буферы)
-    if clickhouse_connected:
-        try:
-            clickhouse = get_clickhouse_client()
-            await clickhouse.stop_periodic_flush()
-            logger.info("Периодический flush буферов ClickHouse остановлен")
-        except Exception as e:
-            logger.warning("Ошибка при остановке периодического flush: %s", e)
     
     await close_kafka_producer()
     await shutdown_clickhouse()

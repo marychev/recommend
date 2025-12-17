@@ -157,7 +157,8 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
                                                
 📊 Общая статистика: 
 - Виртуальных пользователей: 10
-- Виртуальных пользователей: 75        # 7. Батчинг на уровне ClickHouseClient
+- Виртуальных пользователей: 75         # 7. Батчинг на уровне ClickHouseClient
+- Виртуальных пользователей: 10         # 9. POST через Kafka, батчинг в Consumer
 
 • Длительность теста:   
 - 8m 49s            # 7. Батчинг на уровне ClickHouseClient

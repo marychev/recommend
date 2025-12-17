@@ -147,8 +147,8 @@ async def create_event(
         _handle_exception_500_(user_check, "пользователя")
         _handle_exception_500_(track_check, "трека")
 
-        await clickhouse.save_event(event, timestamp)
-
+        # Best practice: отправляем в Kafka, Consumer запишет в ClickHouse батчами
+        # Убрали синхронный INSERT в ClickHouse для быстрого ответа клиенту
         interaction = UserTrackInteraction(
             user_id=event.user_id,
             track_id=event.track_id,
@@ -157,7 +157,7 @@ async def create_event(
             timestamp=timestamp,
         )
 
-        # Добавляем задачи в фон
+        # Отправляем в Kafka (асинхронно, не блокирует ответ)
         background_tasks.add_task(process_event_async, interaction)
 
         # Инвалидируем кэш только для значимых действий

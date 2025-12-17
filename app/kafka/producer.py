@@ -35,6 +35,20 @@ def _get_message_and_key(event: Dict[str, Any]) -> tuple[bytes, bytes]:
     return message, key
 
 
+def _get_message_and_key_for_user(user: Dict[str, Any]) -> tuple[bytes, bytes]:
+    """Используем user_id как ключ для партиционирования"""
+    message = serialize_event(user)
+    key = str(user.get("user_id", "")).encode("utf-8")
+    return message, key
+
+
+def _get_message_and_key_for_track(track: Dict[str, Any]) -> tuple[bytes, bytes]:
+    """Используем track_id как ключ для партиционирования"""
+    message = serialize_event(track)
+    key = str(track.get("track_id", "")).encode("utf-8")
+    return message, key
+
+
 async def send_event(event: Dict[str, Any]) -> bool:
     """
     Отправить событие в Kafka
@@ -139,3 +153,97 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
     except Exception as e:
         logger.error("Unexpected error sending batch to Kafka: %s", e)
         return success_count
+
+
+async def send_user(user: Dict[str, Any]) -> bool:
+    """
+    Отправить пользователя в Kafka
+
+    Args:
+        user: Словарь с данными пользователя
+            - user_id: int
+            - username: str
+            - email: str
+            - age: int
+            - country: str
+            - created_at: datetime
+
+    Returns:
+        bool: True если успешно отправлено
+    """
+    try:
+        producer = await get_kafka_producer(start_timeout=10.0)
+        message, key = _get_message_and_key_for_user(user)
+
+        await producer.send(
+            settings.kafka_topic_users, value=message, key=key
+        )
+
+        logger.debug(
+            "User sent to Kafka: user_id=%s, username=%s",
+            user.get("user_id"),
+            user.get("username"),
+        )
+
+        return True
+
+    except KafkaError as e:
+        logger.error(
+            "Failed to send user to Kafka: %s", e, extra={"user": user}
+        )
+        return False
+    except Exception as e:
+        logger.error(
+            "Unexpected error sending user to Kafka: %s",
+            e,
+            extra={"user": user},
+        )
+        return False
+
+
+async def send_track(track: Dict[str, Any]) -> bool:
+    """
+    Отправить трек в Kafka
+
+    Args:
+        track: Словарь с данными трека
+            - track_id: int
+            - title: str
+            - artist: str
+            - album: str
+            - genre: str
+            - duration_seconds: int
+            - release_year: int
+            - created_at: datetime
+
+    Returns:
+        bool: True если успешно отправлено
+    """
+    try:
+        producer = await get_kafka_producer(start_timeout=10.0)
+        message, key = _get_message_and_key_for_track(track)
+
+        await producer.send(
+            settings.kafka_topic_tracks, value=message, key=key
+        )
+
+        logger.debug(
+            "Track sent to Kafka: track_id=%s, title=%s",
+            track.get("track_id"),
+            track.get("title"),
+        )
+
+        return True
+
+    except KafkaError as e:
+        logger.error(
+            "Failed to send track to Kafka: %s", e, extra={"track": track}
+        )
+        return False
+    except Exception as e:
+        logger.error(
+            "Unexpected error sending track to Kafka: %s",
+            e,
+            extra={"track": track},
+        )
+        return False

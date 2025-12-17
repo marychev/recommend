@@ -12,6 +12,7 @@ from fastapi import (
 from app.models.schemas import Track, TrackCreate, TrackStatistics
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache import invalidate_track_exists_cache
+from app.kafka.producer import send_track
 
 router = APIRouter(
     prefix="/tracks",
@@ -30,6 +31,9 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
     """
     Создание нового трека
 
+    Best practice: отправка в Kafka для асинхронной обработки.
+    Consumer обработает и запишет в ClickHouse батчами.
+
     Пример запроса:
     ```json
     {
@@ -45,10 +49,29 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
     clickhouse = get_clickhouse_client()
 
     try:
-        new_id = await clickhouse.save_track(track)
+        # Генерируем ID сразу для ответа клиенту
+        new_id = await clickhouse.next_id("tracks", "track_id")
+        created_at = datetime.now()
+
+        # Формируем объект трека для отправки в Kafka
+        track_data = {
+            "track_id": new_id,
+            "title": track.title,
+            "artist": track.artist,
+            "album": track.album or "",
+            "genre": track.genre or "",
+            "duration_seconds": track.duration_seconds or 0,
+            "release_year": track.release_year or 0,
+            "created_at": created_at,
+        }
+
+        # Отправляем в Kafka (асинхронно, не блокирует ответ)
+        background_tasks.add_task(send_track, track_data)
+
         # Инвалидируем кэш проверки существования для нового трека (фоновая задача)
         background_tasks.add_task(invalidate_track_exists_cache, new_id)
 
+        # Возвращаем ответ клиенту сразу (не ждем ClickHouse)
         return Track(
             track_id=new_id,
             title=track.title,
@@ -57,7 +80,7 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
             genre=track.genre,
             duration_seconds=track.duration_seconds,
             release_year=track.release_year,
-            created_at=datetime.now(),
+            created_at=created_at,
         )
     except Exception as e:
         raise HTTPException(

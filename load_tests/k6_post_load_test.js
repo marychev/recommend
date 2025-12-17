@@ -52,8 +52,8 @@ const getRecommendationsRequests = new Counter('post_get_recommendations_request
 // Конфигурация теста
 // ════════════════════════════════════════════════════════
 
-const VUS = parseInt(__ENV.VUS) || 50;
-const DURATION = __ENV.DURATION || '5m';
+const VUS = parseInt(__ENV.VUS) || 75;
+const DURATION = __ENV.DURATION || '1m';
 
 export const options = {
   stages: [

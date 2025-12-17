@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_events: str = "user_track_events"
+    kafka_topic_users: str = "users"
+    kafka_topic_tracks: str = "tracks"
     kafka_consumer_group: str = "recommend_consumer"
 
     redis_host: str = "localhost"

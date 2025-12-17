@@ -12,6 +12,7 @@ from fastapi import (
 from app.models.schemas import User, UserCreate, UserStatistics
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache import exists_user_cached, invalidate_user_exists_cache
+from app.kafka.producer import send_user
 
 router = APIRouter(
     prefix="/users",
@@ -41,6 +42,9 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     """
     Создание нового пользователя
 
+    Best practice: отправка в Kafka для асинхронной обработки.
+    Consumer обработает и запишет в ClickHouse батчами.
+
     Пример запроса:
     ```json
     {
@@ -54,16 +58,34 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
     clickhouse = get_clickhouse_client()
 
     try:
-        new_id = await clickhouse.save_user(user)
+        # Генерируем ID сразу для ответа клиенту
+        new_id = await clickhouse.next_id("users", "user_id")
+        created_at = datetime.now()
+
+        # Формируем объект пользователя для отправки в Kafka
+        user_data = {
+            "user_id": new_id,
+            "username": user.username,
+            "email": user.email or "",
+            "age": user.age or 0,
+            "country": user.country or "",
+            "created_at": created_at,
+        }
+
+        # Отправляем в Kafka (асинхронно, не блокирует ответ)
+        background_tasks.add_task(send_user, user_data)
+
         # Инвалидируем кэш проверки существования для нового пользователя (фоновая задача)
         background_tasks.add_task(invalidate_user_exists_cache, new_id)
+
+        # Возвращаем ответ клиенту сразу (не ждем ClickHouse)
         return User(
             user_id=new_id,
             username=user.username,
             email=user.email or "",
             age=user.age or 0,
             country=user.country or "",
-            created_at=datetime.now(),
+            created_at=created_at,
         )
     except Exception as e:
         raise HTTPException(

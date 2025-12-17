@@ -70,10 +70,9 @@ async def consume_events(
                 event = deserialize_event(message.value)
 
                 logger.debug(
-                    "Получено событие из Kafka: user=%s, track=%s, action=%s",
-                    event.get("user_id"),
-                    event.get("track_id"),
-                    event.get("action_type"),
+                    "Получено сообщение из Kafka: topic=%s, key=%s",
+                    topic,
+                    message.key.decode('utf-8') if message.key else None,
                 )
 
                 # Обрабатываем событие
