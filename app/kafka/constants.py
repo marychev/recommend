@@ -1,0 +1,54 @@
+"""
+Константы для модуля Kafka
+
+Централизованное хранение всех таймаутов и параметров для избежания расхождений
+"""
+
+# ════════════════════════════════════════════════════════
+# Таймауты для Producer
+# ════════════════════════════════════════════════════════
+
+# Таймаут для запуска producer (операция start())
+PRODUCER_START_TIMEOUT_DEFAULT = 5.0  # секунд
+PRODUCER_START_TIMEOUT_EVENTS = 5.0   # секунд (для событий - более критично)
+PRODUCER_START_TIMEOUT_BATCH = 2.0    # секунд (для батчей)
+PRODUCER_START_TIMEOUT_QUICK = 1.0    # секунд (для быстрых операций: users, tracks)
+
+# Таймаут для запросов к Kafka (request_timeout_ms)
+PRODUCER_REQUEST_TIMEOUT_MS = 60000  # миллисекунд (60 секунд)
+
+# Таймаут для остановки producer/consumer
+CLIENT_STOP_TIMEOUT = 2.0  # секунд
+
+# ════════════════════════════════════════════════════════
+# Параметры для Consumer
+# ════════════════════════════════════════════════════════
+
+# Интервал автоматического коммита offset
+CONSUMER_AUTO_COMMIT_INTERVAL_MS = PRODUCER_START_TIMEOUT_DEFAULT * 1000  # миллисекунд (5 секунд)
+
+# ════════════════════════════════════════════════════════
+# Параметры для переподключения
+# ════════════════════════════════════════════════════════
+
+# Максимальное количество попыток переподключения consumer
+CONSUMER_MAX_RETRIES = 5
+
+# Начальная задержка между попытками переподключения (экспоненциально увеличивается)
+CONSUMER_RETRY_DELAY_INITIAL = 1.0  # секунд
+
+# Параметры для connect_kafka
+CONNECT_KAFKA_MAX_RETRIES = 3
+CONNECT_KAFKA_BASE_DELAY_NORMAL = 1.0   # секунд (обычный режим)
+CONNECT_KAFKA_BASE_DELAY_FAST = 0.1     # секунд (fast_mode для тестов)
+
+# ════════════════════════════════════════════════════════
+# Параметры для батчинга в DataHandler
+# ════════════════════════════════════════════════════════
+
+# Размер батча для записи в ClickHouse
+DATA_HANDLER_BATCH_SIZE = PRODUCER_START_TIMEOUT_DEFAULT * 100  # записей
+
+# Интервал автоматического flush буферов
+DATA_HANDLER_FLUSH_INTERVAL = PRODUCER_START_TIMEOUT_DEFAULT  # секунд
+

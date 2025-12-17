@@ -19,14 +19,17 @@ from app.db.clickhouse import get_clickhouse_client
 from app.models.schemas import User, Track, UserTrackInteraction
 from app.services.cache_redis_client import get_redis_client
 from app.models.schemas.action_type import ActionType
+from app.kafka.constants import (
+    DATA_HANDLER_BATCH_SIZE,
+    DATA_HANDLER_FLUSH_INTERVAL,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class KafkaDataHandler:
     """Обработчик данных из Kafka с батчингом для ClickHouse"""
-
-    def __init__(self, batch_size: int = 200, flush_interval: float = 3.0):
+    def __init__(self, batch_size: int = DATA_HANDLER_BATCH_SIZE, flush_interval: float = DATA_HANDLER_FLUSH_INTERVAL):
         """
         Args:
             batch_size: Размер батча для записи в ClickHouse (увеличен для лучшей производительности)
@@ -283,7 +286,10 @@ def get_data_handler() -> KafkaDataHandler:
     """Получить глобальный обработчик данных"""
     global _data_handler
     if _data_handler is None:
-        _data_handler = KafkaDataHandler(batch_size=200, flush_interval=3.0)
+        _data_handler = KafkaDataHandler(
+            batch_size=DATA_HANDLER_BATCH_SIZE,
+            flush_interval=DATA_HANDLER_FLUSH_INTERVAL
+        )
     return _data_handler
 
 

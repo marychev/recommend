@@ -7,6 +7,11 @@ from datetime import datetime
 from aiokafka.errors import KafkaError
 
 from app.kafka.client import get_kafka_producer
+from app.kafka.constants import (
+    PRODUCER_START_TIMEOUT_EVENTS,
+    PRODUCER_START_TIMEOUT_BATCH,
+    PRODUCER_START_TIMEOUT_QUICK,
+)
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -67,7 +72,7 @@ async def send_event(event: Dict[str, Any]) -> bool:
     """
     try:
         # Используем таймаут для запуска producer
-        producer = await get_kafka_producer(start_timeout=10.0)
+        producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_EVENTS)
         message, key = _get_message_and_key(event)
 
         await producer.send(
@@ -111,7 +116,7 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
 
     try:
         # Используем таймаут для запуска producer
-        producer = await get_kafka_producer(start_timeout=5.0)
+        producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_BATCH)
         batch = producer.create_batch()
         batch_size = 0  # Счетчик событий в текущем batch
 
@@ -173,7 +178,7 @@ async def send_user(user: Dict[str, Any]) -> bool:
         bool: True если успешно отправлено, False если ошибка
     """
     try:
-        producer = await get_kafka_producer(start_timeout=2.0)
+        producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_QUICK)
         message, key = _get_message_and_key_for_user(user)
 
         await producer.send(
@@ -221,7 +226,7 @@ async def send_track(track: Dict[str, Any]) -> bool:
         bool: True если успешно отправлено, False если ошибка
     """
     try:
-        producer = await get_kafka_producer(start_timeout=2.0)
+        producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_QUICK)
         message, key = _get_message_and_key_for_track(track)
 
         await producer.send(

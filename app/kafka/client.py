@@ -5,6 +5,15 @@ import logging
 import asyncio
 
 from app.config import settings
+from app.kafka.constants import (
+    PRODUCER_START_TIMEOUT_DEFAULT,
+    PRODUCER_REQUEST_TIMEOUT_MS,
+    CLIENT_STOP_TIMEOUT,
+    CONSUMER_AUTO_COMMIT_INTERVAL_MS,
+    CONNECT_KAFKA_MAX_RETRIES,
+    CONNECT_KAFKA_BASE_DELAY_NORMAL,
+    CONNECT_KAFKA_BASE_DELAY_FAST,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +22,7 @@ _kafka_producer: Optional[AIOKafkaProducer] = None
 _kafka_consumer: Optional[AIOKafkaConsumer] = None
 
 
-async def get_kafka_producer(start_timeout: float = 5.0) -> AIOKafkaProducer:
+async def get_kafka_producer(start_timeout: float = PRODUCER_START_TIMEOUT_DEFAULT) -> AIOKafkaProducer:
     """
     Получить или создать Kafka Producer
 
@@ -52,7 +61,7 @@ async def get_kafka_producer(start_timeout: float = 5.0) -> AIOKafkaProducer:
         acks="all",  # Надежная доставка
         # retries параметр не поддерживается в AIOKafkaProducer
         # Повторные попытки обрабатываются автоматически через acks="all"
-        request_timeout_ms=60000,  # Таймаут для запросов (30 секунд)
+        request_timeout_ms=PRODUCER_REQUEST_TIMEOUT_MS,
     )
 
     try:
@@ -89,7 +98,7 @@ async def get_kafka_consumer(
         value_deserializer=None,
         auto_offset_reset="earliest",  # Читать с начала
         enable_auto_commit=True,
-        auto_commit_interval_ms=5000,
+        auto_commit_interval_ms=CONSUMER_AUTO_COMMIT_INTERVAL_MS,
     )
 
     await consumer.start()
@@ -114,7 +123,7 @@ async def _close_kafka_client(
 
     try:
         # Останавливаем клиент с таймаутом, чтобы не зависать
-        await asyncio.wait_for(client.stop(), timeout=3.0)
+        await asyncio.wait_for(client.stop(), timeout=CLIENT_STOP_TIMEOUT)
         logger.debug("Kafka %s stopped", client_type)
     except asyncio.TimeoutError:
         logger.warning("Kafka %s stop timeout, forcing close", client_type)
@@ -171,7 +180,7 @@ async def check_kafka_health() -> dict:
         return {"status": "error", "error": str(e)}
 
 
-async def connect_kafka(max_retries: int = 3, fast_mode: bool = False) -> bool:
+async def connect_kafka(max_retries: int = CONNECT_KAFKA_MAX_RETRIES, fast_mode: bool = False) -> bool:
     """
     Подключение к Kafka с повторными попытками
 
@@ -184,9 +193,9 @@ async def connect_kafka(max_retries: int = 3, fast_mode: bool = False) -> bool:
     В fast_mode: максимум N попытки с задержками: 0.1s, 0.2s, 0.4s
     """
     if fast_mode:
-        base_delay = 0.1  # Быстрые задержки для тестов
+        base_delay = CONNECT_KAFKA_BASE_DELAY_FAST
     else:
-        base_delay = 1.0  # Обычные задержки
+        base_delay = CONNECT_KAFKA_BASE_DELAY_NORMAL
 
     for attempt in range(max_retries):
         try:

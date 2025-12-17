@@ -13,6 +13,10 @@ from typing import Optional
 
 from app.kafka.consumer import consume_events
 from app.kafka.data_handler import process_kafka_message, get_data_handler
+from app.kafka.constants import (
+    CONSUMER_MAX_RETRIES,
+    CONSUMER_RETRY_DELAY_INITIAL,
+)
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -41,8 +45,8 @@ async def start_multi_consumer() -> list[asyncio.Task]:
     # Используем обертку для автоматического переподключения при ошибках
     async def start_consumer_with_retry(topic_name: str, topic_config: str, consumer_group_suffix: str):
         """Запустить consumer с автоматическим переподключением"""
-        max_retries = 5
-        retry_delay = 2
+        max_retries = CONSUMER_MAX_RETRIES
+        retry_delay = CONSUMER_RETRY_DELAY_INITIAL
         
         for attempt in range(max_retries):
             try:
