@@ -259,7 +259,7 @@ load-test-post: ## Нагрузочный тест POST запросов (соз
 load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)
 	@echo "$(BLUE)⚡ Быстрый тест POST запросов...$(NC)"
 	@echo "$(YELLOW)Длительность: 1 минута | VUs: 10$(NC)"
-	k6 run load_tests/k6_post_load_test.js --vus 100 --duration 1m
+	k6 run load_tests/k6_post_load_test.js --vus 250 --duration 1m
 
 load-test-events-post: ## Тест POST /events (отдельный эндпоинт)
 	@echo "$(BLUE)📝 Запуск теста POST /events...$(NC)"

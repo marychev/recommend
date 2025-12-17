@@ -1,8 +1,10 @@
 import time
 import random
 import logging
+import asyncio
 from datetime import datetime
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
+from collections import deque
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from fastapi import HTTPException, status
@@ -14,11 +16,23 @@ logger = logging.getLogger(__name__)
 
 
 class ClickHouseClient:
-    """Асинхронный клиент ClickHouse на базе aiochclient"""
+    """Асинхронный клиент ClickHouse на базе aiochclient с батчингом"""
 
     def __init__(self):
         self.client: Optional[ChClient] = None
         self.session: Optional[ClientSession] = None
+        
+        # Буферы для батчинга INSERT запросов
+        self._insert_buffer: Dict[str, deque] = {
+            'users': deque(),
+            'tracks': deque(),
+            'user_track_interactions': deque(),
+        }
+        self._buffer_size = 100  # Размер батча
+        self._flush_interval = 5.0  # Интервал автоматического flush в секундах
+        self._flush_task: Optional[asyncio.Task] = None
+        self._flush_lock = asyncio.Lock()
+        self._running = False
 
     async def connect(self):
         """Подключение к ClickHouse"""
@@ -127,7 +141,7 @@ class ClickHouseClient:
         data: List[List[Any]],
         column_names: Optional[List[str]] = None,
     ):
-        """Вставка данных в таблицу"""
+        """Вставка данных в таблицу (поддерживает батчи)"""
         # await self._ensure_connected()
 
         if not data:
@@ -138,10 +152,98 @@ class ClickHouseClient:
             columns = f"({', '.join(column_names)})" if column_names else ""
             query = f"INSERT INTO {table} {columns} VALUES"
 
-            # aiochclient поддерживает прямую вставку данных
+            # aiochclient.execute принимает данные как позиционные аргументы после query
+            # Распаковываем список списков для передачи каждой строки как отдельного аргумента
             await self.client.execute(query, *data)
         except Exception as e:
             raise RuntimeError(f"Insert failed: {e}")
+
+    async def _flush_buffer(self, table: str) -> None:
+        """Сбросить буфер в ClickHouse для указанной таблицы"""
+        async with self._flush_lock:
+            buffer = self._insert_buffer[table]
+            if not buffer:
+                return
+            
+            # Берем все записи из буфера
+            records = list(buffer)
+            buffer.clear()
+        
+        if not records:
+            return
+        
+        try:
+            # Определяем column_names в зависимости от таблицы
+            if table == 'users':
+                column_names = User.column_names()
+            elif table == 'tracks':
+                column_names = Track.column_names()
+            elif table == 'user_track_interactions':
+                column_names = UserTrackInteraction.column_names()
+            else:
+                column_names = None
+            
+            # Выполняем батч INSERT
+            await self.insert(table, records, column_names)
+            
+            logger.info(
+                "Батч INSERT выполнен: table=%s, records=%s",
+                table,
+                len(records),
+            )
+        except Exception as e:
+            logger.error(
+                "Ошибка при flush буфера %s: %s. Возвращаем записи в буфер.",
+                table,
+                e,
+            )
+            # При ошибке возвращаем записи обратно в буфер
+            async with self._flush_lock:
+                self._insert_buffer[table].extendleft(reversed(records))
+
+    async def _flush_all_buffers(self) -> None:
+        """Сбросить все буферы в ClickHouse"""
+        for table in self._insert_buffer.keys():
+            await self._flush_buffer(table)
+
+    async def start_periodic_flush(self) -> None:
+        """Запустить периодический flush буферов"""
+        if self._running:
+            return
+        
+        self._running = True
+        
+        async def flush_loop():
+            while self._running:
+                try:
+                    await asyncio.sleep(self._flush_interval)
+                    await self._flush_all_buffers()
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.error("Ошибка в цикле flush: %s", e)
+        
+        self._flush_task = asyncio.create_task(flush_loop())
+        logger.info(
+            "Запущен периодический flush буферов: interval=%.1fs, buffer_size=%s",
+            self._flush_interval,
+            self._buffer_size,
+        )
+
+    async def stop_periodic_flush(self) -> None:
+        """Остановить периодический flush и сбросить все буферы"""
+        self._running = False
+        
+        if self._flush_task:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Сбрасываем все буферы перед остановкой
+        await self._flush_all_buffers()
+        logger.info("Периодический flush остановлен, все буферы сброшены")
 
     async def exists_in_table(self, table: str, field: str, value: Any) -> bool:
         # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
@@ -164,20 +266,25 @@ class ClickHouseClient:
     async def save_event(
         self, event: UserTrackInteraction, timestamp: datetime
     ) -> None:
-        """Сохраняем событие в ClickHouse"""
-        await self.insert(
-            "user_track_interactions",
-            [
-                [
-                    event.user_id,
-                    event.track_id,
-                    event.action_type.value,
-                    event.listen_duration_seconds,
-                    timestamp,
-                ]
-            ],
-            column_names=UserTrackInteraction.column_names(),
-        )
+        """Сохраняем событие в ClickHouse (с батчингом)"""
+        await self.save_event_buffered(event, timestamp)
+
+    async def save_event_buffered(
+        self, event: UserTrackInteraction, timestamp: datetime
+    ) -> None:
+        """Сохраняем событие в буфер для батчинга"""
+        async with self._flush_lock:
+            self._insert_buffer['user_track_interactions'].append([
+                event.user_id,
+                event.track_id,
+                event.action_type.value,
+                event.listen_duration_seconds,
+                timestamp,
+            ])
+            
+            # Если буфер заполнен, запускаем flush
+            if len(self._insert_buffer['user_track_interactions']) >= self._buffer_size:
+                asyncio.create_task(self._flush_buffer('user_track_interactions'))
 
     async def next_id(self, table: str, field: str) -> int:
         # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
@@ -194,70 +301,56 @@ class ClickHouseClient:
         return (max_id or 0) + 1
     
     async def save_track(self, track: Track) -> int:
+        """Сохраняем трек в ClickHouse (с батчингом)"""
+        return await self.save_track_buffered(track)
+
+    async def save_track_buffered(self, track: Track) -> int:
+        """Сохраняем трек в буфер для батчинга, возвращаем ID сразу"""
         new_id = await self.next_id("tracks", "track_id")
-        await self.insert(
-            "tracks",
-            [
-                [
-                    new_id,
-                    track.title,
-                    track.artist,
-                    track.album or "",
-                    track.genre or "",
-                    track.duration_seconds or 0,
-                    track.release_year or 0,
-                    datetime.now(),
-                ]
-            ],
-            column_names=Track.column_names(),
-        )
+        created_at = datetime.now()
+        
+        async with self._flush_lock:
+            self._insert_buffer['tracks'].append([
+                new_id,
+                track.title,
+                track.artist,
+                track.album or "",
+                track.genre or "",
+                track.duration_seconds or 0,
+                track.release_year or 0,
+                created_at,
+            ])
+            
+            # Если буфер заполнен, запускаем flush
+            if len(self._insert_buffer['tracks']) >= self._buffer_size:
+                asyncio.create_task(self._flush_buffer('tracks'))
+        
         return new_id
 
     async def save_user(self, user: User) -> int:
-        """Сохраняем пользователя"""
-        new_id = await self.next_id("users", "user_id")
-        await self.insert(
-            "users",
-            [
-                [
-                    new_id,
-                    user.username,
-                    user.email or "",
-                    user.age or 0,
-                    user.country or "",
-                    datetime.now(),
-                ]
-            ],
-            column_names=User.column_names(),
-        )
-        return new_id
+        """Сохраняем пользователя в ClickHouse (с батчингом)"""
+        return await self.save_user_buffered(user)
 
-        # Fallback: используем запрос к БД
-        try:
-            result = await self.execute_raw(
-                "SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1"
-            )
-            max_id = result[0][0] if result and result[0][0] else 0
-            new_id = (max_id or 0) + 1
-            await self.insert(
-                "users",
-                [
-                    [
-                        new_id,
-                        user.username,
-                        user.email or "",
-                        user.age or 0,
-                        user.country or "",
-                        datetime.now(),
-                    ]
-                ],
-                column_names=User.column_names(),
-            )
-            return new_id
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to save user after {max_retries} attempts: {e}"
-            )
+    async def save_user_buffered(self, user: User) -> int:
+        """Сохраняем пользователя в буфер для батчинга, возвращаем ID сразу"""
+        new_id = await self.next_id("users", "user_id")
+        created_at = datetime.now()
+        
+        async with self._flush_lock:
+            self._insert_buffer['users'].append([
+                new_id,
+                user.username,
+                user.email or "",
+                user.age or 0,
+                user.country or "",
+                created_at,
+            ])
+            
+            # Если буфер заполнен, запускаем flush
+            if len(self._insert_buffer['users']) >= self._buffer_size:
+                asyncio.create_task(self._flush_buffer('users'))
+        
+        return new_id
 
 
 clickhouse_client = ClickHouseClient()

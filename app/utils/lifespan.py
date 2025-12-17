@@ -5,7 +5,11 @@ from typing import Optional
 from fastapi import FastAPI
 
 from app.config import settings
-from app.db.clickhouse import connect_clickhouse, shutdown_clickhouse
+from app.db.clickhouse import (
+    connect_clickhouse,
+    shutdown_clickhouse,
+    get_clickhouse_client,
+)
 from app.services.cache_redis_client import connect_redis, shutdown_redis
 from app.services.event_queue import start_event_queue, stop_event_queue
 from app.kafka.client import close_kafka_producer, connect_kafka
@@ -28,6 +32,15 @@ async def lifespan(_app: FastAPI):
     
     consumer_task: Optional[asyncio.Task] = None
     
+    # Запускаем периодический flush буферов ClickHouse для батчинга INSERT
+    if clickhouse_connected:
+        try:
+            clickhouse = get_clickhouse_client()
+            await clickhouse.start_periodic_flush()
+            logger.info("Периодический flush буферов ClickHouse запущен (батчинг INSERT)")
+        except Exception as e:
+            logger.warning("Не удалось запустить периодический flush: %s", e)
+    
     # Запускаем очередь для батчинга событий в Kafka
     if kafka_connected:
         await start_event_queue()
@@ -41,7 +54,6 @@ async def lifespan(_app: FastAPI):
             logger.warning("Не удалось запустить Kafka Consumer: %s", e)
             logger.warning("Kafka Consumer не запущен: %s", e)
 
-    logger.info("=" * 60)
     if clickhouse_connected and redis_connected and kafka_connected:
         logger.info("Все сервисы подключены!")
     elif clickhouse_connected and redis_connected:
@@ -81,6 +93,15 @@ async def lifespan(_app: FastAPI):
 
     # Останавливаем очередь событий (сбросит оставшиеся события)
     await stop_event_queue()
+    
+    # Останавливаем периодический flush буферов ClickHouse (сбросит все буферы)
+    if clickhouse_connected:
+        try:
+            clickhouse = get_clickhouse_client()
+            await clickhouse.stop_periodic_flush()
+            logger.info("Периодический flush буферов ClickHouse остановлен")
+        except Exception as e:
+            logger.warning("Ошибка при остановке периодического flush: %s", e)
     
     await close_kafka_producer()
     await shutdown_clickhouse()

@@ -27,6 +27,7 @@ CREATE DATABASE IF NOT EXISTS music_recommend;
 USE music_recommend;
 
 -- ==================== Таблица пользователей ====================
+-- Оптимизирована с партиционированием по created_at для улучшения производительности батч INSERT
 CREATE TABLE IF NOT EXISTS users (
     user_id UInt32,
     username String,
@@ -35,10 +36,12 @@ CREATE TABLE IF NOT EXISTS users (
     country String,
     created_at DateTime DEFAULT now()
 ) ENGINE = MergeTree()
-ORDER BY user_id
+PARTITION BY toYYYYMM(created_at)
+ORDER BY (user_id, created_at)
 SETTINGS index_granularity = 8192;
 
 -- ==================== Таблица треков ====================
+-- Оптимизирована с партиционированием по created_at для улучшения производительности батч INSERT
 CREATE TABLE IF NOT EXISTS tracks (
     track_id UInt32,
     title String,
@@ -49,7 +52,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     release_year UInt16,
     created_at DateTime DEFAULT now()
 ) ENGINE = MergeTree()
-ORDER BY track_id
+PARTITION BY toYYYYMM(created_at)
+ORDER BY (track_id, created_at)
 SETTINGS index_granularity = 8192;
 
 -- ==================== Таблица взаимодействий ====================

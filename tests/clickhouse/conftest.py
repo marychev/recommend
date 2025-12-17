@@ -131,6 +131,7 @@ async def create_test_schema(clickhouse_client):
     Создает схему БД для тестов
     """
     # Создаем таблицу пользователей
+    # Оптимизирована с партиционированием по created_at
     await clickhouse_client.client.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
@@ -141,11 +142,13 @@ async def create_test_schema(clickhouse_client):
             country String,
             created_at DateTime DEFAULT now()
         ) ENGINE = MergeTree()
-        ORDER BY user_id
-    """
+        PARTITION BY toYYYYMM(created_at)
+        ORDER BY (user_id, created_at)
+        """
     )
 
     # Создаем таблицу треков
+    # Оптимизирована с партиционированием по created_at
     await clickhouse_client.client.execute(
         """
         CREATE TABLE IF NOT EXISTS tracks (
@@ -158,8 +161,9 @@ async def create_test_schema(clickhouse_client):
             release_year UInt16,
             created_at DateTime DEFAULT now()
         ) ENGINE = MergeTree()
-        ORDER BY track_id
-    """
+        PARTITION BY toYYYYMM(created_at)
+        ORDER BY (track_id, created_at)
+        """
     )
 
     # Создаем таблицу взаимодействий
