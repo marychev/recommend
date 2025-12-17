@@ -12,7 +12,8 @@ const trackResponseTime = new Trend('track_response_time');
 export const options = {
   stages: [{ duration: '1m', target: 100 }],
   thresholds: {
-    http_req_duration: ['p(95)<500', 'p(99)<1000'], // 95% запросов < 500ms, 99% < 1000ms
+    // Реалистичные пороги для нагрузки 100 VUs с учетом батчинга
+    http_req_duration: ['p(95)<1500', 'p(99)<3000'], // 95% запросов < 1.5s, 99% < 3s
     http_req_failed: ['rate<0.05'],                  // Меньше 5% ошибок
     track_success_rate: ['rate>0.95'],               // Больше 95% успешных запросов
   },

@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 import asyncio
-from typing import Optional
 
 from fastapi import FastAPI
 
@@ -8,7 +7,6 @@ from app.config import settings
 from app.db.clickhouse import (
     connect_clickhouse,
     shutdown_clickhouse,
-    get_clickhouse_client,
 )
 from app.services.cache_redis_client import connect_redis, shutdown_redis
 from app.services.event_queue import start_event_queue, stop_event_queue
@@ -22,7 +20,6 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Управление жизненным циклом приложения"""
-    # Startup
     logger.info("Запуск приложения Music Recommendation System...")
 
     clickhouse_connected = await connect_clickhouse()
@@ -39,11 +36,17 @@ async def lifespan(_app: FastAPI):
         # Запускаем мульти-consumer для обработки всех топиков (users, tracks, events)
         # Consumer будет писать в ClickHouse батчами
         if clickhouse_connected:
+            # Ждем, пока Kafka полностью запустится (особенно Group Coordinator)
+            # Это предотвращает ошибки CoordinatorNotAvailableError
+            # logger.info("Ожидание готовности Kafka (Group Coordinator)...")
+            # await asyncio.sleep(5)  # Даем Kafka время на инициализацию
+            
             try:
                 consumer_tasks = await start_multi_consumer()
                 logger.info("Kafka Multi-Consumer запущен (обработка users, tracks, events → ClickHouse)")
             except Exception as e:
                 logger.warning("Не удалось запустить Kafka Multi-Consumer: %s", e)
+                logger.warning("Consumer будет переподключаться автоматически при появлении сообщений")
 
     if clickhouse_connected and redis_connected and kafka_connected:
         logger.info("Все сервисы подключены!")

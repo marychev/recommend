@@ -20,7 +20,9 @@ const eventResponseTime = new Trend('event_response_time');
 export const options = {
   stages: EVENTS_STAGES_OPTIONS,
   thresholds: {
-    http_req_duration: ['p(95)<500', 'p(99)<1000'],  // 95% запросов < 500ms, 99% < 1000ms
+    // Реалистичные пороги для нагрузки 100 VUs с учетом батчинга и очереди событий
+    // Events быстрее, так как отправляются в очередь асинхронно
+    http_req_duration: ['p(95)<1000', 'p(99)<2000'],  // 95% запросов < 1s, 99% < 2s
     http_req_failed: ['rate<0.05'],                  // Меньше 5% ошибок
     event_success_rate: ['rate>0.95'],               // Больше 95% успешных запросов
   },

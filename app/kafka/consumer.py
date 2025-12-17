@@ -97,7 +97,16 @@ async def consume_events(
         logger.debug("Consumer cancelled")
         raise
     except KafkaError as e:
-        logger.error("Kafka consumer error: %s", e)
+        error_str = str(e)
+        # CoordinatorNotAvailableError - это временная ошибка при старте Kafka
+        # Consumer автоматически переподключится
+        if "CoordinatorNotAvailable" in error_str or "15" in error_str:
+            logger.warning(
+                "Kafka Coordinator еще не готов (это нормально при старте): %s. Consumer переподключится автоматически.",
+                e
+            )
+        else:
+            logger.error("Kafka consumer error: %s", e)
         raise
     except Exception as e:
         logger.error("Unexpected consumer error: %s", e)

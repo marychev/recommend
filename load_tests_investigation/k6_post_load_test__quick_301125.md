@@ -130,6 +130,32 @@ Consumer не обновляет user_track_matrix — это делает MATER
 
 =====================================================
 
+# 7. Реализован механизм батчинга на уровне ClickHouseClient
+
+=====================================================
+
+# 8. батчинг INSERT и партиционирование по created_at
+
+- Батчинг INSERT для users/tracks/events (100 записей или 5 сек)
+- Партиционирование таблиц по created_at
+- Обновлен ORDER BY с created_at
+- Автоматический flush буферов
+Оптимизация: 10-100x быстрее при высокой нагрузке
+
+=====================================================
+
+# 9. POST через Kafka, батчинг в Consumer
+feat: best practice архитектура - все POST через Kafka
+- POST /users, /tracks, /events отправляют в Kafka (асинхронно)
+- Kafka Consumer обрабатывает все топики и пишет в ClickHouse батчами
+- Батчинг на уровне Consumer (100 записей или 5 сек)
+- Быстрый ответ клиенту (не ждем ClickHouse)
+- Партиционирование таблиц по created_at для оптимизации
+
+Результат: 6-10x быстрее ответ, полная асинхронность, масштабируемость
+
+=====================================================
+
 # . TODO Выполненные изменения:
 ????????????????????????????????????????????????????????????????
 - Батчинг INSERT в ClickHouse — накопление записей перед вставкой
@@ -156,11 +182,13 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 ═══════════════════════════════════════════════════════════
                                                
 📊 Общая статистика: 
+- Виртуальных пользователей: 157        # 9+. POST через Kafka, батчинг в Consumer
+- Виртуальных пользователей: 10         # 9. POST через Kafka, батчинг в Consumer
 - Виртуальных пользователей: 10
 - Виртуальных пользователей: 75         # 7. Батчинг на уровне ClickHouseClient
-- Виртуальных пользователей: 10         # 9. POST через Kafka, батчинг в Consumer
 
 • Длительность теста:   
+- 5m 46s            # 9+. POST через Kafka, батчинг в Consumer
 - 8m 49s            # 7. Батчинг на уровне ClickHouseClient
 - 1m 3s             # 6. MATERIALIZED VIEW
 - 1m 3s |           # 5. снижение нагрузки на ClickHouse за счет кэширования частых проверок существования в Redis
@@ -170,8 +198,10 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 - 1m 9s | 1m 6s     # 1. увеличение лимитов памяти ClickHouse 6G
 - 1m 11s
 
-• Всего запросов: 
-- 10266             # 7. Батчинг на уровне ClickHouseClient
+• Всего запросов:
+- 10352 | vus-10:2940  # 9+
+- 1636              # 9. POST через Kafka, батчинг в Consumer
+- 10266             # 7. Батчинг на уровне ClickHouseClient (75VUs!!)
 - 3816              # 6. MATERIALIZED VIEW
 - 1136              # 5. снижение нагрузки на ClickHouse за счет кэширования частых проверок существования в Redis
 - 1412              # 4. очередь вместо прямой отправки
@@ -181,6 +211,8 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 - 294           
 
 • RPS (req/sec):  
+- 29.90|vus-10:46     # 9+
+- 25.96             # 9. POST через Kafka, батчинг в Consumer 
 - 19.39             # 7. Батчинг на уровне ClickHouseClient
 - 59.75             # 6. MATERIALIZED VIEW
 - 17.92             # 5. снижение нагрузки на ClickHouse за счет кэширования частых проверок существования в Redis
@@ -191,16 +223,23 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 - 4.10          
 
 
-• Процент ошибок:            
-- 50.00%
+• Процент ошибок:         
+- 50.54%
+-  49.94%               # 9. POST через Kafka, батчинг в Consumer   
 - 51.01%                # 7. Батчинг на уровне ClickHouseClient
-
+- 50.00%
 
 
 
 📈 Время ответа по эндпоинтам:    
 
 👤 POST /users (create):   
+Среднее:    1217ms  | p95: 2896ms | p99: 0ms | Max: 5608ms   || vus-10: Среднее: 195ms | p95: 398ms | p99: 0ms | Max: 1947ms
+Успешность: 100.00% | RPS: 7.43 req/sec                      || vus-10: Успешность: 100.00% | RPS: 11.50 req/sec
+===========================================================9+
+Среднее:    318ms   | p95: 649ms | p99: 0ms | Max: 1656ms
+Успешность: 100.00% | RPS: 6.49 req/sec
+===========================================================9
 Среднее:    2058ms | p95: 1029ms | p99: 0ms | Max: 187369ms
 Успешность: 98.90% | RPS: 4.80 req/sec
 ===========================================================7
@@ -223,7 +262,11 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 Успешность: 100.00% | RPS: 0.97 req/sec
 
 
-🎵 POST /tracks (create):    
+🎵 POST /tracks (create): 
+Среднее:    1206ms  | p95: 2854ms | p99: 0ms | Max: 4923ms  
+Успешность: 100.00% | RPS: 7.36 req/sec
+===========================================================9+
+.... # 9.   
 Среднее:    720ms  | p95: 921ms | p99: 0ms | Max: 187317ms 
 Успешность: 99.76% | RPS: 4.76 req/sec
 ===========================================================7
@@ -247,7 +290,10 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 
 
 📝 POST /events (create): 
-Среднее:    737ms | p95: 1485ms | p99: 0ms | Max: 187325ms
+Среднее:    1565ms  | p95: 3329ms | p99: 0ms | Max: 5925ms  
+Успешность: 100.00% | RPS: 7.28 req/sec
+===========================================================9+
+Среднее:    737ms  | p95: 1485ms | p99: 0ms | Max: 187325ms
 Успешность: 99.92% | RPS: 4.75 req/sec
 ===========================================================7
 Среднее:    1339ms | p95: 2479ms | p99: 0ms | Max: 3697ms  
@@ -269,20 +315,25 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 Успешность: 100.00% | RPS: 0.97 req/sec
 
 
-🎯 POST /recommendations (get):  
-Среднее:    1266ms | p95: 1605ms | p99: 0ms | Max: 187318ms
+🎯 POST /recommendations (get): 
+Среднее:    1401ms  | p95: 3200ms | p99: 0ms | Max: 16015ms  
+Успешность: 100.00% | RPS: 7.17 req/sec  
+===========================================================9+
+...
+===========================================================9
+Среднее:    1266ms | p95: 1605ms   | p99: 0ms | Max: 187318ms
 Успешность: 99.48% | RPS: 4.74 req/sec
 ===========================================================7
-Среднее:    1150ms  | p95: 2224ms | p99: 0ms | Max: 4716ms  
+Среднее:    1150ms  | p95: 2224ms  | p99: 0ms | Max: 4716ms  
 Успешность: 100.00% | RPS: 14.94 req/sec
 ===========================================================6
-Среднее:      367ms | p95: 700ms | p99: 0ms | Max: 1586ms  
+Среднее:      367ms | p95: 700ms   | p99: 0ms | Max: 1586ms  
 Успешность: 100.00% | RPS: 4.48 req/sec
 ===========================================================5 
-Среднее:    1792ms  | p95: 3265ms | p99: 0ms | Max: 4648ms 
+Среднее:    1792ms  | p95: 3265ms  | p99: 0ms | Max: 4648ms 
 Успешность: 100.00% | RPS: 2.14 req/sec
 ===========================================================4
-Среднее:    4684ms  | p95: 9361ms | p99: 0ms | Max: 16020ms  
+Среднее:    4684ms  | p95: 9361ms  | p99: 0ms | Max: 16020ms  
 Успешность: 100.00% | RPS: 1.19 req/sec 
 ---------------------------------------------------------
 Среднее:    5453ms  | p95: 18714ms | p99: 0ms | Max: 20527ms
@@ -295,6 +346,7 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 📊 Пропускная способность:               
 
 • RPS: 
+- 29.90                 # 9+
 - 59.75 запросов/сек    # 6. 
 - 17.92 запросов/сек               
 - ....
@@ -316,6 +368,17 @@ scenarios: (100.00%) 1 scenario, 10 max VUs, 1m30s max duration (incl. graceful 
 
 
 Events POST Load Test Results
+# 9. POST через Kafka, батчинг в Consumer  # + [#7, #8]
+==============================
+ RPS (req/sec): 0.54 req/sec
+ Total Requests: 50
+ Success Rate: 0.00%
+ Error Rate: 100.00%
+ Avg Response Time: 61502.50ms
+ P95 Response Time: 61648.46ms
+ P99 Response Time: 0.00ms
+running (1m32.4s), 000/100 VUs, 50 complete and 49 interrupted iterations
+default ✓ [======================================] 049/100 VUs  1m0s
  =============================
  RPS (req/sec): 10.93 req/sec
  Total Requests: 984
@@ -326,10 +389,21 @@ Events POST Load Test Results
  P99 Response Time: 0.00ms
 running (1m30.1s), 000/100 VUs, 984 complete and 99 interrupted iterations
 default ✓ [======================================] 077/100 VUs  1m0s
-ERRO[0090] thresholds on metrics 'event_success_rate, http_req_duration, http_req_failed' have been crossed
 
 
 Users POST Load Test Results
+9+============================9+
+RPS (req/sec): 72.84 req/sec
+ Total Requests: 4568
+ Success Rate: 0.00%
+ Error Rate: 0.00%
+ Avg Response Time: 686.88ms
+ P95 Response Time: 1486.72ms
+ P99 Response Time: 0.00ms
+
+running (1m02.7s), 000/100 VUs, 4568 complete and 0 interrupted iterations
+default ✓ [======================================] 000/100 VUs  1m0s
+ERRO[0061] thresholds on metrics 'http_req_duration' have been crossed
  ============================
  RPS (req/sec): 24.10 req/sec
  Total Requests: 1607

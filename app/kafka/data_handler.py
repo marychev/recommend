@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 class KafkaDataHandler:
     """Обработчик данных из Kafka с батчингом для ClickHouse"""
 
-    def __init__(self, batch_size: int = 100, flush_interval: float = 5.0):
+    def __init__(self, batch_size: int = 200, flush_interval: float = 3.0):
         """
         Args:
-            batch_size: Размер батча для записи в ClickHouse
-            flush_interval: Интервал автоматического flush в секундах
+            batch_size: Размер батча для записи в ClickHouse (увеличен для лучшей производительности)
+            flush_interval: Интервал автоматического flush в секундах (уменьшен для более быстрой обработки)
         """
         self.batch_size = batch_size
         self.flush_interval = flush_interval
@@ -283,7 +283,7 @@ def get_data_handler() -> KafkaDataHandler:
     """Получить глобальный обработчик данных"""
     global _data_handler
     if _data_handler is None:
-        _data_handler = KafkaDataHandler(batch_size=100, flush_interval=5.0)
+        _data_handler = KafkaDataHandler(batch_size=200, flush_interval=3.0)
     return _data_handler
 
 

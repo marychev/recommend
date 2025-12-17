@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from typing import Dict, Any
 from datetime import datetime
 
@@ -110,7 +111,7 @@ async def send_batch_events(events: list[Dict[str, Any]]) -> int:
 
     try:
         # Используем таймаут для запуска producer
-        producer = await get_kafka_producer(start_timeout=10.0)
+        producer = await get_kafka_producer(start_timeout=5.0)
         batch = producer.create_batch()
         batch_size = 0  # Счетчик событий в текущем batch
 
@@ -169,10 +170,10 @@ async def send_user(user: Dict[str, Any]) -> bool:
             - created_at: datetime
 
     Returns:
-        bool: True если успешно отправлено
+        bool: True если успешно отправлено, False если ошибка
     """
     try:
-        producer = await get_kafka_producer(start_timeout=10.0)
+        producer = await get_kafka_producer(start_timeout=2.0)
         message, key = _get_message_and_key_for_user(user)
 
         await producer.send(
@@ -187,9 +188,9 @@ async def send_user(user: Dict[str, Any]) -> bool:
 
         return True
 
-    except KafkaError as e:
-        logger.error(
-            "Failed to send user to Kafka: %s", e, extra={"user": user}
+    except (KafkaError, asyncio.TimeoutError, ConnectionError) as e:
+        logger.warning(
+            "Kafka недоступен для отправки пользователя: %s", e
         )
         return False
     except Exception as e:
@@ -217,10 +218,10 @@ async def send_track(track: Dict[str, Any]) -> bool:
             - created_at: datetime
 
     Returns:
-        bool: True если успешно отправлено
+        bool: True если успешно отправлено, False если ошибка
     """
     try:
-        producer = await get_kafka_producer(start_timeout=10.0)
+        producer = await get_kafka_producer(start_timeout=2.0)
         message, key = _get_message_and_key_for_track(track)
 
         await producer.send(
@@ -235,9 +236,9 @@ async def send_track(track: Dict[str, Any]) -> bool:
 
         return True
 
-    except KafkaError as e:
-        logger.error(
-            "Failed to send track to Kafka: %s", e, extra={"track": track}
+    except (KafkaError, asyncio.TimeoutError, ConnectionError) as e:
+        logger.warning(
+            "Kafka недоступен для отправки трека: %s", e
         )
         return False
     except Exception as e:

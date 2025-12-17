@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 class EventQueue:
     """Очередь для батчинга событий перед отправкой в Kafka"""
 
-    def __init__(self, batch_size: int = 50, flush_interval: float = 2.0):
+    def __init__(self, batch_size: int = 100, flush_interval: float = 1.5):
         """
         Args:
-            batch_size: Размер батча для отправки (по умолчанию 50)
-            flush_interval: Интервал автоматического сброса в секундах (по умолчанию 2.0)
+            batch_size: Размер батча для отправки (увеличен для лучшей производительности)
+            flush_interval: Интервал автоматического сброса в секундах (уменьшен для более быстрой обработки)
         """
         self._queue: Deque[Dict[str, Any]] = deque()
         self._batch_size = batch_size
@@ -121,8 +121,8 @@ def get_event_queue() -> EventQueue:
     global _event_queue
 
     if _event_queue is None:
-        # TODO: Можно настроить через env
-        _event_queue = EventQueue(batch_size=50, flush_interval=2.0)
+        # Оптимизированные параметры для лучшей производительности
+        _event_queue = EventQueue(batch_size=100, flush_interval=1.5)
     return _event_queue
 
 

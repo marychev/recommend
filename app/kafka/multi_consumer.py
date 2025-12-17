@@ -38,35 +38,59 @@ async def start_multi_consumer() -> list[asyncio.Task]:
         return handler
     
     # Запускаем consumer для users
+    # Используем обертку для автоматического переподключения при ошибках
+    async def start_consumer_with_retry(topic_name: str, topic_config: str, consumer_group_suffix: str):
+        """Запустить consumer с автоматическим переподключением"""
+        max_retries = 5
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                handler = create_topic_handler(topic_name)
+                await consume_events(handler, topic_config, f"{settings.kafka_consumer_group}_{consumer_group_suffix}")
+                return  # Успешно запущен
+            except Exception as e:
+                error_str = str(e)
+                if "CoordinatorNotAvailable" in error_str or "15" in error_str:
+                    if attempt < max_retries - 1:
+                        logger.warning(
+                            "Kafka Coordinator не готов для %s (попытка %d/%d), повтор через %d сек...",
+                            topic_name, attempt + 1, max_retries, retry_delay
+                        )
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2  # Экспоненциальная задержка
+                    else:
+                        logger.error("Не удалось запустить consumer для %s после %d попыток: %s", topic_name, max_retries, e)
+                        raise
+                else:
+                    logger.error("Ошибка при запуске consumer для %s: %s", topic_name, e)
+                    raise
+    
+    # Запускаем consumers в фоне с обработкой ошибок
     try:
-        users_handler = create_topic_handler("users")
         users_task = asyncio.create_task(
-            consume_events(users_handler, settings.kafka_topic_users, f"{settings.kafka_consumer_group}_users")
+            start_consumer_with_retry("users", settings.kafka_topic_users, "users")
         )
         tasks.append(users_task)
-        logger.info("Consumer для топика 'users' запущен")
+        logger.info("Consumer для топика 'users' запускается...")
     except Exception as e:
         logger.warning("Не удалось запустить consumer для users: %s", e)
     
-    # Запускаем consumer для tracks
     try:
-        tracks_handler = create_topic_handler("tracks")
         tracks_task = asyncio.create_task(
-            consume_events(tracks_handler, settings.kafka_topic_tracks, f"{settings.kafka_consumer_group}_tracks")
+            start_consumer_with_retry("tracks", settings.kafka_topic_tracks, "tracks")
         )
         tasks.append(tracks_task)
-        logger.info("Consumer для топика 'tracks' запущен")
+        logger.info("Consumer для топика 'tracks' запускается...")
     except Exception as e:
         logger.warning("Не удалось запустить consumer для tracks: %s", e)
     
-    # Запускаем consumer для events
     try:
-        events_handler = create_topic_handler("user_track_events")
         events_task = asyncio.create_task(
-            consume_events(events_handler, settings.kafka_topic_events, f"{settings.kafka_consumer_group}_events")
+            start_consumer_with_retry("user_track_events", settings.kafka_topic_events, "events")
         )
         tasks.append(events_task)
-        logger.info("Consumer для топика 'user_track_events' запущен")
+        logger.info("Consumer для топика 'user_track_events' запускается...")
     except Exception as e:
         logger.warning("Не удалось запустить consumer для events: %s", e)
     

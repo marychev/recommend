@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Union
+import logging
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -13,6 +14,8 @@ from app.models.schemas import Track, TrackCreate, TrackStatistics
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache import invalidate_track_exists_cache
 from app.kafka.producer import send_track
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/tracks",
@@ -50,6 +53,7 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
 
     try:
         # Генерируем ID сразу для ответа клиенту
+        # next_id теперь всегда возвращает ID (даже при ошибках использует временный)
         new_id = await clickhouse.next_id("tracks", "track_id")
         created_at = datetime.now()
 
@@ -66,7 +70,43 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
         }
 
         # Отправляем в Kafka (асинхронно, не блокирует ответ)
-        background_tasks.add_task(send_track, track_data)
+        # Если Kafka недоступен, fallback на прямой INSERT в ClickHouse
+        async def send_track_with_fallback():
+            try:
+                success = await send_track(track_data)
+                if not success:
+                    # Fallback: если Kafka недоступен, пишем напрямую в ClickHouse
+                    logger.warning("Kafka недоступен, используем fallback: прямой INSERT в ClickHouse")
+                    track_model = Track(
+                        track_id=new_id,
+                        title=track.title,
+                        artist=track.artist,
+                        album=track.album,
+                        genre=track.genre,
+                        duration_seconds=track.duration_seconds,
+                        release_year=track.release_year,
+                        created_at=created_at,
+                    )
+                    await clickhouse.save_track_buffered(track_model, new_id)
+            except Exception as e:
+                # Fallback: если ошибка при отправке в Kafka, пишем напрямую в ClickHouse
+                logger.warning("Ошибка отправки в Kafka, используем fallback: %s", e)
+                try:
+                    track_model = Track(
+                        track_id=new_id,
+                        title=track.title,
+                        artist=track.artist,
+                        album=track.album,
+                        genre=track.genre,
+                        duration_seconds=track.duration_seconds,
+                        release_year=track.release_year,
+                        created_at=created_at,
+                    )
+                    await clickhouse.save_track_buffered(track_model, new_id)
+                except Exception as fallback_error:
+                    logger.error("Ошибка fallback INSERT в ClickHouse: %s", fallback_error)
+        
+        background_tasks.add_task(send_track_with_fallback)
 
         # Инвалидируем кэш проверки существования для нового трека (фоновая задача)
         background_tasks.add_task(invalidate_track_exists_cache, new_id)

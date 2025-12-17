@@ -4,7 +4,7 @@
 	load-test-spike-extreme load-test-results \
 	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
 	load-test-recommendations load-test-recommendations-quick load-test-post load-test-post-quick \
-	status check-services health diagnose diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
+	status check-services health diagnose diagnose-system diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \ 
 	test test-api test-cache test-clickhouse test-kafka   \
 	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
@@ -259,7 +259,7 @@ load-test-post: ## Нагрузочный тест POST запросов (соз
 load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)
 	@echo "$(BLUE)⚡ Быстрый тест POST запросов...$(NC)"
 	@echo "$(YELLOW)Длительность: 1 минута | VUs: 10$(NC)"
-	k6 run load_tests/k6_post_load_test.js --vus 10 --duration 1m
+	k6 run load_tests/k6_post_load_test.js --vus 50 --duration 1m
 
 load-test-events-post: ## Тест POST /events (отдельный эндпоинт)
 	@echo "$(BLUE)📝 Запуск теста POST /events...$(NC)"
@@ -296,6 +296,10 @@ health: ## Проверить health check API
 
 check-services: ## Проверить доступность всех сервисов
 	@bash scripts/check_services.sh
+
+diagnose-system: ## Комплексная диагностика системы (Docker, Kafka, ClickHouse, Redis, API, логи)
+	@echo "$(BLUE)🔍 Запуск комплексной диагностики системы...$(NC)"
+	@bash scripts/diagnose_system.sh
 
 diagnose: ## Полная диагностика системы (API, БД, данные)
 	@echo "$(BLUE)🔍 Диагностика системы...$(NC)"

@@ -27,10 +27,10 @@ router = APIRouter(
 )
 
 SETTINGS: str = """SETTINGS
-    max_memory_usage = 10_000_000_000,
-    max_bytes_before_external_group_by = 4_000_000_000,
-    max_bytes_before_external_sort = 4_000_000_000,
-    max_bytes_in_join = 2_000_000_000"""
+    max_memory_usage = 20_000_000_000,
+    max_bytes_before_external_group_by = 10_000_000_000,
+    max_bytes_before_external_sort = 10_000_000_000,
+    max_bytes_in_join = 8_000_000_000"""
 
 
 @router.post(
@@ -84,7 +84,10 @@ async def get_recommendations(request: RecommendationRequest):
 
     if cached:
         logger.info(
-            "Recommendations served from cache: user_id=%s", request.user_id
+            "✅ Recommendations served from CACHE: user_id=%s, top_n=%s, exclude_listened=%s",
+            request.user_id,
+            request.top_n or 10,
+            request.exclude_listened,
         )
         response = RecommendationResponse(**cached)
 

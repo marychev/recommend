@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List
+import logging
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -13,6 +14,8 @@ from app.models.schemas import User, UserCreate, UserStatistics
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache import exists_user_cached, invalidate_user_exists_cache
 from app.kafka.producer import send_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/users",
@@ -59,6 +62,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
 
     try:
         # Генерируем ID сразу для ответа клиенту
+        # next_id теперь всегда возвращает ID (даже при ошибках использует временный)
         new_id = await clickhouse.next_id("users", "user_id")
         created_at = datetime.now()
 
@@ -73,7 +77,39 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
         }
 
         # Отправляем в Kafka (асинхронно, не блокирует ответ)
-        background_tasks.add_task(send_user, user_data)
+        # Если Kafka недоступен, fallback на прямой INSERT в ClickHouse
+        async def send_user_with_fallback():
+            try:
+                success = await send_user(user_data)
+                if not success:
+                    # Fallback: если Kafka недоступен, пишем напрямую в ClickHouse
+                    logger.warning("Kafka недоступен, используем fallback: прямой INSERT в ClickHouse")
+                    user_model = User(
+                        user_id=new_id,
+                        username=user.username,
+                        email=user.email or "",
+                        age=user.age or 0,
+                        country=user.country or "",
+                        created_at=created_at,
+                    )
+                    await clickhouse.save_user_buffered(user_model, new_id)
+            except Exception as e:
+                # Fallback: если ошибка при отправке в Kafka, пишем напрямую в ClickHouse
+                logger.warning("Ошибка отправки в Kafka, используем fallback: %s", e)
+                try:
+                    user_model = User(
+                        user_id=new_id,
+                        username=user.username,
+                        email=user.email or "",
+                        age=user.age or 0,
+                        country=user.country or "",
+                        created_at=created_at,
+                    )
+                    await clickhouse.save_user_buffered(user_model, new_id)
+                except Exception as fallback_error:
+                    logger.error("Ошибка fallback INSERT в ClickHouse: %s", fallback_error)
+        
+        background_tasks.add_task(send_user_with_fallback)
 
         # Инвалидируем кэш проверки существования для нового пользователя (фоновая задача)
         background_tasks.add_task(invalidate_user_exists_cache, new_id)

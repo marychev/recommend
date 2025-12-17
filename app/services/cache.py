@@ -65,7 +65,10 @@ async def get_cached_recommendations(
         cached_data = await redis.get(cache_key)
 
         if cached_data:
-            logger.debug("Cache hit for user_id=%s, top_n=%s", user_id, top_n)
+            logger.info(
+                "✅ Cache HIT for user_id=%s, top_n=%s, exclude_listened=%s",
+                user_id, top_n, exclude_listened
+            )
             data = json.loads(cached_data)
 
             # Конвертируем ISO строки обратно в datetime
@@ -82,7 +85,10 @@ async def get_cached_recommendations(
 
             return data
 
-        logger.debug("Cache miss for user_id=%s", user_id)
+        logger.info(
+            "❌ Cache MISS for user_id=%s, top_n=%s, exclude_listened=%s",
+            user_id, top_n, exclude_listened
+        )
     except Exception as e:
         logger.error("Error getting cached recommendations: %s", e)
 
@@ -134,8 +140,9 @@ async def set_cached_recommendations(
         cache_value = json.dumps(cache_data, ensure_ascii=False)
         await redis.set(cache_key, cache_value, ex=ttl)
 
-        logger.debug(
-            "Cached recommendations for user_id=%s (TTL=%s)", user_id, ttl
+        logger.info(
+            "💾 Cached recommendations for user_id=%s, top_n=%s, exclude_listened=%s (TTL=%s sec)",
+            user_id, top_n, exclude_listened, ttl
         )
 
         return True
@@ -170,9 +177,10 @@ async def invalidate_cached_user_recommendations(user_id: int) -> bool:
         if keys:
             await redis.delete(*keys)
             logger.info(
-                "Invalidated %s cached recommendations for user_id=%s",
+                "🗑️ Invalidated %s cached recommendations for user_id=%s (keys: %s)",
                 len(keys),
                 user_id,
+                ", ".join(keys[:5]) + ("..." if len(keys) > 5 else "")
             )
 
         return True

@@ -28,8 +28,8 @@ class ClickHouseClient:
             'tracks': deque(),
             'user_track_interactions': deque(),
         }
-        self._buffer_size = 100  # Размер батча
-        self._flush_interval = 5.0  # Интервал автоматического flush в секундах
+        self._buffer_size = 200  # Размер батча (увеличен для лучшей производительности)
+        self._flush_interval = 3.0  # Интервал автоматического flush в секундах (уменьшен для более быстрой обработки)
         self._flush_task: Optional[asyncio.Task] = None
         self._flush_lock = asyncio.Lock()
         self._running = False
@@ -290,13 +290,25 @@ class ClickHouseClient:
         # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
         # Это быстрее и использует меньше памяти на больших таблицах
         try:
+            # Проверяем подключение перед запросом
+            if not self.client:
+                try:
+                    await self._ensure_connected()
+                except Exception as conn_error:
+                    # Если не можем подключиться, используем временный ID на основе timestamp
+                    logger.warning("Не удалось подключиться к ClickHouse для генерации ID: %s. Используем временный ID", conn_error)
+                    import time
+                    return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
+            
             result = await self.execute_raw(
                 f"SELECT {field} FROM {table} ORDER BY {field} DESC LIMIT 1"
             )
             max_id = result[0][0] if result and result[0][0] else 0
-        except Exception:
-            # Если ошибка (например, таблица пуста или проблема с памятью), начинаем с 1
-            max_id = 0
+        except Exception as e:
+            # Если ошибка (например, таблица пуста, нет подключения или проблема с памятью), используем временный ID
+            logger.warning("Ошибка при генерации ID для %s.%s: %s. Используем временный ID", table, field, e)
+            import time
+            return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
         
         return (max_id or 0) + 1
     
@@ -304,10 +316,17 @@ class ClickHouseClient:
         """Сохраняем трек в ClickHouse (с батчингом)"""
         return await self.save_track_buffered(track)
 
-    async def save_track_buffered(self, track: Track) -> int:
+    async def save_track_buffered(self, track: Track, track_id: Optional[int] = None) -> int:
         """Сохраняем трек в буфер для батчинга, возвращаем ID сразу"""
-        new_id = await self.next_id("tracks", "track_id")
-        created_at = datetime.now()
+        # Если ID уже передан (например, из create_track), используем его
+        # Иначе генерируем новый ID
+        if track_id is None:
+            new_id = await self.next_id("tracks", "track_id")
+        else:
+            new_id = track_id
+        
+        # Используем created_at из объекта track, если он есть, иначе текущее время
+        created_at = track.created_at if hasattr(track, 'created_at') and track.created_at else datetime.now()
         
         async with self._flush_lock:
             self._insert_buffer['tracks'].append([
@@ -331,10 +350,17 @@ class ClickHouseClient:
         """Сохраняем пользователя в ClickHouse (с батчингом)"""
         return await self.save_user_buffered(user)
 
-    async def save_user_buffered(self, user: User) -> int:
+    async def save_user_buffered(self, user: User, user_id: Optional[int] = None) -> int:
         """Сохраняем пользователя в буфер для батчинга, возвращаем ID сразу"""
-        new_id = await self.next_id("users", "user_id")
-        created_at = datetime.now()
+        # Если ID уже передан (например, из create_user), используем его
+        # Иначе генерируем новый ID
+        if user_id is None:
+            new_id = await self.next_id("users", "user_id")
+        else:
+            new_id = user_id
+        
+        # Используем created_at из объекта user, если он есть, иначе текущее время
+        created_at = user.created_at if hasattr(user, 'created_at') and user.created_at else datetime.now()
         
         async with self._flush_lock:
             self._insert_buffer['users'].append([
