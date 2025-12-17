@@ -108,7 +108,7 @@ async def get_kafka_consumer(
 
 
 async def _close_kafka_client(
-    client, client_type: str, force_close_attr: str = None
+    client, client_type: str, force_close_attr: Optional[str] = None
 ):
     """
     Общая функция для закрытия Kafka клиента (producer или consumer)

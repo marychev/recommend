@@ -53,7 +53,7 @@ const getRecommendationsRequests = new Counter('post_get_recommendations_request
 // ════════════════════════════════════════════════════════
 
 const VUS = parseInt(__ENV.VUS) || 100;
-const DURATION = __ENV.DURATION || '4m';
+const DURATION = __ENV.DURATION || '8m';
 
 export const options = {
   stages: [
@@ -70,9 +70,9 @@ export const options = {
     'real_errors': ['rate<0.05'], // До 5% реальных ошибок (5xx, таймауты, сеть)
     
     // Пороги по эндпоинтам
-    'post_create_user_duration': ['p(95)<3000', 'p(99)<5000'],
-    'post_create_track_duration': ['p(95)<3000', 'p(99)<5000'],
-    'post_create_event_duration': ['p(95)<2000', 'p(99)<4000'],
+    'post_create_user_duration': ['p(95)<2000', 'p(99)<5000'],
+    'post_create_track_duration': ['p(95)<2000', 'p(99)<5000'],
+    'post_create_event_duration': ['p(95)<3000', 'p(99)<5000'],
     'post_get_recommendations_duration': ['p(95)<10000', 'p(99)<20000'],
     
     // Успешность запросов

@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from datetime import datetime
 from typing import Optional, Any, List, Dict
 from collections import deque
@@ -297,7 +298,6 @@ class ClickHouseClient:
                 except Exception as conn_error:
                     # Если не можем подключиться, используем временный ID на основе timestamp
                     logger.warning("Не удалось подключиться к ClickHouse для генерации ID: %s. Используем временный ID", conn_error)
-                    import time
                     return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
             
             result = await self.execute_raw(
@@ -307,7 +307,6 @@ class ClickHouseClient:
         except Exception as e:
             # Если ошибка (например, таблица пуста, нет подключения или проблема с памятью), используем временный ID
             logger.warning("Ошибка при генерации ID для %s.%s: %s. Используем временный ID", table, field, e)
-            import time
             return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
         
         return (max_id or 0) + 1

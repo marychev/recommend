@@ -47,7 +47,7 @@ CONNECT_KAFKA_BASE_DELAY_FAST = 0.1     # секунд (fast_mode для тес�
 # ════════════════════════════════════════════════════════
 
 # Размер батча для записи в ClickHouse
-DATA_HANDLER_BATCH_SIZE = PRODUCER_START_TIMEOUT_DEFAULT * 100  # записей
+DATA_HANDLER_BATCH_SIZE = 1000  # записей
 
 # Интервал автоматического flush буферов
 DATA_HANDLER_FLUSH_INTERVAL = PRODUCER_START_TIMEOUT_DEFAULT  # секунд

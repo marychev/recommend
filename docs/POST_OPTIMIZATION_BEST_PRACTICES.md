@@ -32,8 +32,8 @@ class ClickHouseClient:
             'tracks': [],
             'user_track_interactions': []
         }
-        self._buffer_size = 100  # Размер батча
-        self._flush_interval = 5.0  # Секунды
+        self._buffer_size = DATA_HANDLER_BATCH_SIZE  # Размер батча (1000 записей)
+        self._flush_interval = DATA_HANDLER_FLUSH_INTERVAL  # Интервал flush (5 секунд)
         self._flush_task: Optional[asyncio.Task] = None
 
     async def save_user_buffered(self, user: User) -> int:
@@ -110,7 +110,7 @@ import asyncio
 from typing import Deque, Dict, Any
 
 class EventQueue:
-    def __init__(self, batch_size: int = 50, flush_interval: float = 2.0):
+    def __init__(self, batch_size: int = 100, flush_interval: float = 1.5):
         self._queue: Deque[Dict[str, Any]] = deque()
         self._batch_size = batch_size
         self._flush_interval = flush_interval
@@ -168,9 +168,10 @@ async def process_event_async(event: UserTrackInteraction):
 ```
 
 **Преимущества:**
-- ✅ Меньше запросов к Kafka (50 событий в одном запросе)
+- ✅ Меньше запросов к Kafka (100 событий в одном запросе)
 - ✅ Лучшая пропускная способность
 - ✅ Меньше нагрузка на Kafka broker
+- ✅ Fallback на прямой INSERT в ClickHouse при недоступности Kafka
 
 ---
 
@@ -429,15 +430,16 @@ POST /events: ~200-500ms
 ### После оптимизаций:
 ```
 POST /events: ~50-100ms
-- Проверка user (кэш): 5ms
-- Проверка track (кэш): 5ms
+- Проверка user (кэш, с таймаутом 5 сек): 5ms
+- Проверка track (кэш, с таймаутом 5 сек): 5ms
 - INSERT в буфер: <1ms
 - Добавление в очередь Kafka: <1ms
 - Итого: ~50ms (5x быстрее!)
 
 Батч обработка (асинхронно):
-- Батч INSERT (100 записей): 200ms → 2ms на запись
-- Батч Kafka (50 событий): 100ms → 2ms на событие
+- Батч INSERT (1000 записей): 200ms → 0.2ms на запись
+- Батч Kafka (100 событий): 100ms → 1ms на событие
+- Fallback на ClickHouse при недоступности Kafka
 ```
 
 ---

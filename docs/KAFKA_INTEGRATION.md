@@ -53,9 +53,12 @@
 ```
 app/kafka/
 ├── __init__.py
+├── constants.py   # Константы таймаутов и параметров батчинга
 ├── client.py      # Подключение к Kafka
 ├── producer.py    # Отправка событий
-└── consumer.py    # Обработка событий (опционально)
+├── consumer.py    # Обработка событий (опционально)
+├── data_handler.py # Обработка данных из Kafka с батчингом
+└── multi_consumer.py # Мульти-consumer для нескольких топиков
 ```
 
 ## ⚙️ Конфигурация
@@ -155,33 +158,38 @@ curl -X POST http://localhost:8000/api/v1/events \
 ### 2. API обрабатывает запрос
 
 ```python
-# app/api/events.py
+# app/routers/events.py
 async def create_event(event, background_tasks):
     # 1. Валидация через Pydantic
-    # 2. Сохранение в ClickHouse (синхронно)
-    await clickhouse.insert(...)
-    
-    # 3. Отправка в Kafka (фоновая задача)
-    background_tasks.add_task(process_event_async, interaction)
+    # 2. Проверка существования user/track (с таймаутом 5 сек)
+    # 3. Отправка в очередь событий (быстро, не блокирует)
+    # 4. Fallback: если очередь/Kafka недоступны → прямой INSERT в ClickHouse
+    background_tasks.add_task(process_event_async, interaction, clickhouse)
 ```
 
-### 3. Producer отправляет в Kafka
+### 3. EventQueue батчит события перед отправкой в Kafka
 
 ```python
+# app/services/event_queue.py
+# События накапливаются в очереди (batch_size=100, flush_interval=1.5s)
+# Отправляются батчами через send_batch_events()
+
 # app/kafka/producer.py
-async def send_event(event):
-    producer = await get_kafka_producer()
-    message = serialize_event(event)
-    await producer.send('user_track_events', value=message)
+async def send_batch_events(events):
+    producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_BATCH)
+    # Отправка батча событий одним запросом
 ```
 
-### 4. Consumer обрабатывает событие
+### 4. Consumer обрабатывает события батчами
 
 ```python
-# app/kafka/consumer.py (опционально)
-async for message in consumer:
-    event = deserialize_event(message.value)
-    await handler(event)
+# app/kafka/data_handler.py
+# KafkaDataHandler накапливает события (batch_size=1000, flush_interval=5.0s)
+# Записывает в ClickHouse батчами для оптимизации
+
+# app/kafka/multi_consumer.py
+# Запускает consumers для всех топиков (users, tracks, events)
+# С автоматическим переподключением при ошибках
 ```
 
 ## 🎯 Применение
@@ -542,12 +550,26 @@ async def send_event(event):
 
 ## 🔗 Связанные файлы
 
+- `app/kafka/constants.py` - **Константы таймаутов и параметров батчинга**
 - `app/kafka/client.py` - Подключение к Kafka
-- `app/kafka/producer.py` - Producer
+- `app/kafka/producer.py` - Producer с fallback механизмами
 - `app/kafka/consumer.py` - Consumer
-- `app/api/events.py` - Использование Kafka
+- `app/kafka/data_handler.py` - Обработка данных с батчингом (1000 записей, 5 сек)
+- `app/kafka/multi_consumer.py` - Мульти-consumer для всех топиков
+- `app/services/event_queue.py` - Очередь для батчинга событий (100 событий, 1.5 сек)
+- `app/routers/events.py` - Использование Kafka с fallback на ClickHouse
 - `app/utils/lifespan.py` - Lifecycle management
 - `docker-compose.yml` - Конфигурация Kafka
+
+## ⚙️ Константы и параметры
+
+Все таймауты и параметры батчинга централизованы в `app/kafka/constants.py`:
+
+- **Producer таймауты**: 5.0 сек (default), 5.0 сек (events), 2.0 сек (batch), 1.0 сек (quick)
+- **Request timeout**: 60 секунд
+- **Consumer retry**: 5 попыток, начальная задержка 1.0 сек
+- **DataHandler batch**: 1000 записей, flush каждые 5 секунд
+- **EventQueue batch**: 100 событий, flush каждые 1.5 секунды
 
 ---
 

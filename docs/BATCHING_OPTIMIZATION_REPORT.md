@@ -36,11 +36,11 @@
 ```
 POST /users → save_user() → save_user_buffered()
   ↓
-Буфер users[] (до 100 записей)
+Буфер users[] (до 1000 записей для Kafka Consumer)
   ↓
-Автоматический flush каждые 5 сек или при 100 записях
+Автоматический flush каждые 5 сек или при 1000 записях
   ↓
-Батч INSERT в ClickHouse (1 запрос вместо 100)
+Батч INSERT в ClickHouse (1 запрос вместо 1000)
 ```
 
 ### Компоненты реализации
@@ -56,9 +56,10 @@ self._insert_buffer: Dict[str, deque] = {
 }
 ```
 
-- **Размер батча**: 100 записей
+- **Размер батча**: 1000 записей (для Kafka Consumer → ClickHouse)
 - **Интервал flush**: 5 секунд
 - **Тип данных**: `deque` для эффективной работы с очередью
+- **Константы**: Централизованы в `app/kafka/constants.py`
 
 #### 2. Методы батчинга
 
@@ -79,11 +80,12 @@ self._insert_buffer: Dict[str, deque] = {
 #### 3. Автоматический flush
 
 **По размеру:**
-- При достижении 100 записей в буфере автоматически запускается flush
+- При достижении 1000 записей в буфере автоматически запускается flush
 - Не блокирует основной поток (используется `asyncio.create_task`)
 
 **По времени:**
-- Периодический flush каждые 5 секунд
+- Периодический flush каждые 5 секунд (для Kafka Consumer)
+- Периодический flush каждые 1.5 секунды (для EventQueue → Kafka)
 - Запускается при старте приложения через `lifespan`
 - Останавливается при shutdown с полным сбросом всех буферов
 
@@ -124,8 +126,8 @@ class ClickHouseClient:
             'tracks': deque(),
             'user_track_interactions': deque(),
         }
-        self._buffer_size = 100  # Размер батча
-        self._flush_interval = 5.0  # Интервал автоматического flush
+        self._buffer_size = DATA_HANDLER_BATCH_SIZE  # Размер батча (1000 записей)
+        self._flush_interval = DATA_HANDLER_FLUSH_INTERVAL  # Интервал автоматического flush (5 секунд)
         self._flush_task: Optional[asyncio.Task] = None
         self._flush_lock = asyncio.Lock()  # Защита от race conditions
         self._running = False
@@ -199,7 +201,7 @@ async def _flush_buffer(self, table: str) -> None:
    ↓
 6. Фоновая задача:
    - Буфер накапливает записи
-   - При 100 записях → flush
+   - При 1000 записях → flush
    - Или каждые 5 секунд → flush
    ↓
 7. Батч INSERT в ClickHouse:
@@ -216,7 +218,7 @@ async def _flush_buffer(self, table: str) -> None:
 
 | Метрика | До оптимизации | После оптимизации | Улучшение |
 |---------|---------------|-------------------|-----------|
-| **INSERT запросов** | 100 запросов | 1 батч запрос | **100x меньше** |
+| **INSERT запросов** | 1000 запросов | 1 батч запрос | **1000x меньше** |
 | **Нагрузка на ClickHouse** | Высокая | Низкая | **Значительно снижена** |
 | **Пропускная способность** | ~18 RPS | Ожидается 50+ RPS | **2-3x выше** |
 | **Время ответа клиенту** | ~677ms | ~50-100ms | **6-10x быстрее** |
@@ -305,9 +307,11 @@ except Exception as e:
 
 ✅ **Реализовано:**
 - Батчинг INSERT операций для всех POST запросов
-- Автоматический flush по размеру (100 записей) и времени (5 секунд)
+- Автоматический flush по размеру (1000 записей для Kafka Consumer, 100 для EventQueue) и времени (5 секунд для Kafka Consumer, 1.5 секунды для EventQueue)
 - Интеграция в lifecycle приложения
 - Защита от потери данных
+- Централизованные константы в `app/kafka/constants.py`
+- Fallback механизмы для надежности (Kafka → ClickHouse)
 
 ✅ **Преимущества:**
 - Значительное повышение производительности
