@@ -7,6 +7,7 @@ from app.config import settings
 from app.db.clickhouse import (
     connect_clickhouse,
     shutdown_clickhouse,
+    get_clickhouse_client,
 )
 from app.services.cache_redis_client import connect_redis, shutdown_redis
 from app.services.event_queue import start_event_queue, stop_event_queue
@@ -25,6 +26,15 @@ async def lifespan(_app: FastAPI):
     clickhouse_connected = await connect_clickhouse()
     redis_connected = await connect_redis()
     kafka_connected = await connect_kafka()
+    
+    # Запускаем периодический flush буферов ClickHouse (для fallback механизма)
+    if clickhouse_connected:
+        try:
+            clickhouse = get_clickhouse_client()
+            await clickhouse.start_periodic_flush()
+            logger.info("Периодический flush буферов ClickHouse запущен (интервал: 5 сек)")
+        except Exception as e:
+            logger.warning("Не удалось запустить периодический flush ClickHouse: %s", e)
     
     consumer_tasks: list[asyncio.Task] = []
     
@@ -83,6 +93,14 @@ async def lifespan(_app: FastAPI):
 
     # Останавливаем очередь событий (сбросит оставшиеся события)
     await stop_event_queue()
+    
+    # Останавливаем периодический flush ClickHouse (сбросит все буферы)
+    try:
+        clickhouse = get_clickhouse_client()
+        await clickhouse.stop_periodic_flush()
+        logger.info("Периодический flush ClickHouse остановлен")
+    except Exception as e:
+        logger.warning("Ошибка при остановке периодического flush ClickHouse: %s", e)
     
     await close_kafka_producer()
     await shutdown_clickhouse()

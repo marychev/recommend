@@ -27,11 +27,17 @@ def serialize_event(event: Dict[str, Any]) -> bytes:
     Returns:
         bytes: Сериализованное событие
     """
-    # Конвертируем datetime в ISO string
-    if "timestamp" in event and isinstance(event["timestamp"], datetime):
-        event["timestamp"] = event["timestamp"].isoformat()
+    # Создаем копию, чтобы не изменять оригинальный словарь
+    serializable_event = {}
+    
+    for key, value in event.items():
+        # Конвертируем datetime в ISO string
+        if isinstance(value, datetime):
+            serializable_event[key] = value.isoformat()
+        else:
+            serializable_event[key] = value
 
-    return json.dumps(event, ensure_ascii=False).encode("utf-8")
+    return json.dumps(serializable_event, ensure_ascii=False).encode("utf-8")
 
 
 def _get_message_and_key(event: Dict[str, Any]) -> tuple[bytes, bytes]:

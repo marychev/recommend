@@ -8,7 +8,8 @@
 	clean clean-all \ 
 	test test-api test-cache test-clickhouse test-kafka   \
 	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
-	lint lint-install format
+	lint lint-install format \
+	up-clickhouse up-kafka up-redis up-api restart-api
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -107,6 +108,11 @@ up-redis: ## Запустить только Redis
 
 up-api: ## Запустить только API контейнер
 	$(DOCKER_COMPOSE) up -d api
+
+restart-api: ## Перезапустить только API контейнер
+	@echo "$(BLUE)🔄 Перезапуск API контейнера...$(NC)"
+	$(DOCKER_COMPOSE) restart api
+	@echo "$(GREEN)✅ API контейнер перезапущен$(NC)"
 
 
 # ═══════════════════════════════════════════════
@@ -276,6 +282,29 @@ load-test-users-post: ## Тест POST /users (отдельный эндпоин
 load-test-recommendations-post: ## Тест POST /recommendations (отдельный эндпоинт)
 	@echo "$(BLUE)📝 Запуск теста POST /recommendations...$(NC)"
 	k6 run load_tests/k6_test_recommendations_post.js
+
+measure-insert-lag: ## Измерить лаг вставки в ClickHouse (от POST запроса до БД) - использует k6
+	@echo "$(BLUE)⏱️  Измерение лага вставки в ClickHouse...$(NC)"
+	@echo "$(YELLOW)Это измеряет время от создания записи через POST до фактической вставки в ClickHouse$(NC)"
+	@echo "$(BLUE)================================================================================$(NC)"
+	@echo "$(YELLOW)Используется k6 для более надежного измерения$(NC)"
+	@echo ""
+	@NUM_REQUESTS_VAL=$${NUM_REQUESTS:-50}; \
+	CHECK_INTERVAL_VAL=$${CHECK_INTERVAL:-0.5}; \
+	MAX_WAIT_TIME_VAL=$${MAX_WAIT_TIME:-60}; \
+	k6 run \
+		--env NUM_REQUESTS=$$NUM_REQUESTS_VAL \
+		--env CHECK_INTERVAL=$$CHECK_INTERVAL_VAL \
+		--env MAX_WAIT_TIME=$$MAX_WAIT_TIME_VAL \
+		--env CLICKHOUSE_URL=http://localhost:8123 \
+		--env CLICKHOUSE_DATABASE=music_recommend \
+		load_tests/k6_measure_insert_lag.js
+
+measure-insert-lag-python: ## Измерить лаг вставки в ClickHouse (старый Python скрипт)
+	@echo "$(BLUE)⏱️  Измерение лага вставки в ClickHouse (Python)...$(NC)"
+	@echo "$(YELLOW)Это измеряет время от создания записи в k6 до фактической вставки в ClickHouse$(NC)"
+	@echo "$(BLUE)================================================================================$(NC)"
+	python3 scripts/measure_insert_lag.py $(NUM_REQUESTS)
 
 load-test-results: ## Показать результаты последних тестов
 	@echo "$(BLUE)📊 Результаты последних нагрузочных тестов:$(NC)"

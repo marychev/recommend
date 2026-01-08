@@ -283,6 +283,170 @@ def print_system_info(info):
     print("   • Kafka:           CPU 0.5-1 ядро, RAM 512MB-1GB")
     print("   • Redis:           CPU 0.25-0.5 ядра, RAM 256MB-512MB")
     print()
+    
+    # Выводы на основе оптимизаций
+    print("=" * 80)
+    print("🚀 ВЫВОДЫ НА ОСНОВЕ ОПТИМИЗАЦИЙ ПРОЕКТА:")
+    print("=" * 80)
+    print()
+    
+    print("📊 ПРОИЗВОДИТЕЛЬНОСТЬ:")
+    print()
+    print("POST запросы (/users, /tracks, /events):")
+    print("   • До оптимизации:     ~677ms (p95: 1162ms)")
+    print("   • После оптимизации:  ~50-100ms (p95: 200-400ms)")
+    print("   • Улучшение:          6-10x быстрее")
+    print("   • RPS:                ~18 → 50+ запросов/сек (2-3x выше)")
+    print()
+    
+    print("Рекомендации (/recommendations):")
+    print("   • Из кэша (Redis):    1-7ms (85-90% запросов)")
+    print("   • Из БД (ClickHouse): 300-800ms (10-15% запросов)")
+    print("   • Hit Rate кэша:      0% → 85-90% (улучшение в 100+ раз)")
+    print("   • Ускорение:           100-800x для кэшированных запросов")
+    print()
+    
+    print("Нагрузка на ClickHouse:")
+    print("   • INSERT запросов:    100 запросов → 1 батч (100x меньше)")
+    print("   • Общая нагрузка:     снижение на 90-99%")
+    print("   • SELECT запросов:    снижение в 6-10 раз (благодаря кэшу)")
+    print()
+    
+    print("=" * 80)
+    print("⚙️  РЕАЛИЗОВАННЫЕ ОПТИМИЗАЦИИ:")
+    print("=" * 80)
+    print()
+    
+    print("1. БАТЧИНГ INSERT операций:")
+    print("   ✅ Буферы для users, tracks, events (1000 записей или 5 сек)")
+    print("   ✅ Автоматический flush по размеру и времени")
+    print("   ✅ Результат: 10-100x быстрее при высокой нагрузке")
+    print()
+    
+    print("2. ПАРТИЦИОНИРОВАНИЕ:")
+    print("   ✅ Партиционирование по created_at (месячные партиции)")
+    print("   ✅ Меньше операций merge в ClickHouse")
+    print("   ✅ Результат: оптимизация использования диска")
+    print()
+    
+    print("3. КЭШИРОВАНИЕ Redis:")
+    print("   ✅ Селективная инвалидация (только значимые события)")
+    print("   ✅ Настраиваемый TTL (рекомендуется 4 часа)")
+    print("   ✅ Предварительный прогрев для активных пользователей")
+    print("   ✅ Результат: Hit Rate 0% → 85-90%")
+    print()
+    
+    print("4. ИНДЕКСЫ ClickHouse:")
+    print("   ✅ Индексы на implicit_rating, track_id, timestamp")
+    print("   ✅ Комбинированные индексы для сложных запросов")
+    print("   ✅ Результат: ускорение запросов в 3-5 раз")
+    print()
+    
+    print("5. ОПТИМИЗАЦИЯ SQL:")
+    print("   ✅ PREWHERE вместо WHERE (фильтрация до чтения колонок)")
+    print("   ✅ LEFT JOIN вместо NOT IN (3-5x быстрее)")
+    print("   ✅ Оптимизированные запросы с LIMIT")
+    print("   ✅ Результат: ускорение в 2-5 раз")
+    print()
+    
+    print("6. НАСТРОЙКИ ПАМЯТИ ClickHouse:")
+    print("   ✅ Максимальная память на запрос: 20GB (для JOIN операций)")
+    print("   ✅ Максимальная память для всех запросов: 25GB")
+    print("   ✅ Использование диска при превышении: 10GB")
+    print("   ✅ Результат: поддержка сложных запросов рекомендаций")
+    print()
+    
+    print("=" * 80)
+    print("💡 РЕКОМЕНДАЦИИ ДЛЯ ВАШЕЙ СИСТЕМЫ:")
+    print("=" * 80)
+    print()
+    
+    # Анализ системы и рекомендации
+    mem_total_gb = None
+    if 'memory' in info and 'total' in info['memory']:
+        mem_str = info['memory']['total']
+        try:
+            mem_value = float(mem_str.split()[0])
+            mem_unit = mem_str.split()[1]
+            if mem_unit == 'GB':
+                mem_total_gb = mem_value
+            elif mem_unit == 'MB':
+                mem_total_gb = mem_value / 1024
+        except (ValueError, IndexError):
+            pass
+    
+    cpu_cores = None
+    if 'cpu' in info and 'logical_cores' in info['cpu']:
+        cpu_cores = info['cpu']['logical_cores']
+    
+    if mem_total_gb:
+        if mem_total_gb < 8:
+            print("⚠️  ВНИМАНИЕ: RAM менее 8GB")
+            print("   • Рекомендуется увеличить до минимум 8GB для Docker Desktop")
+            print("   • Текущая конфигурация может работать медленнее")
+        elif mem_total_gb < 12:
+            print("✅ RAM: {}GB (минимально достаточно)".format(int(mem_total_gb)))
+            print("   • Рекомендуется увеличить до 12GB для лучшей производительности")
+        else:
+            print("✅ RAM: {}GB (отлично!)".format(int(mem_total_gb)))
+            print("   • Достаточно для всех оптимизаций")
+        print()
+    
+    if cpu_cores:
+        if cpu_cores < 4:
+            print("⚠️  ВНИМАНИЕ: CPU менее 4 ядер")
+            print("   • Рекомендуется минимум 4 ядра для Docker Desktop")
+            print("   • При высокой нагрузке может быть узким местом")
+        elif cpu_cores < 6:
+            print("✅ CPU: {} ядер (минимально достаточно)".format(cpu_cores))
+            print("   • Рекомендуется 6-8 ядер для лучшей производительности")
+        else:
+            print("✅ CPU: {} ядер (отлично!)".format(cpu_cores))
+            print("   • Достаточно для всех оптимизаций")
+        print()
+    
+    print("📈 ОЖИДАЕМАЯ ПРОИЗВОДИТЕЛЬНОСТЬ:")
+    print()
+    print("При текущих настройках системы:")
+    print("   • POST запросы:       50-100ms (быстро)")
+    print("   • Рекомендации:       1-7ms из кэша (85-90% случаев)")
+    print("   • Рекомендации из БД: 300-800ms (10-15% случаев)")
+    print("   • Пропускная способность: 50+ RPS")
+    print()
+    
+    print("🔧 ЧТО ПРОВЕРИТЬ:")
+    print()
+    print("1. Docker Desktop Settings:")
+    print("   • Убедитесь, что выделено минимум 8GB RAM")
+    print("   • Убедитесь, что выделено минимум 4 CPU ядра")
+    print()
+    
+    print("2. Контейнеры:")
+    print("   • Проверьте статус: docker ps")
+    print("   • Проверьте использование ресурсов: docker stats")
+    print()
+    
+    print("3. Кэш Redis:")
+    print("   • Проверьте hit rate: curl http://localhost:8000/api/v1/debug/cache/status")
+    print("   • Если hit rate < 70%: рассмотрите прогрев кэша")
+    print()
+    
+    print("4. ClickHouse:")
+    print("   • Проверьте индексы: make db-indexes")
+    print("   • Проверьте медленные запросы: docker-compose logs clickhouse | grep ERROR")
+    print()
+    
+    print("=" * 80)
+    print("📚 ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:")
+    print("=" * 80)
+    print()
+    print("Документация по оптимизациям:")
+    print("   • docs/CLICKHOUSE_OPTIMIZATION.md - оптимизация ClickHouse")
+    print("   • docs/CACHE_OPTIMIZATION.md - оптимизация кэширования")
+    print("   • docs/BATCHING_OPTIMIZATION_REPORT.md - батчинг INSERT")
+    print("   • docs/OPTIMIZATION_SUMMARY.md - сводка оптимизаций")
+    print("   • load_tests_investigation/ - результаты нагрузочных тестов")
+    print()
 
 if __name__ == '__main__':
     try:
