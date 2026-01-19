@@ -7,18 +7,18 @@
 - events - события взаимодействий
 
 Все данные записываются в ClickHouse батчами для оптимизации.
+Использует переиспользуемый BatchBuffer для буферизации.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from collections import deque
-import asyncio
 
 from app.db.clickhouse import get_clickhouse_client
 from app.models.schemas import User, Track, UserTrackInteraction
 from app.services.cache_redis_client import get_redis_client
 from app.models.schemas.action_type import ActionType
+from app.utils.batch_buffer import BatchBuffer
 from app.kafka.constants import (
     DATA_HANDLER_BATCH_SIZE,
     DATA_HANDLER_FLUSH_INTERVAL,
@@ -34,196 +34,112 @@ class KafkaDataHandler:
     BUFFER_TO_TABLE = {
         'users': 'users',
         'tracks': 'tracks',
-        'events': 'user_track_interactions',  # Буфер 'events' → таблица 'user_track_interactions'
+        'events': 'user_track_interactions',
+    }
+    
+    # Маппинг буферов на column_names для INSERT
+    BUFFER_TO_COLUMNS = {
+        'users': User.column_names,
+        'tracks': Track.column_names,
+        'events': UserTrackInteraction.column_names,
     }
     
     def __init__(self, batch_size: int = DATA_HANDLER_BATCH_SIZE, flush_interval: float = DATA_HANDLER_FLUSH_INTERVAL):
         """
         Args:
-            batch_size: Размер батча для записи в ClickHouse (увеличен для лучшей производительности)
-            flush_interval: Интервал автоматического flush в секундах (уменьшен для более быстрой обработки)
+            batch_size: Размер батча для записи в ClickHouse
+            flush_interval: Интервал автоматического flush в секундах
         """
-        self.batch_size = batch_size
-        self.flush_interval = flush_interval
+        # Используем переиспользуемый BatchBuffer
+        self._buffer = BatchBuffer(
+            tables=['users', 'tracks', 'events'],
+            batch_size=batch_size,
+            flush_interval=flush_interval,
+            flush_callback=self._flush_to_clickhouse,
+            name="KafkaDataHandler",
+        )
+
+    async def _flush_to_clickhouse(self, buffer_name: str, records: List[List[Any]]) -> None:
+        """Callback для записи данных в ClickHouse."""
+        clickhouse = get_clickhouse_client()
         
-        # Буферы для батчинга
-        self._buffers = {
-            'users': deque(),
-            'tracks': deque(),
-            'events': deque(),
-        }
-        self._flush_lock = asyncio.Lock()
-        self._running = False
-        self._flush_task: Optional[asyncio.Task] = None
+        # Получаем реальное имя таблицы
+        table_name = self.BUFFER_TO_TABLE.get(buffer_name, buffer_name)
+        
+        # Получаем column_names
+        column_getter = self.BUFFER_TO_COLUMNS.get(buffer_name)
+        column_names = column_getter() if column_getter else None
+        
+        # Выполняем батч INSERT
+        await clickhouse.insert(table_name, records, column_names)
+        
+        logger.info(
+            "Батч INSERT из Kafka: buffer=%s, table=%s, records=%s",
+            buffer_name, table_name, len(records)
+        )
 
     async def handle_user(self, user_data: Dict[str, Any]) -> None:
         """Обработать пользователя из Kafka"""
         try:
-            async with self._flush_lock:
-                self._buffers['users'].append([
-                    user_data['user_id'],
-                    user_data['username'],
-                    user_data.get('email', ''),
-                    user_data.get('age', 0),
-                    user_data.get('country', ''),
-                    self._parse_datetime(user_data.get('created_at')),
-                ])
-                
-                # Если буфер заполнен, запускаем flush
-                if len(self._buffers['users']) >= self.batch_size:
-                    asyncio.create_task(self._flush_buffer('users'))
-                    
+            await self._buffer.add('users', [
+                user_data['user_id'],
+                user_data['username'],
+                user_data.get('email', ''),
+                user_data.get('age', 0),
+                user_data.get('country', ''),
+                self._parse_datetime(user_data.get('created_at')),
+            ])
         except Exception as e:
             logger.error("Ошибка обработки пользователя: %s", e, extra={"user": user_data})
 
     async def handle_track(self, track_data: Dict[str, Any]) -> None:
         """Обработать трек из Kafka"""
         try:
-            async with self._flush_lock:
-                self._buffers['tracks'].append([
-                    track_data['track_id'],
-                    track_data['title'],
-                    track_data['artist'],
-                    track_data.get('album', ''),
-                    track_data.get('genre', ''),
-                    track_data.get('duration_seconds', 0),
-                    track_data.get('release_year', 0),
-                    self._parse_datetime(track_data.get('created_at')),
-                ])
-                
-                # Если буфер заполнен, запускаем flush
-                if len(self._buffers['tracks']) >= self.batch_size:
-                    asyncio.create_task(self._flush_buffer('tracks'))
-                    
+            await self._buffer.add('tracks', [
+                track_data['track_id'],
+                track_data['title'],
+                track_data['artist'],
+                track_data.get('album', ''),
+                track_data.get('genre', ''),
+                track_data.get('duration_seconds', 0),
+                track_data.get('release_year', 0),
+                self._parse_datetime(track_data.get('created_at')),
+            ])
         except Exception as e:
             logger.error("Ошибка обработки трека: %s", e, extra={"track": track_data})
 
     async def handle_event(self, event_data: Dict[str, Any]) -> None:
         """Обработать событие из Kafka"""
         try:
-            # Обновляем метрики в Redis (как было раньше)
+            # Обновляем метрики в Redis
             await self._update_analytics_metrics(event_data)
             
-            # Добавляем в буфер для записи в ClickHouse
-            async with self._flush_lock:
-                action_type = event_data.get('action_type')
-                # Преобразуем action_type в значение для ClickHouse
-                if isinstance(action_type, str):
-                    # Если это строка, используем как есть (уже значение Enum)
-                    action_value = action_type
-                elif hasattr(action_type, 'value'):
-                    # Если это Enum, берем значение
-                    action_value = action_type.value
-                else:
-                    action_value = str(action_type)
-                
-                self._buffers['events'].append([
-                    event_data['user_id'],
-                    event_data['track_id'],
-                    action_value,
-                    event_data.get('listen_duration_seconds'),
-                    self._parse_datetime(event_data.get('timestamp')),
-                ])
-                
-                # Если буфер заполнен, запускаем flush
-                if len(self._buffers['events']) >= self.batch_size:
-                    asyncio.create_task(self._flush_buffer('events'))
-                    
+            # Преобразуем action_type в значение для ClickHouse
+            action_type = event_data.get('action_type')
+            if isinstance(action_type, str):
+                action_value = action_type
+            elif hasattr(action_type, 'value'):
+                action_value = action_type.value
+            else:
+                action_value = str(action_type)
+            
+            await self._buffer.add('events', [
+                event_data['user_id'],
+                event_data['track_id'],
+                action_value,
+                event_data.get('listen_duration_seconds'),
+                self._parse_datetime(event_data.get('timestamp')),
+            ])
         except Exception as e:
             logger.error("Ошибка обработки события: %s", e, extra={"event": event_data})
 
-    async def _flush_buffer(self, buffer_name: str) -> None:
-        """Сбросить буфер в ClickHouse"""
-        async with self._flush_lock:
-            buffer = self._buffers[buffer_name]
-            if not buffer:
-                return
-            
-            records = list(buffer)
-            buffer.clear()
-        
-        if not records:
-            return
-        
-        try:
-            clickhouse = get_clickhouse_client()
-            
-            # Получаем реальное имя таблицы из маппинга
-            table_name = self.BUFFER_TO_TABLE.get(buffer_name, buffer_name)
-            
-            # Определяем column_names в зависимости от буфера
-            if buffer_name == 'users':
-                column_names = User.column_names()
-            elif buffer_name == 'tracks':
-                column_names = Track.column_names()
-            elif buffer_name == 'events':
-                column_names = UserTrackInteraction.column_names()
-            else:
-                column_names = None
-            
-            # Выполняем батч INSERT в правильную таблицу
-            await clickhouse.insert(table_name, records, column_names)
-            
-            logger.info(
-                "Батч INSERT выполнен из Kafka: buffer=%s, table=%s, records=%s",
-                buffer_name,
-                table_name,
-                len(records),
-            )
-        except Exception as e:
-            logger.error(
-                "Ошибка при flush буфера %s (table=%s): %s. Возвращаем записи в буфер.",
-                buffer_name,
-                table_name,
-                e,
-            )
-            # При ошибке возвращаем записи обратно в буфер
-            async with self._flush_lock:
-                self._buffers[buffer_name].extendleft(reversed(records))
-
-    async def _flush_all_buffers(self) -> None:
-        """Сбросить все буферы"""
-        for table in self._buffers.keys():
-            await self._flush_buffer(table)
-
     async def start_periodic_flush(self) -> None:
         """Запустить периодический flush"""
-        if self._running:
-            return
-        
-        self._running = True
-        
-        async def flush_loop():
-            while self._running:
-                try:
-                    await asyncio.sleep(self.flush_interval)
-                    await self._flush_all_buffers()
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error("Ошибка в цикле flush: %s", e)
-        
-        self._flush_task = asyncio.create_task(flush_loop())
-        logger.info(
-            "Запущен периодический flush для Kafka Consumer: interval=%.1fs, batch_size=%s",
-            self.flush_interval,
-            self.batch_size,
-        )
+        await self._buffer.start()
 
     async def stop_periodic_flush(self) -> None:
         """Остановить периодический flush и сбросить все буферы"""
-        self._running = False
-        
-        if self._flush_task:
-            self._flush_task.cancel()
-            try:
-                await self._flush_task
-            except asyncio.CancelledError:
-                pass
-        
-        # Сбрасываем все буферы перед остановкой
-        await self._flush_all_buffers()
-        logger.info("Периодический flush Kafka Consumer остановлен, все буферы сброшены")
+        await self._buffer.stop()
 
     def _parse_datetime(self, value: Any) -> datetime:
         """Парсинг datetime из различных форматов"""
@@ -239,7 +155,7 @@ class KafkaDataHandler:
         return datetime.now()
 
     async def _update_analytics_metrics(self, event_data: Dict[str, Any]) -> None:
-        """Обновить метрики аналитики в Redis (как в event_handler)"""
+        """Обновить метрики аналитики в Redis"""
         try:
             redis_client = get_redis_client()
             if not await redis_client.is_connected():
@@ -324,4 +240,3 @@ async def process_kafka_message(topic: str, message: Dict[str, Any]) -> None:
         await handler.handle_event(message)
     else:
         logger.warning("Неизвестный топик: %s", topic)
-
