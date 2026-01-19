@@ -14,6 +14,7 @@ from app.models.schemas import Track, TrackCreate, TrackStatistics
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache import invalidate_track_exists_cache
 from app.kafka.producer import send_track
+from app.utils.sql_sanitize import safe_string, safe_int
 
 logger = logging.getLogger(__name__)
 
@@ -243,12 +244,12 @@ async def list_tracks(
     clickhouse = get_clickhouse_client()
 
     try:
-        # Строим запрос с фильтрами
+        # Строим запрос с фильтрами (защита от SQL Injection)
         where_clauses = []
         if genre:
-            where_clauses.append(f"genre = '{genre}'")
+            where_clauses.append(f"genre = {safe_string(genre)}")
         if artist:
-            where_clauses.append(f"artist = '{artist}'")
+            where_clauses.append(f"artist = {safe_string(artist)}")
 
         where_sql = (
             f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""

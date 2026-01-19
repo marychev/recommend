@@ -91,7 +91,7 @@ async def process_event_async(event: UserTrackInteraction, clickhouse_client):
                 logger.error("Fallback INSERT в ClickHouse также не удался: %s", fallback_error)
 
 
-async def _get_user_track_interaction_bu_row(
+async def _get_user_track_interaction_by_row(
     row: tuple,
 ) -> UserTrackInteraction:
     return UserTrackInteraction(
@@ -247,7 +247,7 @@ async def get_user_events(user_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        return [_get_user_track_interaction_bu_row(r) for r in result]
+        return [_get_user_track_interaction_by_row(r) for r in result]
     except HTTPException:
         raise
     except Exception as e:
@@ -282,7 +282,7 @@ async def get_track_events(track_id: int, limit: int = 100, offset: int = 0):
             """
         )
 
-        return [_get_user_track_interaction_bu_row(r) for r in result]
+        return [_get_user_track_interaction_by_row(r) for r in result]
 
     except HTTPException:
         raise

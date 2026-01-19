@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import time
+import re
 from datetime import datetime
 from typing import Optional, Any, List, Dict
 from collections import deque
@@ -9,13 +10,28 @@ from aiohttp import ClientSession, ClientTimeout
 from fastapi import HTTPException, status
 from app.config import settings
 from app.models.schemas import UserTrackInteraction, Track, User
-from app.kafka.constants import DATA_HANDLER_BATCH_SIZE, DATA_HANDLER_FLUSH_INTERVAL 
+from app.kafka.constants import DATA_HANDLER_BATCH_SIZE, DATA_HANDLER_FLUSH_INTERVAL
+from app.utils.id_generator import get_next_id 
 
 logger = logging.getLogger(__name__)
 
 
 class ClickHouseClient:
     """Асинхронный клиент ClickHouse на базе aiochclient с батчингом"""
+
+    # Разрешенные имена таблиц и полей (защита от SQL Injection)
+    ALLOWED_TABLES = {'users', 'tracks', 'user_track_interactions', 'user_recommendations', 'user_track_matrix'}
+    ALLOWED_FIELDS = {'user_id', 'track_id', 'username', 'email', 'title', 'artist', 'genre'}
+
+    @staticmethod
+    def _validate_identifier(value: str, allowed: set[str], name: str = "identifier") -> str:
+        """Валидация SQL идентификатора (защита от SQL Injection)"""
+        if value in allowed:
+            return value
+        # Дополнительная проверка формата для безопасности
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', value):
+            raise ValueError(f"Invalid {name}: {value}")
+        return value
 
     def __init__(self):
         self.client: Optional[ChClient] = None
@@ -247,9 +263,17 @@ class ClickHouseClient:
         logger.info("Периодический flush остановлен, все буферы сброшены")
 
     async def exists_in_table(self, table: str, field: str, value: Any) -> bool:
+        """Проверка существования записи в таблице (защита от SQL Injection)"""
+        # Валидация идентификаторов
+        safe_table = self._validate_identifier(table, self.ALLOWED_TABLES, "table")
+        safe_field = self._validate_identifier(field, self.ALLOWED_FIELDS, "field")
+        
+        # value должен быть числом для ID полей
+        safe_value = int(value)
+        
         # Используем SELECT 1 LIMIT 1 вместо count() - намного быстрее
         check = await self.execute_raw(
-            f"SELECT 1 FROM {table} WHERE {field} = {value} LIMIT 1"
+            f"SELECT 1 FROM {safe_table} WHERE {safe_field} = {safe_value} LIMIT 1"
         )
         if not check or len(check) == 0:
             raise HTTPException(
@@ -288,28 +312,38 @@ class ClickHouseClient:
                 asyncio.create_task(self._flush_buffer('user_track_interactions'))
 
     async def next_id(self, table: str, field: str) -> int:
-        # Оптимизированная генерация ID: используем ORDER BY DESC LIMIT 1 вместо max()
-        # Это быстрее и использует меньше памяти на больших таблицах
-        try:
-            # Проверяем подключение перед запросом
-            if not self.client:
-                try:
-                    await self._ensure_connected()
-                except Exception as conn_error:
-                    # Если не можем подключиться, используем временный ID на основе timestamp
-                    logger.warning("Не удалось подключиться к ClickHouse для генерации ID: %s. Используем временный ID", conn_error)
-                    return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
-            
-            result = await self.execute_raw(
-                f"SELECT {field} FROM {table} ORDER BY {field} DESC LIMIT 1"
-            )
-            max_id = result[0][0] if result and result[0][0] else 0
-        except Exception as e:
-            # Если ошибка (например, таблица пуста, нет подключения или проблема с памятью), используем временный ID
-            logger.warning("Ошибка при генерации ID для %s.%s: %s. Используем временный ID", table, field, e)
-            return int(time.time() * 1000) % 1000000  # Временный ID на основе timestamp
+        """
+        Генерация следующего уникального ID для таблицы.
         
-        return (max_id or 0) + 1
+        Использует атомарный Redis INCR для гарантии уникальности ID 
+        даже при параллельных запросах (решает race condition).
+        
+        При недоступности Redis использует fallback на max(id) из БД.
+        
+        Args:
+            table: Имя таблицы (users, tracks, etc.)
+            field: Имя поля ID (user_id, track_id, etc.)
+            
+        Returns:
+            Уникальный ID (int)
+        """
+        # Валидация идентификаторов (защита от SQL Injection)
+        safe_table = self._validate_identifier(table, self.ALLOWED_TABLES, "table")
+        safe_field = self._validate_identifier(field, self.ALLOWED_FIELDS, "field")
+        
+        # Получаем текущий max_id из БД для инициализации/fallback
+        fallback_max_id = None
+        try:
+            if self.client:
+                result = await self.execute_raw(
+                    f"SELECT {safe_field} FROM {safe_table} ORDER BY {safe_field} DESC LIMIT 1"
+                )
+                fallback_max_id = result[0][0] if result and result[0][0] else 0
+        except Exception as e:
+            logger.debug("Не удалось получить max_id из БД: %s", e)
+        
+        # Используем атомарный генератор ID (Redis INCR)
+        return await get_next_id(table, field, fallback_max_id)
     
     async def save_track(self, track: Track) -> int:
         """Сохраняем трек в ClickHouse (с батчингом)"""

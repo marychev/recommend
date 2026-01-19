@@ -29,6 +29,14 @@ logger = logging.getLogger(__name__)
 
 class KafkaDataHandler:
     """Обработчик данных из Kafka с батчингом для ClickHouse"""
+    
+    # Маппинг имен буферов на реальные имена таблиц в ClickHouse
+    BUFFER_TO_TABLE = {
+        'users': 'users',
+        'tracks': 'tracks',
+        'events': 'user_track_interactions',  # Буфер 'events' → таблица 'user_track_interactions'
+    }
+    
     def __init__(self, batch_size: int = DATA_HANDLER_BATCH_SIZE, flush_interval: float = DATA_HANDLER_FLUSH_INTERVAL):
         """
         Args:
@@ -124,10 +132,10 @@ class KafkaDataHandler:
         except Exception as e:
             logger.error("Ошибка обработки события: %s", e, extra={"event": event_data})
 
-    async def _flush_buffer(self, table: str) -> None:
+    async def _flush_buffer(self, buffer_name: str) -> None:
         """Сбросить буфер в ClickHouse"""
         async with self._flush_lock:
-            buffer = self._buffers[table]
+            buffer = self._buffers[buffer_name]
             if not buffer:
                 return
             
@@ -140,33 +148,38 @@ class KafkaDataHandler:
         try:
             clickhouse = get_clickhouse_client()
             
-            # Определяем column_names в зависимости от таблицы
-            if table == 'users':
+            # Получаем реальное имя таблицы из маппинга
+            table_name = self.BUFFER_TO_TABLE.get(buffer_name, buffer_name)
+            
+            # Определяем column_names в зависимости от буфера
+            if buffer_name == 'users':
                 column_names = User.column_names()
-            elif table == 'tracks':
+            elif buffer_name == 'tracks':
                 column_names = Track.column_names()
-            elif table == 'events':
+            elif buffer_name == 'events':
                 column_names = UserTrackInteraction.column_names()
             else:
                 column_names = None
             
-            # Выполняем батч INSERT
-            await clickhouse.insert(table, records, column_names)
+            # Выполняем батч INSERT в правильную таблицу
+            await clickhouse.insert(table_name, records, column_names)
             
             logger.info(
-                "Батч INSERT выполнен из Kafka: table=%s, records=%s",
-                table,
+                "Батч INSERT выполнен из Kafka: buffer=%s, table=%s, records=%s",
+                buffer_name,
+                table_name,
                 len(records),
             )
         except Exception as e:
             logger.error(
-                "Ошибка при flush буфера %s: %s. Возвращаем записи в буфер.",
-                table,
+                "Ошибка при flush буфера %s (table=%s): %s. Возвращаем записи в буфер.",
+                buffer_name,
+                table_name,
                 e,
             )
             # При ошибке возвращаем записи обратно в буфер
             async with self._flush_lock:
-                self._buffers[table].extendleft(reversed(records))
+                self._buffers[buffer_name].extendleft(reversed(records))
 
     async def _flush_all_buffers(self) -> None:
         """Сбросить все буферы"""

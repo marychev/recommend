@@ -87,6 +87,37 @@ class RedisClient:
             return await self.redis.keys(pattern)
         return []
 
+    async def incr(self, key: str) -> Optional[int]:
+        """
+        Атомарный инкремент счетчика.
+        
+        Используется для генерации уникальных ID без race condition.
+        
+        Args:
+            key: Ключ счетчика
+            
+        Returns:
+            Новое значение счетчика или None если Redis недоступен
+        """
+        if self.redis:
+            return await self.redis.incr(key)
+        return None
+
+    async def setnx(self, key: str, value: str) -> bool:
+        """
+        Установить значение только если ключ не существует (атомарно).
+        
+        Args:
+            key: Ключ
+            value: Значение
+            
+        Returns:
+            True если значение установлено, False если ключ уже существовал
+        """
+        if self.redis:
+            return await self.redis.setnx(key, value)
+        return False
+
 
 # Глобальный экземпляр клиента
 redis_client = RedisClient()
