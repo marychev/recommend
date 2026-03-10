@@ -28,6 +28,7 @@
 - **[GIT_SETUP.md](GIT_SETUP.md)** - Настройка Git
 - **[POST_OPTIMIZATION_BEST_PRACTICES.md](POST_OPTIMIZATION_BEST_PRACTICES.md)** - Оптимизация POST запросов
 - **[SYSTEM_SPECIFICATIONS.md](SYSTEM_SPECIFICATIONS.md)** - Спецификации системы
+- **[WSL_SWAP.md](WSL_SWAP.md)** - Отключение подкачки (swap) в WSL
 
 ## Структура документации
 
