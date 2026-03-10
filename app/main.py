@@ -22,12 +22,15 @@ async def root() -> dict:
 
 
 # Подключение роутеров (префиксы и теги уже определены в самих роутерах)
-app.include_router(health.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
-app.include_router(tracks.router, prefix="/api/v1")
-app.include_router(events.router, prefix="/api/v1")
-app.include_router(recommendations.router, prefix="/api/v1")
-app.include_router(cache_debug.router, prefix="/api/v1")
+for router in [
+    health.router,
+    users.router,
+    tracks.router,
+    events.router,
+    recommendations.router,
+    cache_debug.router,
+]:
+    app.include_router(router, prefix=settings.api_prefix)
 
 
 if __name__ == "__main__":

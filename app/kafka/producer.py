@@ -40,24 +40,12 @@ def serialize_event(event: Dict[str, Any]) -> bytes:
     return json.dumps(serializable_event, ensure_ascii=False).encode("utf-8")
 
 
-def _get_message_and_key(event: Dict[str, Any]) -> tuple[bytes, bytes]:
-    """Используем user_id как ключ для партиционирования"""
-    message = serialize_event(event)
-    key = str(event.get("user_id", "")).encode("utf-8")
-    return message, key
-
-
-def _get_message_and_key_for_user(user: Dict[str, Any]) -> tuple[bytes, bytes]:
-    """Используем user_id как ключ для партиционирования"""
-    message = serialize_event(user)
-    key = str(user.get("user_id", "")).encode("utf-8")
-    return message, key
-
-
-def _get_message_and_key_for_track(track: Dict[str, Any]) -> tuple[bytes, bytes]:
-    """Используем track_id как ключ для партиционирования"""
-    message = serialize_event(track)
-    key = str(track.get("track_id", "")).encode("utf-8")
+def _get_message_and_key(
+    data: Dict[str, Any], key_field: str = "user_id"
+) -> tuple[bytes, bytes]:
+    """Сериализовать данные и извлечь ключ для партиционирования Kafka"""
+    message = serialize_event(data)
+    key = str(data.get(key_field, "")).encode("utf-8")
     return message, key
 
 
@@ -185,7 +173,7 @@ async def send_user(user: Dict[str, Any]) -> bool:
     """
     try:
         producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_QUICK)
-        message, key = _get_message_and_key_for_user(user)
+        message, key = _get_message_and_key(user, key_field="user_id")
 
         await producer.send(
             settings.kafka_topic_users, value=message, key=key
@@ -233,7 +221,7 @@ async def send_track(track: Dict[str, Any]) -> bool:
     """
     try:
         producer = await get_kafka_producer(start_timeout=PRODUCER_START_TIMEOUT_QUICK)
-        message, key = _get_message_and_key_for_track(track)
+        message, key = _get_message_and_key(track, key_field="track_id")
 
         await producer.send(
             settings.kafka_topic_tracks, value=message, key=key

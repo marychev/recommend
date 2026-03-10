@@ -16,6 +16,10 @@ from app.models.schemas.action_type import ActionType
 
 logger = logging.getLogger(__name__)
 
+# TTL для аналитических метрик в Redis
+ANALYTICS_TTL_7_DAYS = 86400 * 7
+ANALYTICS_TTL_30_DAYS = 86400 * 30
+
 
 async def process_event_handler(event: Dict[str, Any]) -> None:
     """
@@ -41,7 +45,6 @@ async def process_event_handler(event: Dict[str, Any]) -> None:
             logger.warning("Неполное событие: %s", event)
             return
 
-        # Обновляем счетчики в Redis для аналитики
         await update_analytics_metrics(
             redis_client, int(user_id), int(track_id), action_type
         )
@@ -60,7 +63,6 @@ async def process_event_handler(event: Dict[str, Any]) -> None:
             extra={"event": event},
             exc_info=True,
         )
-        # Не пробрасываем исключение, чтобы не прерывать обработку других событий
 
 
 async def update_analytics_metrics(
@@ -89,31 +91,31 @@ async def update_analytics_metrics(
         # Счетчики по типам действий (глобальные)
         action_key = f"analytics:action:{action_type}:count"
         await redis.incr(action_key)
-        await redis.expire(action_key, 86400 * 7)  # TTL 7 дней
+        await redis.expire(action_key, ANALYTICS_TTL_7_DAYS)
 
         # Популярность треков (счетчик проигрываний)
         if action_type == ActionType.PLAY.value:
             track_plays_key = f"analytics:track:{track_id}:plays"
             await redis.incr(track_plays_key)
-            await redis.expire(track_plays_key, 86400 * 30)  # TTL 30 дней
+            await redis.expire(track_plays_key, ANALYTICS_TTL_30_DAYS)
 
         # Лайки треков
         if action_type == ActionType.LIKE.value:
             track_likes_key = f"analytics:track:{track_id}:likes"
             await redis.incr(track_likes_key)
-            await redis.expire(track_likes_key, 86400 * 30)  # TTL 30 дней
+            await redis.expire(track_likes_key, ANALYTICS_TTL_30_DAYS)
 
         # Активность пользователя
         user_activity_key = f"analytics:user:{user_id}:activity"
         await redis.incr(user_activity_key)
-        await redis.expire(user_activity_key, 86400 * 7)  # TTL 7 дней
+        await redis.expire(user_activity_key, ANALYTICS_TTL_7_DAYS)
 
         # Последняя активность пользователя
         user_last_activity_key = f"analytics:user:{user_id}:last_activity"
         await redis.set(
             user_last_activity_key,
             datetime.now().isoformat(),
-            ex=86400 * 7,  # TTL 7 дней
+            ex=ANALYTICS_TTL_7_DAYS,
         )
 
     except Exception as e:
@@ -126,4 +128,3 @@ async def update_analytics_metrics(
                 "action_type": action_type,
             },
         )
-        # Не пробрасываем исключение, чтобы не прерывать обработку

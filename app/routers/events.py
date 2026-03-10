@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Union
+from typing import List
 import asyncio
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from app.services.event_queue import get_event_queue
@@ -8,14 +8,15 @@ from app.kafka.producer import send_event
 from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
 from app.models.schemas.action_type import ActionType
 from app.db.clickhouse import get_clickhouse_client
+from app.config import settings
 from app.services.cache import (
     invalidate_cached_user_recommendations,
     exists_user_cached,
     exists_track_cached,
 )
-from app.utils.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/events",
@@ -81,7 +82,7 @@ async def process_event_async(event: UserTrackInteraction, clickhouse_client):
             logger.warning("Fallback отправка в Kafka не удалась: %s. Используем прямой INSERT в ClickHouse.", kafka_error)
             # Fallback 2: прямой INSERT в ClickHouse (как в users/tracks)
             try:
-                await clickhouse_client.save_event_buffered(event, event.timestamp)
+                await clickhouse_client.save_event(event, event.timestamp)
                 logger.debug(
                     "Событие сохранено в ClickHouse через fallback: user=%s, track=%s",
                     event.user_id,
@@ -91,7 +92,7 @@ async def process_event_async(event: UserTrackInteraction, clickhouse_client):
                 logger.error("Fallback INSERT в ClickHouse также не удался: %s", fallback_error)
 
 
-async def _get_user_track_interaction_by_row(
+def _get_user_track_interaction_by_row(
     row: tuple,
 ) -> UserTrackInteraction:
     return UserTrackInteraction(
@@ -142,7 +143,7 @@ async def create_event(
                     exists_track_cached(event.track_id, clickhouse),
                     return_exceptions=True,
                 ),
-                timeout=5.0  # Таймаут 5 секунд для проверок существования
+                timeout=settings.exists_check_timeout
             )
         except asyncio.TimeoutError:
             # Если проверка заняла слишком долго, логируем предупреждение и продолжаем

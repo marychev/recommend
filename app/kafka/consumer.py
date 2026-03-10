@@ -132,28 +132,5 @@ async def start_background_consumer(
         asyncio.Task: Задача consumer
     """
     task = asyncio.create_task(consume_events(handler, None, None))
-    logger.info("🚀 Background Kafka consumer запущен")
+    logger.info("Background Kafka consumer запущен")
     return task
-
-
-# Пример обработчика событий
-async def example_event_handler(event: Dict[str, Any]):
-    """
-    Пример обработчика события
-
-    В реальности здесь может быть:
-    - Обновление материализованных представлений
-    - Расчет метрик в реальном времени
-    - Отправка нотификаций
-    - Обучение ML модели
-    """
-    logger.info(
-        "Обработка события: user_id=%s, track_id=%s, action=%s",
-        event.get("user_id"),
-        event.get("track_id"),
-        event.get("action_type"),
-    )
-
-    # Здесь ваша бизнес-логика
-    # Например, обновление кэша рекомендаций
-    # или расчет real-time метрик

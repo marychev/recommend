@@ -6,9 +6,9 @@ from typing import Optional
 import redis.asyncio as redis
 
 from app.config import settings
-from app.utils.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class RedisClient:

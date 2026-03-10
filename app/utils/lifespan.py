@@ -13,9 +13,9 @@ from app.services.cache_redis_client import connect_redis, shutdown_redis
 from app.services.event_queue import start_event_queue, stop_event_queue
 from app.kafka.client import close_kafka_producer, connect_kafka
 from app.kafka.multi_consumer import start_multi_consumer, stop_multi_consumer
-from app.utils.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

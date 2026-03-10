@@ -1,9 +1,6 @@
 import logging
-import asyncio
-import time
-import re
 from datetime import datetime
-from typing import Optional, Any, List, Dict
+from typing import Optional, Any, List
 from aiochclient import ChClient
 from aiohttp import ClientSession, ClientTimeout
 from fastapi import HTTPException, status
@@ -11,7 +8,8 @@ from app.config import settings
 from app.models.schemas import UserTrackInteraction, Track, User
 from app.kafka.constants import DATA_HANDLER_BATCH_SIZE, DATA_HANDLER_FLUSH_INTERVAL
 from app.utils.id_generator import get_next_id
-from app.utils.batch_buffer import BatchBuffer 
+from app.utils.sql_sanitize import safe_identifier
+from app.utils.batch_buffer import BatchBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +23,11 @@ class ClickHouseClient:
 
     @staticmethod
     def _validate_identifier(value: str, allowed: set[str], name: str = "identifier") -> str:
-        """Валидация SQL идентификатора (защита от SQL Injection)"""
+        """Валидация SQL идентификатора (защита от SQL Injection).
+        Использует whitelist + safe_identifier из sql_sanitize как fallback."""
         if value in allowed:
             return value
-        # Дополнительная проверка формата для безопасности
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', value):
-            raise ValueError(f"Invalid {name}: {value}")
-        return value
+        return safe_identifier(value)
 
     # Маппинг таблиц на column_names для INSERT
     TABLE_TO_COLUMNS = {
@@ -230,12 +226,6 @@ class ClickHouseClient:
     async def save_event(
         self, event: UserTrackInteraction, timestamp: datetime
     ) -> None:
-        """Сохраняем событие в ClickHouse (с батчингом)"""
-        await self.save_event_buffered(event, timestamp)
-
-    async def save_event_buffered(
-        self, event: UserTrackInteraction, timestamp: datetime
-    ) -> None:
         """Сохраняем событие в буфер для батчинга"""
         await self._buffer.add('user_track_interactions', [
             event.user_id,
@@ -279,11 +269,7 @@ class ClickHouseClient:
         # Используем атомарный генератор ID (Redis INCR)
         return await get_next_id(table, field, fallback_max_id)
     
-    async def save_track(self, track: Track) -> int:
-        """Сохраняем трек в ClickHouse (с батчингом)"""
-        return await self.save_track_buffered(track)
-
-    async def save_track_buffered(self, track: Track, track_id: Optional[int] = None) -> int:
+    async def save_track(self, track: Track, track_id: Optional[int] = None) -> int:
         """Сохраняем трек в буфер для батчинга, возвращаем ID сразу"""
         # Если ID уже передан (например, из create_track), используем его
         # Иначе генерируем новый ID
@@ -308,11 +294,7 @@ class ClickHouseClient:
         
         return new_id
 
-    async def save_user(self, user: User) -> int:
-        """Сохраняем пользователя в ClickHouse (с батчингом)"""
-        return await self.save_user_buffered(user)
-
-    async def save_user_buffered(self, user: User, user_id: Optional[int] = None) -> int:
+    async def save_user(self, user: User, user_id: Optional[int] = None) -> int:
         """Сохраняем пользователя в буфер для батчинга, возвращаем ID сразу"""
         # Если ID уже передан (например, из create_user), используем его
         # Иначе генерируем новый ID

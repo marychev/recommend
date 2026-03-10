@@ -17,7 +17,7 @@ from datetime import datetime
 from app.db.clickhouse import get_clickhouse_client
 from app.models.schemas import User, Track, UserTrackInteraction
 from app.services.cache_redis_client import get_redis_client
-from app.models.schemas.action_type import ActionType
+from app.kafka.event_handler import update_analytics_metrics
 from app.utils.batch_buffer import BatchBuffer
 from app.kafka.constants import (
     DATA_HANDLER_BATCH_SIZE,
@@ -29,28 +29,27 @@ logger = logging.getLogger(__name__)
 
 class KafkaDataHandler:
     """Обработчик данных из Kafka с батчингом для ClickHouse"""
-    
+
     # Маппинг имен буферов на реальные имена таблиц в ClickHouse
     BUFFER_TO_TABLE = {
         'users': 'users',
         'tracks': 'tracks',
         'events': 'user_track_interactions',
     }
-    
+
     # Маппинг буферов на column_names для INSERT
     BUFFER_TO_COLUMNS = {
         'users': User.column_names,
         'tracks': Track.column_names,
         'events': UserTrackInteraction.column_names,
     }
-    
+
     def __init__(self, batch_size: int = DATA_HANDLER_BATCH_SIZE, flush_interval: float = DATA_HANDLER_FLUSH_INTERVAL):
         """
         Args:
             batch_size: Размер батча для записи в ClickHouse
             flush_interval: Интервал автоматического flush в секундах
         """
-        # Используем переиспользуемый BatchBuffer
         self._buffer = BatchBuffer(
             tables=['users', 'tracks', 'events'],
             batch_size=batch_size,
@@ -62,17 +61,14 @@ class KafkaDataHandler:
     async def _flush_to_clickhouse(self, buffer_name: str, records: List[List[Any]]) -> None:
         """Callback для записи данных в ClickHouse."""
         clickhouse = get_clickhouse_client()
-        
-        # Получаем реальное имя таблицы
+
         table_name = self.BUFFER_TO_TABLE.get(buffer_name, buffer_name)
-        
-        # Получаем column_names
+
         column_getter = self.BUFFER_TO_COLUMNS.get(buffer_name)
         column_names = column_getter() if column_getter else None
-        
-        # Выполняем батч INSERT
+
         await clickhouse.insert(table_name, records, column_names)
-        
+
         logger.info(
             "Батч INSERT из Kafka: buffer=%s, table=%s, records=%s",
             buffer_name, table_name, len(records)
@@ -111,18 +107,25 @@ class KafkaDataHandler:
     async def handle_event(self, event_data: Dict[str, Any]) -> None:
         """Обработать событие из Kafka"""
         try:
-            # Обновляем метрики в Redis
-            await self._update_analytics_metrics(event_data)
-            
+            # Обновляем метрики в Redis (единая реализация из event_handler)
+            redis_client = get_redis_client()
+            user_id = event_data.get("user_id")
+            track_id = event_data.get("track_id")
+            action_type = event_data.get("action_type")
+
+            if all([user_id, track_id, action_type]):
+                await update_analytics_metrics(
+                    redis_client, int(user_id), int(track_id), str(action_type)
+                )
+
             # Преобразуем action_type в значение для ClickHouse
-            action_type = event_data.get('action_type')
             if isinstance(action_type, str):
                 action_value = action_type
             elif hasattr(action_type, 'value'):
                 action_value = action_type.value
             else:
                 action_value = str(action_type)
-            
+
             await self._buffer.add('events', [
                 event_data['user_id'],
                 event_data['track_id'],
@@ -154,58 +157,6 @@ class KafkaDataHandler:
                 return datetime.now()
         return datetime.now()
 
-    async def _update_analytics_metrics(self, event_data: Dict[str, Any]) -> None:
-        """Обновить метрики аналитики в Redis"""
-        try:
-            redis_client = get_redis_client()
-            if not await redis_client.is_connected():
-                return
-
-            user_id = event_data.get("user_id")
-            track_id = event_data.get("track_id")
-            action_type = event_data.get("action_type")
-
-            if not all([user_id, track_id, action_type]):
-                return
-
-            if redis_client.redis is None:
-                return
-
-            redis = redis_client.redis
-
-            # Счетчики по типам действий
-            action_key = f"analytics:action:{action_type}:count"
-            await redis.incr(action_key)
-            await redis.expire(action_key, 86400 * 7)
-
-            # Популярность треков
-            if action_type == ActionType.PLAY.value:
-                track_plays_key = f"analytics:track:{track_id}:plays"
-                await redis.incr(track_plays_key)
-                await redis.expire(track_plays_key, 86400 * 30)
-
-            # Лайки треков
-            if action_type == ActionType.LIKE.value:
-                track_likes_key = f"analytics:track:{track_id}:likes"
-                await redis.incr(track_likes_key)
-                await redis.expire(track_likes_key, 86400 * 30)
-
-            # Активность пользователя
-            user_activity_key = f"analytics:user:{user_id}:activity"
-            await redis.incr(user_activity_key)
-            await redis.expire(user_activity_key, 86400 * 7)
-
-            # Последняя активность
-            user_last_activity_key = f"analytics:user:{user_id}:last_activity"
-            await redis.set(
-                user_last_activity_key,
-                datetime.now().isoformat(),
-                ex=86400 * 7,
-            )
-
-        except Exception as e:
-            logger.error("Ошибка обновления метрик: %s", e)
-
 
 # Глобальный обработчик
 _data_handler: Optional[KafkaDataHandler] = None
@@ -225,13 +176,13 @@ def get_data_handler() -> KafkaDataHandler:
 async def process_kafka_message(topic: str, message: Dict[str, Any]) -> None:
     """
     Универсальный обработчик сообщений из Kafka
-    
+
     Args:
         topic: Название топика (users, tracks, user_track_events)
         message: Десериализованное сообщение
     """
     handler = get_data_handler()
-    
+
     if topic == "users":
         await handler.handle_user(message)
     elif topic == "tracks":

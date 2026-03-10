@@ -5,7 +5,7 @@ from .user_track_interaction import (
     UserTrackInteraction,
     UserTrackInteractionCreate,
 )
-from .recommenation import (
+from .recommendation import (
     RecommendationRequest,
     RecommendationResponse,
     RecommendedTrack,

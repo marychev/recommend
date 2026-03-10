@@ -5,9 +5,9 @@ from app.models.schemas import HealthCheckResponse
 from app.db.clickhouse import get_clickhouse_client
 from app.services.cache_redis_client import get_redis_client
 from app.kafka.client import check_kafka_health
-from app.utils.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/health",

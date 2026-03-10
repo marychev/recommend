@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 import logging
 from fastapi import (
     APIRouter,
@@ -88,7 +88,7 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
                         release_year=track.release_year,
                         created_at=created_at,
                     )
-                    await clickhouse.save_track_buffered(track_model, new_id)
+                    await clickhouse.save_track(track_model, new_id)
             except Exception as e:
                 # Fallback: если ошибка при отправке в Kafka, пишем напрямую в ClickHouse
                 logger.warning("Ошибка отправки в Kafka, используем fallback: %s", e)
@@ -103,7 +103,7 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
                         release_year=track.release_year,
                         created_at=created_at,
                     )
-                    await clickhouse.save_track_buffered(track_model, new_id)
+                    await clickhouse.save_track(track_model, new_id)
                 except Exception as fallback_error:
                     logger.error("Ошибка fallback INSERT в ClickHouse: %s", fallback_error)
         
@@ -130,7 +130,7 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
         )
 
 
-def _get_track_by_row(row: Union[tuple, dict]) -> Track:
+def _get_track_by_row(row: tuple) -> Track:
     return Track(
         track_id=row[0],
         title=row[1],

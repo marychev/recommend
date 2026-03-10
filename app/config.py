@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Cache settings
     recommendations_cache_ttl: int = 3600  # 1 час по умолчанию
 
+    # API settings
+    api_prefix: str = "/api/v1"
+
+    # Таймаут проверки существования user/track при создании событий
+    exists_check_timeout: float = 5.0
+
     model_config = ConfigDict(env_file=".env", case_sensitive=False)
 
 

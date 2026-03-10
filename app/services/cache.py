@@ -24,17 +24,7 @@ def get_cache_recommendations_ttl() -> int:
 
 
 def get_cache_key_recommendations(user_id: int, top_n: int, exclude_listened: bool) -> str:
-    """
-    Создать ключ для кэша рекомендаций
-
-    Args:
-        user_id: ID пользователя
-        top_n: Количество рекомендаций
-        exclude_listened: Исключить прослушанные треки
-
-    Returns:
-        str: Ключ для Redis
-    """
+    """Создать ключ для кэша рекомендаций"""
     return (
         f"recommendations:user:{user_id}:"
         f"top_n:{top_n}:exclude:{exclude_listened}"
@@ -44,17 +34,7 @@ def get_cache_key_recommendations(user_id: int, top_n: int, exclude_listened: bo
 async def get_cached_recommendations(
     user_id: int, top_n: int = 10, exclude_listened: bool = True
 ) -> Any:
-    """
-    Получить рекомендации из кэша
-
-    Args:
-        user_id: ID пользователя
-        top_n: Количество рекомендаций
-        exclude_listened: Исключить прослушанные
-
-    Returns:
-        dict | None: Рекомендации или None если не в кэше
-    """
+    """Получить рекомендации из кэша"""
     try:
         redis = get_redis_client()
         if not await redis.is_connected():
@@ -66,12 +46,11 @@ async def get_cached_recommendations(
 
         if cached_data:
             logger.info(
-                "✅ Cache HIT for user_id=%s, top_n=%s, exclude_listened=%s",
+                "Cache HIT for user_id=%s, top_n=%s, exclude_listened=%s",
                 user_id, top_n, exclude_listened
             )
             data = json.loads(cached_data)
 
-            # Конвертируем ISO строки обратно в datetime
             if "generated_at" in data:
                 data["generated_at"] = datetime.fromisoformat(
                     data["generated_at"]
@@ -86,7 +65,7 @@ async def get_cached_recommendations(
             return data
 
         logger.info(
-            "❌ Cache MISS for user_id=%s, top_n=%s, exclude_listened=%s",
+            "Cache MISS for user_id=%s, top_n=%s, exclude_listened=%s",
             user_id, top_n, exclude_listened
         )
     except Exception as e:
@@ -100,23 +79,11 @@ async def set_cached_recommendations(
     recommendations: Dict[str, Any],
     ttl: Optional[int] = None,
 ) -> bool:
-    """
-    Сохранить рекомендации в кэш
-
-    Args:
-        user_id: ID пользователя
-        top_n: Количество рекомендаций
-        exclude_listened: Исключить прослушанные
-        recommendations: Данные рекомендаций
-        ttl: Время жизни кэша в секундах (если None, используется из настроек)
-
-    Returns:
-        bool: True если успешно закэшировано
-    """
+    """Сохранить рекомендации в кэш"""
     try:
         if ttl is None:
             ttl = get_cache_recommendations_ttl()
-        
+
         redis = get_redis_client()
         if not await redis.is_connected():
             logger.warning("Redis not connected, skipping cache")
@@ -124,10 +91,8 @@ async def set_cached_recommendations(
 
         cache_key = get_cache_key_recommendations(user_id, top_n, exclude_listened)
 
-        # Создаем копию для сериализации
         cache_data = recommendations.copy()
 
-        # Конвертируем datetime в ISO строки
         if "generated_at" in cache_data:
             cache_data["generated_at"] = cache_data["generated_at"].isoformat()
 
@@ -141,7 +106,7 @@ async def set_cached_recommendations(
         await redis.set(cache_key, cache_value, ex=ttl)
 
         logger.info(
-            "💾 Cached recommendations for user_id=%s, top_n=%s, exclude_listened=%s (TTL=%s sec)",
+            "Cached recommendations for user_id=%s, top_n=%s, exclude_listened=%s (TTL=%s sec)",
             user_id, top_n, exclude_listened, ttl
         )
 
@@ -153,31 +118,19 @@ async def set_cached_recommendations(
 
 
 async def invalidate_cached_user_recommendations(user_id: int) -> bool:
-    """
-    Инвалидировать все кэшированные рекомендации для пользователя
-
-    Используется когда пользователь выполняет новые действия
-    (слушает треки, ставит лайки и т.д.)
-
-    Args:
-        user_id: ID пользователя
-
-    Returns:
-        bool: True если успешно инвалидировано
-    """
+    """Инвалидировать все кэшированные рекомендации для пользователя"""
     try:
         redis = get_redis_client()
         if not await redis.is_connected():
             return False
 
-        # Ищем все ключи для этого пользователя
         pattern = f"recommendations:user:{user_id}:*"
         keys = await redis.keys(pattern)
 
         if keys:
             await redis.delete(*keys)
             logger.info(
-                "🗑️ Invalidated %s cached recommendations for user_id=%s (keys: %s)",
+                "Invalidated %s cached recommendations for user_id=%s (keys: %s)",
                 len(keys),
                 user_id,
                 ", ".join(keys[:5]) + ("..." if len(keys) > 5 else "")
@@ -191,18 +144,12 @@ async def invalidate_cached_user_recommendations(user_id: int) -> bool:
 
 
 async def get_cache_stats() -> Dict[str, Any]:
-    """
-    Получить статистику кэша рекомендаций
-
-    Returns:
-        dict: Статистика кэша
-    """
+    """Получить статистику кэша рекомендаций"""
     try:
         redis = get_redis_client()
         if not await redis.is_connected():
             return {"status": "disconnected"}
 
-        # Подсчитываем количество закэшированных рекомендаций
         pattern = "recommendations:user:*"
         keys = await redis.keys(pattern)
 
@@ -219,194 +166,121 @@ async def get_cache_stats() -> Dict[str, Any]:
 
 # ════════════════════════════════════════════════════════
 # Кэширование проверок существования (exists_user/exists_track)
+# Обобщённая реализация вместо дублирования для user/track
 # ════════════════════════════════════════════════════════
 
 
-def _get_user_exists_cache_key(user_id: int) -> str:
-    return f"exists:user:{user_id}"
+def _get_exists_cache_key(entity_type: str, entity_id: int) -> str:
+    return f"exists:{entity_type}:{entity_id}"
 
 
-def _get_track_exists_cache_key(track_id: int) -> str:
-    return f"exists:track:{track_id}"
+async def _exists_entity_cached(
+    entity_type: str,
+    entity_id: int,
+    check_fn,
+    not_found_detail: str,
+) -> bool:
+    """
+    Обобщённая проверка существования сущности с кэшированием в Redis.
+
+    Args:
+        entity_type: Тип сущности ("user" или "track")
+        entity_id: ID сущности
+        check_fn: Async функция проверки в БД (вызывается без аргументов)
+        not_found_detail: Текст ошибки 404
+    """
+    redis = get_redis_client()
+
+    try:
+        # Пытаемся получить из кэша
+        try:
+            cache_key = _get_exists_cache_key(entity_type, entity_id)
+            cached = await redis.get(cache_key)
+
+            if cached is not None:
+                if cached == "1":
+                    logger.debug("Cache hit: %s_id=%s exists", entity_type, entity_id)
+                    return True
+                else:
+                    logger.debug("Cache hit: %s_id=%s does not exist", entity_type, entity_id)
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=not_found_detail,
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
+        # Кэш промах — проверяем в БД
+        logger.debug("Cache miss: checking %s_id=%s in DB", entity_type, entity_id)
+        result = await check_fn()
+
+        # Сохраняем в кэш
+        try:
+            cache_key = _get_exists_cache_key(entity_type, entity_id)
+            await redis.set(cache_key, "1", ex=EXISTS_CACHE_TTL)
+            logger.debug("Cached %s_id=%s exists=True", entity_type, entity_id)
+        except Exception:
+            pass
+
+        return result
+
+    except HTTPException:
+        # Не найден — кэшируем отрицательный результат
+        try:
+            cache_key = _get_exists_cache_key(entity_type, entity_id)
+            await redis.set(cache_key, "0", ex=EXISTS_CACHE_TTL)
+            logger.debug("Cached %s_id=%s exists=False", entity_type, entity_id)
+        except Exception:
+            pass
+        raise
+    except Exception as e:
+        logger.warning("Cache error for %s_id=%s, falling back to DB: %s", entity_type, entity_id, e)
+        return await check_fn()
 
 
 async def exists_user_cached(user_id: int, clickhouse_client) -> bool:
-    """
-    Проверить существование пользователя с кэшированием в Redis
-    
-    Args:
-        user_id: ID пользователя
-        clickhouse_client: Клиент ClickHouse
-    
-    Returns:
-        bool: True если пользователь существует, иначе выбрасывает HTTPException
-    """
-    try:
-        redis = get_redis_client()
-        
-        # Пытаемся получить из кэша (если Redis доступен)
-        try:
-            cache_key = _get_user_exists_cache_key(user_id)
-            cached = await redis.get(cache_key)
-            
-            if cached is not None:
-                # "1" = существует, "0" = не существует
-                if cached == "1":
-                    logger.debug("Cache hit: user_id=%s exists", user_id)
-                    return True
-                else:
-                    # Не существует - выбрасываем исключение
-                    logger.debug("Cache hit: user_id=%s does not exist", user_id)
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Пользователь с ID {user_id} не найден",
-                    )
-        except Exception:
-            # Redis недоступен или ошибка - продолжаем без кэша
-            pass
-        
-        # Кэш промах или Redis недоступен - проверяем в БД
-        logger.debug("Cache miss: checking user_id=%s in DB", user_id)
-        result = await clickhouse_client.exists_user(user_id)
-        
-        # Сохраняем в кэш (если Redis доступен, игнорируем ошибки)
-        try:
-            cache_key = _get_user_exists_cache_key(user_id)
-            # exists_user выбрасывает HTTPException если не найден, поэтому result всегда True
-            await redis.set(cache_key, "1", ex=EXISTS_CACHE_TTL)
-            logger.debug("Cached user_id=%s exists=True", user_id)
-        except Exception:
-            pass  # Игнорируем ошибки кэширования
-        
-        return result
-        
-    except HTTPException:
-        # Если пользователь не найден, кэшируем это тоже (игнорируем ошибки)
-        try:
-            cache_key = _get_user_exists_cache_key(user_id)
-            await redis.set(cache_key, "0", ex=EXISTS_CACHE_TTL)
-            logger.debug("Cached user_id=%s exists=False", user_id)
-        except Exception:
-            pass  # Игнорируем ошибки кэширования
-        raise
-    except Exception as e:
-        # Если ошибка кэширования, просто делаем запрос к БД
-        logger.warning("Cache error for user_id=%s, falling back to DB: %s", user_id, e)
-        return await clickhouse_client.exists_user(user_id)
+    """Проверить существование пользователя с кэшированием в Redis"""
+    return await _exists_entity_cached(
+        entity_type="user",
+        entity_id=user_id,
+        check_fn=lambda: clickhouse_client.exists_user(user_id),
+        not_found_detail=f"Пользователь с ID {user_id} не найден",
+    )
 
 
 async def exists_track_cached(track_id: int, clickhouse_client) -> bool:
-    """
-    Проверить существование трека с кэшированием в Redis
-    
-    Args:
-        track_id: ID трека
-        clickhouse_client: Клиент ClickHouse
-    
-    Returns:
-        bool: True если трек существует, иначе выбрасывает HTTPException
-    """
+    """Проверить существование трека с кэшированием в Redis"""
+    return await _exists_entity_cached(
+        entity_type="track",
+        entity_id=track_id,
+        check_fn=lambda: clickhouse_client.exists_track(track_id),
+        not_found_detail=f"Трек с ID {track_id} не найден",
+    )
+
+
+async def _invalidate_exists_cache(entity_type: str, entity_id: int) -> bool:
+    """Обобщённая инвалидация кэша проверки существования"""
     try:
         redis = get_redis_client()
-        
-        # Пытаемся получить из кэша (если Redis доступен)
-        try:
-            cache_key = _get_track_exists_cache_key(track_id)
-            cached = await redis.get(cache_key)
-            
-            if cached is not None:
-                # "1" = существует, "0" = не существует
-                if cached == "1":
-                    logger.debug("Cache hit: track_id=%s exists", track_id)
-                    return True
-                else:
-                    # Не существует - выбрасываем исключение
-                    logger.debug("Cache hit: track_id=%s does not exist", track_id)
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Трек с ID {track_id} не найден",
-                    )
-        except Exception:
-            # Redis недоступен или ошибка - продолжаем без кэша
-            pass
-        
-        # Кэш промах или Redis недоступен - проверяем в БД
-        logger.debug("Cache miss: checking track_id=%s in DB", track_id)
-        result = await clickhouse_client.exists_track(track_id)
-        
-        # Сохраняем в кэш (если Redis доступен, игнорируем ошибки)
-        try:
-            cache_key = _get_track_exists_cache_key(track_id)
-            # exists_track выбрасывает HTTPException если не найден, поэтому result всегда True
-            await redis.set(cache_key, "1", ex=EXISTS_CACHE_TTL)
-            logger.debug("Cached track_id=%s exists=True", track_id)
-        except Exception:
-            pass  # Игнорируем ошибки кэширования
-        
-        return result
-        
-    except HTTPException:
-        # Если трек не найден, кэшируем это тоже (игнорируем ошибки)
-        try:
-            cache_key = _get_track_exists_cache_key(track_id)
-            await redis.set(cache_key, "0", ex=EXISTS_CACHE_TTL)
-            logger.debug("Cached track_id=%s exists=False", track_id)
-        except Exception:
-            pass  # Игнорируем ошибки кэширования
-        raise
+        if not await redis.is_connected():
+            return False
+
+        cache_key = _get_exists_cache_key(entity_type, entity_id)
+        await redis.delete(cache_key)
+        logger.debug("Invalidated exists cache for %s_id=%s", entity_type, entity_id)
+        return True
     except Exception as e:
-        # Если ошибка кэширования, просто делаем запрос к БД
-        logger.warning("Cache error for track_id=%s, falling back to DB: %s", track_id, e)
-        return await clickhouse_client.exists_track(track_id)
+        logger.error("Error invalidating %s exists cache: %s", entity_type, e)
+        return False
 
 
 async def invalidate_user_exists_cache(user_id: int) -> bool:
-    """
-    Инвалидировать кэш проверки существования пользователя
-    
-    Используется при создании/удалении пользователя
-    
-    Args:
-        user_id: ID пользователя
-    
-    Returns:
-        bool: True если успешно инвалидировано
-    """
-    try:
-        redis = get_redis_client()
-        if not await redis.is_connected():
-            return False
-        
-        cache_key = _get_user_exists_cache_key(user_id)
-        await redis.delete(cache_key)
-        logger.debug("Invalidated exists cache for user_id=%s", user_id)
-        return True
-    except Exception as e:
-        logger.error("Error invalidating user exists cache: %s", e)
-        return False
+    """Инвалидировать кэш проверки существования пользователя"""
+    return await _invalidate_exists_cache("user", user_id)
 
 
 async def invalidate_track_exists_cache(track_id: int) -> bool:
-    """
-    Инвалидировать кэш проверки существования трека
-    
-    Используется при создании/удалении трека
-    
-    Args:
-        track_id: ID трека
-    
-    Returns:
-        bool: True если успешно инвалидировано
-    """
-    try:
-        redis = get_redis_client()
-        if not await redis.is_connected():
-            return False
-        
-        cache_key = _get_track_exists_cache_key(track_id)
-        await redis.delete(cache_key)
-        logger.debug("Invalidated exists cache for track_id=%s", track_id)
-        return True
-    except Exception as e:
-        logger.error("Error invalidating track exists cache: %s", e)
-        return False
+    """Инвалидировать кэш проверки существования трека"""
+    return await _invalidate_exists_cache("track", track_id)

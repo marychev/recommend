@@ -92,7 +92,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                         country=user.country or "",
                         created_at=created_at,
                     )
-                    await clickhouse.save_user_buffered(user_model, new_id)
+                    await clickhouse.save_user(user_model, new_id)
             except Exception as e:
                 # Fallback: если ошибка при отправке в Kafka, пишем напрямую в ClickHouse
                 logger.warning("Ошибка отправки в Kafka, используем fallback: %s", e)
@@ -105,7 +105,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks):
                         country=user.country or "",
                         created_at=created_at,
                     )
-                    await clickhouse.save_user_buffered(user_model, new_id)
+                    await clickhouse.save_user(user_model, new_id)
                 except Exception as fallback_error:
                     logger.error("Ошибка fallback INSERT в ClickHouse: %s", fallback_error)
         
