@@ -2,7 +2,7 @@
 
 ## Проблема
 
-При повторном запуске `make db-init` или `make quickstart` возникала ошибка:
+При повторном запуске `make db-init` возникала ошибка:
 ```
 Code: 44. DB::Exception: Cannot add index idx_track_id: index with this name already exists
 ```
@@ -23,10 +23,13 @@ Code: 44. DB::Exception: Cannot add index idx_track_id: index with this name alr
 ### Безопасная инициализация (рекомендуется)
 
 ```bash
-# Через Makefile
+# Через Makefile (запускает seed_data.py)
 make db-init
 
 # Или напрямую
+python scripts/seed_data.py
+
+# Для создания таблиц (идемпотентно)
 bash scripts/safe_db_init.sh
 ```
 
@@ -130,17 +133,16 @@ WHERE database = 'music_recommend'
 ## Связанные команды Makefile
 
 ```bash
-make db-init         # Инициализация БД (идемпотентно)
+make db-init         # Заполнить БД тестовыми данными
 make db-reset        # Полный сброс БД
 make db-shell        # Открыть clickhouse-client
 make db-tables       # Показать таблицы
 make db-stats        # Статистика таблиц
-make quickstart      # Запуск всего проекта
 ```
 
 ## См. также
 
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Решение проблем
 - [PORTS.md](PORTS.md) - Информация о портах
-- [RUN_TESTS.md](RUN_TESTS.md) - Запуск тестов
+- [TESTING.md](TESTING.md) - Тестирование
 

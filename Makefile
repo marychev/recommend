@@ -94,28 +94,6 @@ status: ## Показать статус всех сервисов и базов
 	@make health 2>/dev/null || echo "$(RED)  ❌ API недоступен$(NC)"
 
 # ═══════════════════════════════════════════════
-# 🔧 Управление отдельными сервисами
-# ═══════════════════════════════════════════════
-
-up-clickhouse: ## Запустить только ClickHouse
-	$(DOCKER_COMPOSE) up -d clickhouse
-
-up-kafka: ## Запустить только Kafka + Kafka-UI и Zookeeper
-	$(DOCKER_COMPOSE) up -d zookeeper kafka kafka-ui
-
-up-redis: ## Запустить только Redis
-	$(DOCKER_COMPOSE) up -d redis
-
-up-api: ## Запустить только API контейнер
-	$(DOCKER_COMPOSE) up -d api
-
-restart-api: ## Перезапустить только API контейнер
-	@echo "$(BLUE)🔄 Перезапуск API контейнера...$(NC)"
-	$(DOCKER_COMPOSE) restart api
-	@echo "$(GREEN)✅ API контейнер перезапущен$(NC)"
-
-
-# ═══════════════════════════════════════════════
 # 🗄️ База данных
 # ═══════════════════════════════════════════════
 
@@ -183,6 +161,20 @@ test-api:
 
 test-cache: 
 	pytest tests/cache/ -s
+
+test-ttl-optimization: ## Тест оптимизации TTL для повышения hit rate
+	@echo "$(BLUE)🕐 Тест оптимизации TTL...$(NC)"
+	@echo "$(YELLOW)Тестируем разные значения TTL (1ч, 2ч, 4ч)$(NC)"
+	@python tests/simple_ttl_test.py
+
+test-cache-warmup: ## Тест эффективности прогрева кэша
+	@echo "$(BLUE)🔥 Тест прогрева кэша...$(NC)"
+	@echo "$(YELLOW)Проверяем работу прогрева кэша$(NC)"
+	@python tests/simple_warmup_test.py
+
+test-api-health: ## Проверка здоровья API
+	@echo "$(BLUE)🏥 Проверка API...$(NC)"
+	@python tests/api/test_api_health.py
 
 # ═══════════════════════════════════════════════
 # ⚡ Нагрузочное тестирование (k6)
@@ -362,20 +354,6 @@ diagnose-cache: ## Диагностика кэширования Redis
 	@echo "$(YELLOW)Проверяем производительность в реальных условиях$(NC)"
 	@python tests/cache/test_real_hitrate.py
 
-test-ttl-optimization: ## Тест оптимизации TTL для повышения hit rate
-	@echo "$(BLUE)🕐 Тест оптимизации TTL...$(NC)"
-	@echo "$(YELLOW)Тестируем разные значения TTL (1ч, 2ч, 4ч)$(NC)"
-	@python tests/simple_ttl_test.py
-
-test-cache-warmup: ## Тест эффективности прогрева кэша
-	@echo "$(BLUE)🔥 Тест прогрева кэша...$(NC)"
-	@echo "$(YELLOW)Проверяем работу прогрева кэша$(NC)"
-	@python tests/simple_warmup_test.py
-
-test-api-health: ## Проверка здоровья API
-	@echo "$(BLUE)🏥 Проверка API...$(NC)"
-	@python tests/api/test_api_health.py
-
 diagnose-cache-curl: ## Диагностика кэширования через curl
 	@echo "$(BLUE)🔍 Диагностика кэширования (curl)...$(NC)"
 	@echo ""
@@ -475,7 +453,7 @@ urls: ## Показать URLs
 	@echo "   Swagger:    http://localhost:8000/docs"
 	@echo "   ReDoc:      http://localhost:8000/redoc"
 	@echo "   ClickHouse: http://localhost:8123"
-	@echo "   UI Kafka:   http://localhost:8081"
+	@echo "   Zookeeper:  localhost:2181"
 	@echo "   Kafka:      localhost:9092"
 	@echo "   Redis:      localhost:6379"
 	@echo ""
@@ -503,44 +481,4 @@ info: ## Показать информацию о проекте
 	@echo "   make help            - Все команды"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-
-# ═══════════════════════════════════════════════
-# 🚀 Быстрый старт
-# ═══════════════════════════════════════════════
-
-quickstart: ## Быстрый старт проекта (только backend)
-	@echo "$(GREEN)🚀 Быстрый старт Music Recommendation System$(NC)"
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(YELLOW)1️⃣  Остановка старых контейнеров...$(NC)"
-	@make down 2>/dev/null || true
-	@echo ""
-	@echo "$(YELLOW)2️⃣  Проверка/сборка Docker образов...$(NC)"
-	@$(DOCKER_COMPOSE) build 2>&1 | grep -E "(Building|CACHED|FINISHED)" || true
-	@echo "$(GREEN)   ✅ Образы готовы$(NC)"
-	@echo ""
-	@echo "$(YELLOW)3️⃣  Запуск сервисов...$(NC)"
-	@make up
-	@echo ""
-	@echo "$(YELLOW)4️⃣  Ожидание запуска ClickHouse (15 сек)...$(NC)"
-	@sleep 15
-	@echo ""
-	@echo "$(YELLOW)5️⃣  Инициализация базы данных...$(NC)"
-	@make db-init
-	@echo ""
-	@echo "$(YELLOW)6️⃣  Проверка health check...$(NC)"
-	@make health
-	@echo ""
-	@echo "$(GREEN)✅ Готово! Backend запущен!$(NC)"
-	@echo ""
-	@echo "$(GREEN)✅ Система полностью запущена!$(NC)"
-	@echo ""
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	make urls
-	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(YELLOW)💡 Остановить все:     make down$(NC)"
-
-# По умолчанию показываем help
-.DEFAULT_GOAL := help
 

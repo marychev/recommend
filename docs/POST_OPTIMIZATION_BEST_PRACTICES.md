@@ -515,10 +515,9 @@ user_exists, track_exists = await asyncio.gather(
 
 ## 🔗 Связанные документы
 
-- [Kafka Integration](./KAFKA_INTEGRATION.md)
-- [Redis Caching](./REDIS_CACHING.md)
-- [SQL Optimization](./SQL_OPTIMIZATION.md)
-- [Performance Issues](../PERFORMANCE_ISSUES.md)
+- [Kafka](./KAFKA.md)
+- [Caching](./CACHING.md)
+- [ClickHouse](./CLICKHOUSE.md)
 
 
 

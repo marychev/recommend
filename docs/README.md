@@ -1,64 +1,63 @@
-# 📚 Документация Music Recommendation System
+# Документация Music Recommendation System
 
 Добро пожаловать в документацию проекта!
 
-## 🚀 Быстрый старт
+## Быстрый старт
 
-Новичок в проекте? Начните здесь:
+```bash
+make up        # Запустить сервисы
+make db-init   # Заполнить БД данными
+make health    # Проверить API
+```
 
-1. **[README.md](../README.md)** - Главная страница проекта
-2. **[RUN_TESTS.md](RUN_TESTS.md)** - Как запустить тесты
-3. **[PORTS.md](PORTS.md)** - Какие порты используются
-
-## 📑 Все документы
+## Все документы
 
 ### Основные
-- **[INDEX.md](INDEX.md)** - Полный указатель документации ⭐
+- **[INDEX.md](INDEX.md)** - Полный указатель документации
 - **[SUMMARY.md](SUMMARY.md)** - Краткая сводка проекта
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Быстрая справка
 - **[MAKEFILE.md](MAKEFILE.md)** - Руководство по Makefile
 - **[TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md)** - Техническое задание
 
 ### Инфраструктура
+- **[CLICKHOUSE.md](CLICKHOUSE.md)** - ClickHouse (оптимизация, индексы, партиционирование)
+- **[KAFKA.md](KAFKA.md)** - Kafka (архитектура, батчинг, мониторинг)
+- **[CACHING.md](CACHING.md)** - Redis (кэширование, инвалидация, warmup)
 - **[PORTS.md](PORTS.md)** - Справочник портов
 - **[DB_INIT.md](DB_INIT.md)** - Инициализация БД
-- **[KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)** - Kafka
-- **[REDIS_CACHING.md](REDIS_CACHING.md)** - Кэширование
 
-### Разработка
-- **[RUN_TESTS.md](RUN_TESTS.md)** - Запуск тестов
-- **[ACTION_TYPES.md](ACTION_TYPES.md)** - Типы действий
-- **[CODE_QUALITY.md](CODE_QUALITY.md)** - Качество кода
-
-### Troubleshooting
-- **[API_ERROR_500.md](API_ERROR_500.md)** - Ошибка 500
+### Тестирование и диагностика
+- **[TESTING.md](TESTING.md)** - Тестирование (unit, Kafka, нагрузочные)
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем
 
-## 🎯 По задачам
+### Разработка
+- **[ACTION_TYPES.md](ACTION_TYPES.md)** - Типы действий
+- **[CODE_REVIEW.md](CODE_REVIEW.md)** - Code review
+- **[GIT_SETUP.md](GIT_SETUP.md)** - Настройка Git
+
+## По задачам
 
 **Хочу запустить проект:**
-→ [../README.md](../README.md) → [PORTS.md](PORTS.md)
+→ [../README.md](../README.md) → `make up && make db-init`
 
 **Хочу запустить тесты:**
-→ [RUN_TESTS.md](RUN_TESTS.md)
+→ [TESTING.md](TESTING.md) или `make test`
 
 **Хочу понять архитектуру:**
 → [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md)
 
 **Хочу настроить ClickHouse:**
-→ [DB_INIT.md](DB_INIT.md) → [PORTS.md](PORTS.md)
+→ [CLICKHOUSE.md](CLICKHOUSE.md) → [DB_INIT.md](DB_INIT.md)
 
 **Хочу использовать Kafka:**
-→ [KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)
+→ [KAFKA.md](KAFKA.md)
 
 **Хочу настроить кэширование:**
-→ [REDIS_CACHING.md](REDIS_CACHING.md)
+→ [CACHING.md](CACHING.md)
 
-## 📞 Помощь
-
-Если документация неясна или нуждается в улучшении - дайте знать!
+**Проблема — что-то не работает:**
+→ [TROUBLESHOOTING.md](TROUBLESHOOTING.md) или `make diagnose`
 
 ---
 
 **Вернуться к**: [Главная](../README.md) | [Полный указатель](INDEX.md)
-

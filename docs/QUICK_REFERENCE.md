@@ -7,10 +7,10 @@
 ## 🚀 Основные команды
 
 ```bash
-make quickstart    # Запустить всё сразу (рекомендуется)
 make up           # Запустить все сервисы
 make down         # Остановить все
-make restart      # Перезапустить
+make rebuild      # Пересобрать и перезапустить
+make restart-api  # Перезапустить API
 make ps           # Статус контейнеров
 make logs-api     # Логи API
 make help         # Все доступные команды
@@ -21,18 +21,16 @@ make help         # Все доступные команды
 ```bash
 make diagnose     # Полная диагностика системы
 make health       # Проверить API
-make health       # Health check
 make logs-errors  # Показать ошибки
 ```
 
 ## 🗄️ База данных
 
 ```bash
-make db-init      # Инициализация БД (идемпотентно)
+make db-init      # Заполнить БД тестовыми данными
 make db-tables    # Список таблиц
 make db-stats     # Статистика
-make seed-quick   # Быстрые тестовые данные
-make seed         # Полные тестовые данные (10k записей)
+make db-indexes   # Добавить индексы
 ```
 
 ## 🧪 Тестирование
@@ -55,7 +53,7 @@ curl -X POST http://localhost:8000/api/v1/debug/cache/set-ttl/4
 curl http://localhost:8000/api/v1/debug/cache/current-ttl
 
 # Прогрев кэша
-curl -X POST "http://localhost:8000/api/v1/debug/cache/warmup?num_users=50"
+curl -X POST http://localhost:8000/api/v1/debug/cache/warmup/auto
 curl http://localhost:8000/api/v1/debug/cache/warmup/stats
 
 # Тестирование
@@ -66,8 +64,6 @@ make test-api-health
 ## 🔗 URL-адреса
 
 ```
-Frontend UI:     http://localhost:8080
-Kafka UI:        http://localhost:8081  ⭐ Мониторинг Kafka
 API Swagger:     http://localhost:8000/docs
 API ReDoc:       http://localhost:8000/redoc
 Health Check:    http://localhost:8000/api/v1/health
@@ -80,8 +76,6 @@ Kafka:           localhost:9092
 
 | Сервис | Порт | Примечание |
 |--------|------|------------|
-| Frontend UI | 8080 | Web интерфейс |
-| Kafka UI | 8081 | Мониторинг Kafka ⭐ |
 | FastAPI | 8000 | REST API |
 | ClickHouse HTTP | 8123 | Для приложения ✅ |
 | ClickHouse Native | 9000 | Для CLI |
@@ -113,7 +107,7 @@ docker-compose ps
 
 ### API возвращает 500 ошибку
 ```bash
-make seed-quick        # Создать тестовые данные
+make db-init           # Создать тестовые данные
 make logs-errors       # Посмотреть ошибки
 ```
 
@@ -126,7 +120,7 @@ make db-reset          # Полный сброс БД
 ### Docker образ устарел
 ```bash
 make build             # Собрать образы
-make restart           # Перезапустить всё
+make rebuild           # Пересобрать и перезапустить
 ```
 
 ### Нужно очистить все
@@ -139,10 +133,8 @@ make clean-all         # Полная очистка (включая volumes)
 - **[README.md](../README.md)** - Главная страница
 - **[INDEX.md](INDEX.md)** - Навигация по документам
 - **[MAKEFILE.md](MAKEFILE.md)** - Полное руководство по командам
-- **[API_ERROR_500.md](API_ERROR_500.md)** - Решение ошибки 500
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем
-- **[RUN_TESTS.md](RUN_TESTS.md)** - Запуск тестов
-- **[PORTS.md](PORTS.md)** - Справочник портов
+- **[TESTING.md](TESTING.md)** - Тестирование
 
 ## 🎯 API Примеры
 
@@ -176,7 +168,7 @@ curl http://localhost:8000/api/v1/recommendations/1
 
 ```bash
 git status                              # Статус
-git commit -m "Fix bug"                 # Commit (≤8 слов!) [[memory:7077760]]
+git commit -m "Fix bug"                 # Commit
 git push origin main                    # Push
 ```
 
@@ -188,5 +180,5 @@ git push origin main                    # Push
 
 ---
 
-**💡 Совет**: Начните с `make quickstart` - это самый простой способ запустить проект!
+**💡 Совет**: Начните с `make up && make db-init` - это самый простой способ запустить проект!
 

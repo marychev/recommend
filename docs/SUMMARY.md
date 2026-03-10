@@ -33,9 +33,9 @@
 ├── 15+ API эндпоинтов
 ├── 60+ автоматических тестов
 ├── 4 таблицы БД + 3 материализованных view
-├── 10+ документов
-├── 2000+ строк кода
-└── 92% покрытие тестами
+├── Полная интеграция с Kafka (батчинг, буферизация)
+├── Redis кэширование с инвалидацией
+└── Нагрузочное тестирование (k6)
 ```
 
 ## 🏗 Архитектура
@@ -74,7 +74,7 @@ share: +2.5
 ```
 recommend/
 ├── app/                 # Приложение (FastAPI + модели)
-├── docs/                # Документация (7 файлов)
+├── docs/                # Документация
 ├── tests/               # Тесты (60+ тестов)
 ├── scripts/             # Утилиты
 ├── clickhouse-config/   # Конфигурация ClickHouse
@@ -85,23 +85,23 @@ recommend/
 
 ```bash
 # 1. Запустите все сервисы
-docker-compose up -d
+make up
 
-# 2. Откройте Swagger UI
-http://localhost:8000/docs
+# 2. Заполните БД тестовыми данными
+make db-init
 
-# 3. Сгенерируйте тестовые данные
-python scripts/seed_data.py
+# 3. Откройте Swagger UI
+# http://localhost:8000/docs
 
 # 4. Запустите тесты
-pytest tests/clickhouse/ -v
+make test
 ```
 
 ## 📚 Документация
 
 - **[README.md](../README.md)** - Главная страница
 - **[docs/INDEX.md](INDEX.md)** - Навигация
-- **[docs/RUN_TESTS.md](RUN_TESTS.md)** - Тестирование
+- **[docs/TESTING.md](TESTING.md)** - Тестирование
 - **[docs/PORTS.md](PORTS.md)** - Порты сервисов
 
 ## 🎓 Особенности реализации
@@ -147,12 +147,11 @@ pytest tests/clickhouse/ -v
 - Recommendation generation: < 200ms
 - ClickHouse query: < 50ms
 
-## 🎯 Следующие шаги
+## Следующие шаги
 
-1. **Разработка**: Интеграция с Kafka
-2. **ML**: Добавить Content-Based Filtering
-3. **Ops**: Мониторинг и логирование
-4. **Production**: Аутентификация и безопасность
+1. **ML**: Добавить Content-Based Filtering
+2. **Ops**: Мониторинг и логирование (Prometheus/Grafana)
+3. **Production**: Аутентификация и безопасность (JWT, Rate Limiting)
 
 ---
 
