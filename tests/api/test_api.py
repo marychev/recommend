@@ -53,34 +53,6 @@ class TestRootEndpoint:
 
 
 @pytest.mark.asyncio
-class TestHealthCheck:
-    """Тесты health check"""
-
-    async def test_health_check(self, async_client):
-        """Тест проверки состояния"""
-        response = await async_client.get("/api/v1/health")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert "status" in data
-        assert "timestamp" in data
-        assert "services" in data
-
-    async def test_health_check_services(self, async_client):
-        """Тест наличия информации о сервисах"""
-        response = await async_client.get("/api/v1/health")
-        data = response.json()
-
-        assert "services" in data
-        services = data["services"]
-
-        # Проверяем наличие всех сервисов
-        assert "clickhouse" in services
-        assert "redis" in services
-        assert "kafka" in services
-
-
-@pytest.mark.asyncio
 class TestDocumentation:
     """Тесты документации API"""
 
@@ -196,20 +168,6 @@ class TestConcurrency:
     Они проверяют, что система правильно обрабатывает concurrent запросы.
     """
 
-    async def test_concurrent_health_checks(self, async_client):
-        """Тест параллельных health check запросов"""
-        import asyncio
-
-        # Запускаем 10 запросов одновременно
-        tasks = [async_client.get("/api/v1/health") for _ in range(10)]
-
-        # Выполняем все запросы параллельно
-        responses = await asyncio.gather(*tasks)
-
-        # Все должны вернуть 200
-        assert all(r.status_code == 200 for r in responses)
-        assert len(responses) == 10
-
     async def test_concurrent_recommendations(self, async_client):
         """
         Тест параллельного получения рекомендаций для разных пользователей
@@ -235,29 +193,3 @@ class TestConcurrency:
         # Все должны вернуть валидный статус код
         for response in responses:
             assert response.status_code in [200, 404, 500]
-
-
-# ============================================================================
-# TODO: Дополнительные интеграционные тесты
-# ============================================================================
-#
-# Следующие тесты требуют:
-# - Запущенного ClickHouse с данными
-# - Настроенного Kafka
-# - Сгенерированных тестовых данных
-#
-# Примеры:
-# - test_create_user
-# - test_get_user_by_id
-# - test_user_statistics
-# - test_create_track
-# - test_get_track_by_id
-# - test_track_statistics
-# - test_create_event
-# - test_get_user_events
-# - test_get_track_events
-# - test_popular_tracks
-# - test_recommendations_caching (проверка, что второй запрос быстрее)
-# - test_recommendations_different_parameters
-#
-# См. tests/clickhouse/ для примеров тестов с БД

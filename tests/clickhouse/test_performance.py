@@ -20,12 +20,14 @@ class TestPerformance:
 
         # Генерируем большое количество данных
         data = [self.generate_row(i) for i in range(1000)]
+
+        start_time = time.time()
         await clickhouse_client.insert(
             "users", data, column_names=User.column_names()
         )
-        start_time = time.time()
-        end_time = time.time()
-        elapsed = end_time - start_time
+        elapsed = time.time() - start_time
+
+        # Bulk insert 1000 записей должен уложиться в 2 секунды
         assert elapsed < 2.0
 
     async def test_query_performance(

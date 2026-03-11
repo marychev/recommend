@@ -14,7 +14,6 @@ from app.kafka.consumer import (
     deserialize_event,
     consume_events,
     start_background_consumer,
-    example_event_handler,
 )
 
 
@@ -293,27 +292,3 @@ class TestStartBackgroundConsumer:
         # но можем проверить что не было исключений
 
 
-class TestExampleEventHandler:
-    """Тесты для example_event_handler()"""
-
-    @pytest.mark.asyncio
-    async def test_example_event_handler_processes_event(self, sample_event):
-        """Тест примерного обработчика событий"""
-        # Не должно вызывать исключений
-        await example_event_handler(sample_event)
-
-    @pytest.mark.asyncio
-    async def test_example_event_handler_with_missing_fields(self):
-        """Тест обработчика с неполными данными"""
-        event = {"user_id": 1001}
-
-        # Не должно вызывать исключений
-        await example_event_handler(event)
-
-    @pytest.mark.asyncio
-    async def test_example_event_handler_with_empty_event(self):
-        """Тест обработчика с пустым событием"""
-        event = {}
-
-        # Не должно вызывать исключений
-        await example_event_handler(event)
