@@ -51,7 +51,11 @@ export default function () {
   });
 
   group('Recommendations API', () => {
-    const res = http.get(`${BASE_URL}/api/v1/recommendations/1`);
+    const res = http.post(
+      `${BASE_URL}/api/v1/recommendations`,
+      JSON.stringify({ user_id: 1, top_n: 10 }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
     check(res, {
       'recommendations endpoint responds': (r) => r.status === 200 || r.status === 404,
     });

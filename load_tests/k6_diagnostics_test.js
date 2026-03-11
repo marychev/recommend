@@ -125,9 +125,11 @@ export default function (data) {
   group('Recommendations', () => {
     const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();
     const start = Date.now();
-    const res = http.get(`${BASE_URL}/api/v1/recommendations/${userId}`, {
-      tags: { name: 'Recommendations' },
-    });
+    const res = http.post(
+      `${BASE_URL}/api/v1/recommendations`,
+      JSON.stringify({ user_id: userId, top_n: 10 }),
+      { headers: { 'Content-Type': 'application/json' }, tags: { name: 'Recommendations' } }
+    );
     recommendationsDuration.add(Date.now() - start);
     
     // 200 или 404 - это валидные ответы (404 = пользователь не найден)

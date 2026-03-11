@@ -38,7 +38,11 @@ export default function () {
   
   if (scenario < 0.5) {
     // 50% - рекомендации (самый тяжелый запрос)
-    const res = http.get(`${BASE_URL}/api/v1/recommendations/${getRandomUserId()}`);
+    const res = http.post(
+      `${BASE_URL}/api/v1/recommendations`,
+      JSON.stringify({ user_id: getRandomUserId(), top_n: 10 }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
     check(res, {
       'recommendations status ok': (r) => r.status === 200 || r.status === 404,
     });

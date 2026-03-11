@@ -52,7 +52,11 @@ export default function () {
   sleep(1);
   
   // 3. Получить рекомендации
-  res = http.get(`${BASE_URL}/api/v1/recommendations/${userId}`);
+  res = http.post(
+    `${BASE_URL}/api/v1/recommendations`,
+    JSON.stringify({ user_id: userId, top_n: 10 }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
   success = check(res, {
     'recommendations ok': (r) => r.status === 200 || r.status === 404,
   });

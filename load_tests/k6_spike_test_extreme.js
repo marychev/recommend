@@ -31,7 +31,11 @@ export default function () {
   const endpoints = [
     () => http.get(`${BASE_URL}/api/v1/users?limit=20`),
     () => http.get(`${BASE_URL}/api/v1/tracks?limit=20`),
-    () => http.get(`${BASE_URL}/api/v1/recommendations/${getRandomUserId()}`),
+    () => http.post(
+      `${BASE_URL}/api/v1/recommendations`,
+      JSON.stringify({ user_id: getRandomUserId(), top_n: 10 }),
+      { headers: { 'Content-Type': 'application/json' } }
+    ),
     () => http.get(`${BASE_URL}/api/v1/users/${getRandomUserId()}`),
     () => http.get(`${BASE_URL}/api/v1/tracks/${getRandomTrackId()}`),
   ];

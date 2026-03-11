@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Union
 import asyncio
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from app.services.event_queue import get_event_queue

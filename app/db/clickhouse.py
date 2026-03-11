@@ -39,7 +39,8 @@ class ClickHouseClient:
     def __init__(self):
         self.client: Optional[ChClient] = None
         self.session: Optional[ClientSession] = None
-        
+        self._id_initialized: set = set()  # Кэш: для каких table:field уже инициализирован Redis-счётчик
+
         # Используем переиспользуемый BatchBuffer для буферизации
         self._buffer = BatchBuffer(
             tables=['users', 'tracks', 'user_track_interactions'],
@@ -53,7 +54,7 @@ class ClickHouseClient:
         """Подключение к ClickHouse"""
         try:
             # Создаем ClientSession с таймаутами для избежания зависаний
-            timeout = ClientTimeout(total=30, connect=10)  # 30 сек общий, 10 сек на подключение
+            timeout = ClientTimeout(total=60, connect=10)  # 60 сек общий, 10 сек на подключение
             self.session = ClientSession(timeout=timeout)
 
             # Формируем URL подключения
@@ -238,24 +239,20 @@ class ClickHouseClient:
     async def next_id(self, table: str, field: str) -> int:
         """
         Генерация следующего уникального ID для таблицы.
-        
-        Использует атомарный Redis INCR для гарантии уникальности ID 
-        даже при параллельных запросах (решает race condition).
-        
-        При недоступности Redis использует fallback на max(id) из БД.
-        
-        Args:
-            table: Имя таблицы (users, tracks, etc.)
-            field: Имя поля ID (user_id, track_id, etc.)
-            
-        Returns:
-            Уникальный ID (int)
+
+        Использует атомарный Redis INCR для гарантии уникальности ID.
+        ClickHouse запрашивается только при первом вызове для инициализации счётчика.
         """
-        # Валидация идентификаторов (защита от SQL Injection)
+        cache_key = f"{table}:{field}"
+
+        # Fast path: счётчик уже инициализирован — только Redis INCR
+        if cache_key in self._id_initialized:
+            return await get_next_id(table, field, fallback_max_id=None)
+
+        # Slow path (первый вызов): получаем max_id из БД для инициализации
         safe_table = self._validate_identifier(table, self.ALLOWED_TABLES, "table")
         safe_field = self._validate_identifier(field, self.ALLOWED_FIELDS, "field")
-        
-        # Получаем текущий max_id из БД для инициализации/fallback
+
         fallback_max_id = None
         try:
             if self.client:
@@ -265,8 +262,8 @@ class ClickHouseClient:
                 fallback_max_id = result[0][0] if result and result[0][0] else 0
         except Exception as e:
             logger.debug("Не удалось получить max_id из БД: %s", e)
-        
-        # Используем атомарный генератор ID (Redis INCR)
+
+        self._id_initialized.add(cache_key)
         return await get_next_id(table, field, fallback_max_id)
     
     async def save_track(self, track: Track, track_id: Optional[int] = None) -> int:

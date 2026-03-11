@@ -10,6 +10,7 @@ from app.db.clickhouse import (
     get_clickhouse_client,
 )
 from app.services.cache_redis_client import connect_redis, shutdown_redis
+from app.services.cache import get_cached_popular_tracks, set_cached_popular_tracks
 from app.services.event_queue import start_event_queue, stop_event_queue
 from app.kafka.client import close_kafka_producer, connect_kafka
 from app.kafka.multi_consumer import start_multi_consumer, stop_multi_consumer
@@ -57,6 +58,41 @@ async def lifespan(_app: FastAPI):
             except Exception as e:
                 logger.warning("Не удалось запустить Kafka Multi-Consumer: %s", e)
                 logger.warning("Consumer будет переподключаться автоматически при появлении сообщений")
+
+    # Прогрев кэша популярных треков при старте
+    if clickhouse_connected and redis_connected:
+        try:
+            cached = await get_cached_popular_tracks(10)
+            if cached is None:
+                clickhouse = get_clickhouse_client()
+                # Двухэтапный запрос: сначала top IDs, потом детали
+                top_ids = await clickhouse.execute("""
+                    SELECT track_id, count(*) as play_count
+                    FROM user_track_interactions
+                    WHERE action_type = 'play'
+                    GROUP BY track_id ORDER BY play_count DESC LIMIT 10
+                    SETTINGS max_memory_usage=2000000000
+                """)
+                result_serializable = []
+                if top_ids:
+                    play_counts = {row[0]: row[1] for row in top_ids}
+                    ids_str = ",".join(str(row[0]) for row in top_ids)
+                    details = await clickhouse.execute(f"""
+                        SELECT track_id, title, artist, album, genre,
+                               duration_seconds, release_year, created_at
+                        FROM tracks WHERE track_id IN ({ids_str})
+                    """)
+                    for row in details:
+                        result_serializable.append(
+                            [row[i] for i in range(8)] + [play_counts.get(row[0], 0)]
+                        )
+                    result_serializable.sort(key=lambda r: r[8], reverse=True)
+                await set_cached_popular_tracks(10, result_serializable)
+                logger.info("Кэш популярных треков прогрет (%d треков)", len(result_serializable))
+            else:
+                logger.info("Кэш популярных треков уже заполнен")
+        except Exception as e:
+            logger.warning("Не удалось прогреть кэш популярных треков: %s", e)
 
     if clickhouse_connected and redis_connected and kafka_connected:
         logger.info("Все сервисы подключены!")

@@ -79,7 +79,11 @@ export default function (data) {
     () => http.get(urlTracksList10),
     () => {
       const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();
-      return http.get(`${BASE_URL}/api/v1/recommendations/${userId}`);
+      return http.post(
+        `${BASE_URL}/api/v1/recommendations`,
+        JSON.stringify({ user_id: userId, top_n: 10 }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
     },
     () => {
       const userId = availableUserIds ? getRandomIdFromArray(availableUserIds) : getRandomUserId();

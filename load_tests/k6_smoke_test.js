@@ -130,28 +130,28 @@ export default function () {
   group('🎯 Recommendations API', () => {
     // Проверяем рекомендации для существующего пользователя
     const usersRes = http.get(`${BASE_URL}/api/v1/users?limit=1`);
-    
+
     if (usersRes.status === 200) {
       try {
         const users = JSON.parse(usersRes.body);
         if (users.length > 0) {
           const userId = users[0].user_id;
-          
-          // GET рекомендации
-          const recRes = http.get(`${BASE_URL}/api/v1/recommendations/${userId}`);
+
+          // POST рекомендации (API принимает POST с JSON body)
+          const recRes = http.post(
+            `${BASE_URL}/api/v1/recommendations`,
+            JSON.stringify({ user_id: userId, top_n: 10 }),
+            { headers: { 'Content-Type': 'application/json' } }
+          );
           check(recRes, {
-            'GET /recommendations/{user_id} responds': (r) => 
-              r.status === 200 || r.status === 404,
-            'GET /recommendations response is JSON': (r) => {
-              if (r.status === 200) {
-                try {
-                  JSON.parse(r.body);
-                  return true;
-                } catch {
-                  return false;
-                }
+            'POST /recommendations responds 200': (r) => r.status === 200,
+            'POST /recommendations response is JSON': (r) => {
+              try {
+                JSON.parse(r.body);
+                return true;
+              } catch {
+                return false;
               }
-              return true; // 404 тоже OK
             },
           });
         }

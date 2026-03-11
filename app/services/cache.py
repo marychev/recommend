@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 # 5 минут - достаточно для снижения нагрузки, но не слишком долго
 EXISTS_CACHE_TTL = 300
 
+# TTL для глобального кэша популярных треков (в секундах)
+# 10 минут — популярные треки меняются нечасто
+POPULAR_TRACKS_CACHE_TTL = 600
+
 
 def get_cache_recommendations_ttl() -> int:
     return settings.recommendations_cache_ttl
@@ -114,6 +118,54 @@ async def set_cached_recommendations(
 
     except Exception as e:
         logger.error("Error caching recommendations: %s", e)
+        return False
+
+
+def _get_popular_cache_key(top_n: int, exclude_user_id: Optional[int]) -> str:
+    """Ключ для глобального кэша популярных треков."""
+    if exclude_user_id is not None:
+        return f"popular_tracks:top_n:{top_n}:exclude_user:{exclude_user_id}"
+    return f"popular_tracks:top_n:{top_n}"
+
+
+async def get_cached_popular_tracks(top_n: int, exclude_user_id: Optional[int] = None) -> Any:
+    """Получить популярные треки из глобального кэша."""
+    try:
+        redis = get_redis_client()
+        if not await redis.is_connected():
+            return None
+
+        cache_key = _get_popular_cache_key(top_n, exclude_user_id)
+        cached_data = await redis.get(cache_key)
+
+        if cached_data:
+            logger.debug("Popular tracks cache HIT: top_n=%s", top_n)
+            return json.loads(cached_data)
+
+        logger.debug("Popular tracks cache MISS: top_n=%s", top_n)
+    except Exception as e:
+        logger.error("Error getting cached popular tracks: %s", e)
+    return None
+
+
+async def set_cached_popular_tracks(
+    top_n: int,
+    tracks_data: list,
+    exclude_user_id: Optional[int] = None,
+) -> bool:
+    """Сохранить популярные треки в глобальный кэш."""
+    try:
+        redis = get_redis_client()
+        if not await redis.is_connected():
+            return False
+
+        cache_key = _get_popular_cache_key(top_n, exclude_user_id)
+        cache_value = json.dumps(tracks_data, ensure_ascii=False, default=str)
+        await redis.set(cache_key, cache_value, ex=POPULAR_TRACKS_CACHE_TTL)
+        logger.debug("Cached popular tracks: top_n=%s (TTL=%ss)", top_n, POPULAR_TRACKS_CACHE_TTL)
+        return True
+    except Exception as e:
+        logger.error("Error caching popular tracks: %s", e)
         return False
 
 

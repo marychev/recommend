@@ -19,19 +19,18 @@
     
     <profiles>
         <default>
-            <!-- Увеличенные лимиты памяти для запросов рекомендаций -->
-            <!-- Запросы рекомендаций требуют много памяти из-за JOIN операций -->
-            <max_memory_usage>20000000000</max_memory_usage> <!-- 20GB вместо дефолтных 2GB -->
-            <max_memory_usage_for_all_queries>25000000000</max_memory_usage_for_all_queries> <!-- 25GB -->
-            
-            <!-- Использовать диск при превышении памяти (критично для больших запросов) -->
-            <max_bytes_before_external_group_by>10000000000</max_bytes_before_external_group_by> <!-- 10GB -->
-            <max_bytes_before_external_sort>10000000000</max_bytes_before_external_sort> <!-- 10GB -->
-            
+            <!-- Лимиты памяти для запросов (адаптировано под 4-6GB RAM) -->
+            <max_memory_usage>2000000000</max_memory_usage> <!-- 2GB на один запрос -->
+            <max_memory_usage_for_all_queries>3000000000</max_memory_usage_for_all_queries> <!-- 3GB на все запросы -->
+
+            <!-- Использовать диск при превышении памяти (раннее срабатывание для экономии RAM) -->
+            <max_bytes_before_external_group_by>500000000</max_bytes_before_external_group_by> <!-- 500MB -->
+            <max_bytes_before_external_sort>500000000</max_bytes_before_external_sort> <!-- 500MB -->
+
             <!-- Оптимизация для JOIN операций -->
             <join_algorithm>auto</join_algorithm>
             <max_rows_in_join>5000000</max_rows_in_join>
-            <max_bytes_in_join>8000000000</max_bytes_in_join> <!-- 8GB -->
+            <max_bytes_in_join>1000000000</max_bytes_in_join> <!-- 1GB -->
         </default>
     </profiles>
     
