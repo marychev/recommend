@@ -7,23 +7,34 @@
 ```
 tests/
 ├── __init__.py
-├── README.md                    # Этот файл
-├── test_api.py                  # Базовые тесты API
-├── clickhouse/                  # Тесты ClickHouse
+├── README.md                            # Этот файл
+├── api/                                 # Тесты API
 │   ├── __init__.py
-│   ├── conftest.py              # Фикстуры для ClickHouse
-│   ├── test_connection.py       # Тесты подключения
-│   ├── test_operations.py       # Тесты операций с данными
-│   ├── test_schema.py           # Тесты структуры БД
-│   └── README.md                # Документация ClickHouse тестов
-├── kafka/                       # Тесты Kafka
+│   ├── test_api.py                      # Базовые тесты API (AsyncClient)
+│   └── test_api_health_check.py         # Health check тесты
+├── clickhouse/                          # Тесты ClickHouse
 │   ├── __init__.py
-│   ├── conftest.py              # Фикстуры для Kafka
-│   ├── test_kafka_client.py     # Тесты подключения
-│   ├── test_kafka_producer.py   # Тесты producer
-│   ├── test_kafka_consumer.py   # Тесты consumer
-│   ├── test_kafka_integration.py # Интеграционные тесты
-│   └── README.md                # Документация Kafka тестов
+│   ├── conftest.py                      # Фикстуры для ClickHouse
+│   ├── test_connection.py               # Тесты подключения
+│   ├── test_client_methods.py           # Тесты методов клиента
+│   ├── test_operations_users.py         # Операции с пользователями
+│   ├── test_operations_tracks.py        # Операции с треками
+│   ├── test_operations_interactions.py  # Операции с взаимодействиями
+│   ├── test_dbschema.py                 # Тесты структуры БД
+│   ├── test_complex_queries.py          # Сложные запросы
+│   ├── test_constraints_validation.py   # Валидация ограничений
+│   ├── test_table_engines.py            # Тесты движков таблиц
+│   ├── test_partitioning.py             # Тесты партиционирования
+│   ├── test_performance.py              # Тесты производительности
+│   └── README.md                        # Документация ClickHouse тестов
+├── kafka/                               # Тесты Kafka
+│   ├── __init__.py
+│   ├── conftest.py                      # Фикстуры для Kafka
+│   ├── test_kafka_client.py             # Тесты подключения
+│   ├── test_kafka_producer.py           # Тесты producer
+│   ├── test_kafka_consumer.py           # Тесты consumer
+│   ├── test_kafka_integration.py        # Интеграционные тесты
+│   └── README.md                        # Документация Kafka тестов
 ```
 
 ## 🚀 Быстрый старт
@@ -50,7 +61,7 @@ pytest --cov=app --cov-report=html
 
 ```bash
 # Только API тесты
-pytest tests/test_api.py -v
+pytest tests/api/ -v
 
 # Только ClickHouse тесты
 pytest tests/clickhouse/ -v
@@ -59,10 +70,10 @@ pytest tests/clickhouse/ -v
 pytest tests/kafka/ -v -m "not integration"
 
 # Конкретный класс тестов
-pytest tests/test_api.py::TestHealthCheck -v
+pytest tests/api/test_api.py::TestHealthCheck -v
 
 # Конкретный тест
-pytest tests/test_api.py::TestHealthCheck::test_health_check -v
+pytest tests/api/test_api.py::TestHealthCheck::test_health_check -v
 ```
 
 ## 📊 Типы тестов
@@ -79,8 +90,8 @@ pytest tests/test_api.py::TestHealthCheck::test_health_check -v
 
 ### 3. API тесты (API Tests)
 - Тестируют HTTP эндпоинты
-- Используют TestClient от FastAPI
-- Расположены в tests/test_api.py
+- Используют AsyncClient от httpx
+- Расположены в tests/api/
 
 ## 🎯 Покрытие
 
@@ -105,7 +116,7 @@ pytest tests/test_api.py::TestHealthCheck::test_health_check -v
 ```env
 # ClickHouse
 CLICKHOUSE_HOST=localhost
-CLICKHOUSE_PORT=9000
+CLICKHOUSE_PORT=8123
 CLICKHOUSE_USER=default
 CLICKHOUSE_PASSWORD=
 CLICKHOUSE_DATABASE=music_recommend_test
@@ -255,7 +266,7 @@ pytest --lf
 ### Отладка конкретного теста
 
 ```bash
-pytest tests/test_api.py::test_root -vv -s --pdb
+pytest tests/api/test_api.py::test_root -vv -s --pdb
 ```
 
 ## ⚡ Производительность

@@ -31,6 +31,31 @@ help: ## Показать справку по доступным команда�
 	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
 
 # ═══════════════════════════════════════════════
+# 🔧 Отдельные сервисы
+# ═══════════════════════════════════════════════
+
+up-clickhouse: ## Запустить только ClickHouse
+	@echo "$(GREEN)🚀 Запуск ClickHouse...$(NC)"
+	$(DOCKER_COMPOSE) up -d clickhouse
+
+up-kafka: ## Запустить только Kafka + Zookeeper
+	@echo "$(GREEN)🚀 Запуск Kafka + Zookeeper...$(NC)"
+	$(DOCKER_COMPOSE) up -d zookeeper kafka
+
+up-redis: ## Запустить только Redis
+	@echo "$(GREEN)🚀 Запуск Redis...$(NC)"
+	$(DOCKER_COMPOSE) up -d redis
+
+up-api: ## Запустить только API
+	@echo "$(GREEN)🚀 Запуск API...$(NC)"
+	$(DOCKER_COMPOSE) up -d api
+
+restart-api: ## Перезапустить API контейнер
+	@echo "$(YELLOW)🔄 Перезапуск API...$(NC)"
+	$(DOCKER_COMPOSE) restart api
+	@echo "$(GREEN)✅ API перезапущен$(NC)"
+
+# ═══════════════════════════════════════════════
 # 🐳 Docker Compose команды
 # ═══════════════════════════════════════════════
 
@@ -286,8 +311,8 @@ load-test-recommendations: ## Детальный анализ производи
 load-test-post: ## Нагрузочный тест POST запросов (создание пользователей, треков, событий, рекомендации)
 	@echo "$(BLUE)📝 Запуск нагрузочного теста POST запросов...$(NC)"
 	@echo "$(YELLOW)Тестирует: POST /users, POST /tracks, POST /events, POST /recommendations$(NC)"
-	@echo "$(YELLOW)Длительность: ~5 минут | VUs: 50 (можно изменить через VUS=100 DURATION=10m)$(NC)"
-	@echo "$(GREEN)Пример: make load-test-post VUS=100 DURATION=10m$(NC)"
+	@echo "$(YELLOW)Длительность: ~11 минут | VUs: 100 (можно изменить через VUS=50 DURATION=5m)$(NC)"
+	@echo "$(GREEN)Пример: make load-test-post VUS=50 DURATION=5m$(NC)"
 	k6 run load_tests/k6_post_load_test.js
 
 load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)

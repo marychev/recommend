@@ -6,10 +6,18 @@
 
 ```
 tests/clickhouse/
-├── conftest.py              # Фикстуры для тестов
-├── test_connection.py       # Тесты подключения
-├── test_operations.py       # Тесты операций с данными
-├── test_schema.py           # Тесты структуры БД
+├── conftest.py                      # Фикстуры для тестов
+├── test_connection.py               # Тесты подключения
+├── test_client_methods.py           # Тесты методов клиента
+├── test_operations_users.py         # Операции с пользователями
+├── test_operations_tracks.py        # Операции с треками
+├── test_operations_interactions.py  # Операции с взаимодействиями
+├── test_dbschema.py                 # Тесты структуры БД
+├── test_complex_queries.py          # Сложные запросы
+├── test_constraints_validation.py   # Валидация ограничений
+├── test_table_engines.py            # Тесты движков таблиц
+├── test_partitioning.py             # Тесты партиционирования
+├── test_performance.py              # Тесты производительности
 └── README.md
 ```
 
@@ -26,18 +34,21 @@ tests/clickhouse/
 - ✅ Множественные запросы
 - ✅ Методы клиента (execute, insert)
 
-### 2. test_operations.py - Операции с данными
-- ✅ Вставка одного/нескольких пользователей
-- ✅ Вставка треков
-- ✅ Вставка взаимодействий
-- ✅ Выборка с фильтрами
+### 2. test_operations_*.py - Операции с данными
+
+- ✅ **test_operations_users.py** — вставка, выборка, фильтрация пользователей
+- ✅ **test_operations_tracks.py** — вставка, выборка треков
+- ✅ **test_operations_interactions.py** — вставка, выборка взаимодействий
 - ✅ Агрегирующие запросы (count, avg, sum)
 - ✅ JOIN запросы (users + interactions, tracks + interactions)
 - ✅ Оконные функции
 - ✅ Группировка данных
-- ✅ Тесты производительности (bulk insert, query performance)
 
-### 3. test_schema.py - Структура БД
+### 3. test_client_methods.py - Методы клиента
+
+- ✅ Тесты методов ClickHouseClient (execute, insert и др.)
+
+### 4. test_dbschema.py - Структура БД
 - ✅ Проверка существования базы данных
 - ✅ Проверка существования таблиц
 - ✅ Структура таблиц (columns, types)
@@ -60,10 +71,10 @@ pytest tests/clickhouse/ -v
 pytest tests/clickhouse/test_connection.py -v
 
 # Тесты операций
-pytest tests/clickhouse/test_operations.py -v
+pytest tests/clickhouse/test_operations_users.py -v
 
 # Тесты схемы
-pytest tests/clickhouse/test_schema.py -v
+pytest tests/clickhouse/test_dbschema.py -v
 ```
 
 ### Запуск конкретного теста
@@ -142,7 +153,7 @@ docker-compose up -d clickhouse
 2. **Переменные окружения в .env:**
 ```env
 CLICKHOUSE_HOST=localhost
-CLICKHOUSE_PORT=9000
+CLICKHOUSE_PORT=8123
 CLICKHOUSE_USER=default
 CLICKHOUSE_PASSWORD=
 CLICKHOUSE_DATABASE=music_recommend

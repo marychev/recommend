@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[Документация](docs/INDEX.md) • [API Docs](http://localhost:8000/docs) • [Тесты](docs/RUN_TESTS.md)
+[Документация](docs/INDEX.md) • [API Docs](http://localhost:8000/docs) • [Тесты](docs/TESTING.md)
 
 </div>
 
@@ -84,7 +84,7 @@ make run-api            # или python -m app.main
 | Компонент | Технология | Версия | Назначение |
 |-----------|------------|--------|------------|
 | **API Framework** | FastAPI | 0.104+ | REST API сервер с автодокументацией |
-| **Database** | ClickHouse | 25.x | OLAP база для аналитики больших данных |
+| **Database** | ClickHouse | latest | OLAP база для аналитики больших данных |
 | **Message Queue** | Kafka | 3.5 | Стриминг событий в реальном времени |
 | **Cache** | Redis | 7 | Кэширование и очереди |
 | **ML Library** | Scikit-learn | 1.3.2 | Алгоритмы рекомендаций |
@@ -110,8 +110,7 @@ make run-api            # или python -m app.main
 <td width="50%">
 
 ### 🔧 Техническая документация
-- 🧪 [Запуск тестов](docs/RUN_TESTS.md)
-- 🚨 [Решение ошибки 500](docs/API_ERROR_500.md)
+- 🧪 [Запуск тестов](docs/TESTING.md)
 - 📊 [Инициализация БД](docs/DB_INIT.md)
 - 🆘 [Решение проблем](docs/TROUBLESHOOTING.md)
 - 🔌 [Справочник портов](docs/PORTS.md)
@@ -192,10 +191,11 @@ make run-api            # или python -m app.main
 
 | Таблица | Назначение | Engine | Партиционирование |
 |---------|------------|--------|-------------------|
-| `users` | Профили пользователей | MergeTree | - |
-| `tracks` | Каталог треков | MergeTree | - |
-| `user_track_interactions` | События взаимодействий | MergeTree | По месяцам |
+| `users` | Профили пользователей | MergeTree | По месяцам (`created_at`) |
+| `tracks` | Каталог треков | MergeTree | По месяцам (`created_at`) |
+| `user_track_interactions` | События взаимодействий | MergeTree | По месяцам (`timestamp`) |
 | `user_track_matrix` | User-Item матрица | ReplacingMergeTree | - |
+| `user_recommendations` | Кэш рекомендаций | ReplacingMergeTree | По месяцам (`generated_at`) |
 
 ### Материализованные представления
 
@@ -265,7 +265,6 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 
 | Сервис | Порт | URL | Назначение |
 |--------|------|-----|------------|
-| **Kafka UI** | 8081 | http://localhost:8081 | Мониторинг Kafka 📊 |
 | FastAPI | 8000 | http://localhost:8000 | REST API |
 | Swagger UI | 8000 | http://localhost:8000/docs | Интерактивная документация |
 | ClickHouse HTTP | 8123 | http://localhost:8123 | Для приложения ✅ |
@@ -284,7 +283,6 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 
 - ✅ **ClickHouse** - OLAP база данных
 - ✅ **Kafka + Zookeeper** - Стриминг событий
-- ✅ **Kafka UI** - Веб интерфейс для мониторинга Kafka
 - ✅ **Redis** - Кэширование
 - ✅ **FastAPI** - API сервер
 
@@ -336,7 +334,7 @@ make help            # Все команды
 - [x] ClickHouse интеграция
 - [x] Collaborative Filtering
 - [x] REST API с документацией
-- [x] 60+ автоматических тестов
+- [x] 140+ автоматических тестов
 - [x] Docker Compose
 
 ### 🚧 v1.1 - Kafka Integration (Готово)
@@ -364,7 +362,7 @@ make help            # Все команды
 ### Документация проекта
 - 📖 [Полная навигация](docs/INDEX.md)
 - ⚡ [Быстрая справка](docs/QUICK_REFERENCE.md)
-- 📊 [Статус проекта](PROJECT_STATUS.md)
+- 📊 [Техническое задание](docs/TECHNICAL_REQUIREMENTS.md)
 
 ### Внешние ресурсы
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
@@ -378,14 +376,14 @@ make help            # Все команды
 
 ### Нужна помощь?
 
-1. 📖 Читайте [START_HERE.md](START_HERE.md)
+1. 📖 Читайте [README.md](README.md) (вы здесь)
 2. 🔍 Ищите в [docs/INDEX.md](docs/INDEX.md)
 3. ⚡ Смотрите [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
 
 ### Нашли баг?
 
 1. Проверьте [Troubleshooting](#-troubleshooting)
-2. Посмотрите [docs/RUN_TESTS.md](docs/RUN_TESTS.md)
+2. Посмотрите [docs/TESTING.md](docs/TESTING.md)
 3. Создайте issue с описанием проблемы
 
 ---

@@ -24,7 +24,7 @@ import { BASE_URL, urlUsersList10, urlTracksList10 } from './k6-helpers.js';
 
 // Конфигурация smoke теста
 export const options = {
-  // Минимальная нагрузка: 2 пользователя на 30 секунд
+  // Минимальная нагрузка: 3 пользователя на 10 секунд
   vus: 3,
   duration: '10s',
   

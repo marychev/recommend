@@ -7,7 +7,7 @@
 ClickHouse использует **два разных порта** для разных протоколов:
 
 ### Порт 8123 - HTTP Interface ✅
-- **Используется**: `clickhouse-connect` (Python библиотека)
+- **Используется**: `aiochclient` (асинхронная Python библиотека)
 - **Протокол**: HTTP/HTTPS
 - **Применение**: Наше приложение, тесты, HTTP клиенты
 - **URL**: `http://localhost:8123`
@@ -20,7 +20,7 @@ ClickHouse использует **два разных порта** для раз
 
 ## ⚠️ Важно!
 
-**Наше приложение использует порт 8123**, так как библиотека `clickhouse-connect` работает через HTTP протокол.
+**Наше приложение использует порт 8123**, так как библиотека `aiochclient` работает через HTTP протокол.
 
 ```python
 # ✅ Правильно
@@ -44,15 +44,18 @@ CLICKHOUSE_PORT=9000
 
 ## Примеры использования
 
-### Python приложение (clickhouse-connect)
+### Python приложение (aiochclient)
 ```python
-import clickhouse_connect
+from aiochclient import ChClient
+from aiohttp import ClientSession
 
-client = clickhouse_connect.get_client(
-    host='localhost',
-    port=8123,  # ← HTTP порт
-    username='default',
-    password=''
+session = ClientSession()
+client = ChClient(
+    session,
+    url='http://localhost:8123',  # ← HTTP порт
+    user='default',
+    password='',
+    database='music_recommend'
 )
 ```
 
@@ -146,5 +149,5 @@ pytest tests/clickhouse/ -v
 
 - [ClickHouse Interfaces](https://clickhouse.com/docs/en/interfaces/overview)
 - [ClickHouse HTTP Interface](https://clickhouse.com/docs/en/interfaces/http)
-- [clickhouse-connect Documentation](https://clickhouse.com/docs/en/integrations/python)
+- [aiochclient Documentation](https://github.com/maximdanilchenko/aiochclient)
 

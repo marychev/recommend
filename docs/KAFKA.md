@@ -19,7 +19,7 @@ POST /tracks → Kafka Producer → Topic                    (batch 1000, flush 
 
 - **Образ:** `confluentinc/cp-kafka:7.5.0`
 - **Listeners:** INTERNAL (kafka:29092) + EXTERNAL (localhost:9092)
-- **Zookeeper:** `confluentinc/cp-zookeeper:7.5.0` (порт 2181)
+- **Zookeeper:** `confluentinc/cp-zookeeper:latest` (порт 2181)
 
 ### Топики
 
@@ -56,6 +56,7 @@ app/kafka/
 ├── producer.py        # Отправка событий (send_event, send_user, send_track, send_batch_events)
 ├── consumer.py        # Обработка событий
 ├── data_handler.py    # Батчинг Consumer → ClickHouse (1000 записей, 5 сек)
+├── event_handler.py   # Обработка событий из Kafka
 └── multi_consumer.py  # Consumers для всех топиков (users, tracks, events)
 
 app/services/

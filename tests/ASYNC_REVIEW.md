@@ -64,44 +64,30 @@ async def get_cache_stats(): ...  # ✅
 
 ---
 
-## ❌ ЧТО НУЖНО ИСПРАВИТЬ
+## ✅ ИСПРАВЛЕНО
 
-### 1. **API тесты используют СИНХРОННЫЙ TestClient**
+### 1. **API тесты мигрированы на AsyncClient**
 
-#### Текущая проблема:
+**Статус:** ВЫПОЛНЕНО
 
-```python
-# tests/test_api.py
-from fastapi.testclient import TestClient  # ❌ СИНХРОННЫЙ!
-
-client = TestClient(app)
-
-class TestRootEndpoint:
-    def test_root(self):  # ❌ Синхронная функция
-        response = client.get("/")  # ❌ Блокирует event loop!
-        assert response.status_code == 200
-```
-
-**Проблема:** `TestClient` - это синхронный клиент. Когда вы тестируете асинхронные endpoints (`async def`), `TestClient` запускает их в отдельном thread, что:
-- 🐌 Медленнее
-- 🔒 Блокирует event loop
-- ⚠️ Может скрывать проблемы с асинхронностью
-- 🔥 Не тестирует реальное асинхронное поведение
-
-#### ✅ Правильное решение:
+API тесты перенесены из `tests/test_api.py` в `tests/api/test_api.py` и переписаны на `AsyncClient`:
 
 ```python
-# tests/test_api.py
+# tests/api/test_api.py
 import pytest
-from httpx import AsyncClient  # ✅ Асинхронный клиент!
+from httpx import AsyncClient
 from app.main import app
+
+@pytest.fixture
+async def async_client():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        yield client
 
 @pytest.mark.asyncio
 class TestRootEndpoint:
-    async def test_root(self):  # ✅ async def
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            response = await client.get("/")  # ✅ await
-            assert response.status_code == 200
+    async def test_root(self, async_client):  # ✅ async def
+        response = await async_client.get("/")  # ✅ await
+        assert response.status_code == 200
 ```
 
 ---
@@ -126,28 +112,17 @@ pip install pytest-asyncio httpx
 
 ## 🔍 Детальный анализ по модулям
 
-### tests/test_api.py
+### tests/api/test_api.py
 
-**Проблемы:**
-- ❌ Использует `TestClient` (синхронный)
-- ❌ Все тесты `def test_` вместо `async def test_`
-- ❌ Нет `@pytest.mark.asyncio`
+**Статус:** ✅ ИСПРАВЛЕНО
+- ✅ Использует `AsyncClient` (httpx)
+- ✅ Все тесты `async def test_`
+- ✅ Используется `@pytest.mark.asyncio`
 
-**Количество:**
-- Синхронных тестов: ~12
-- Асинхронных тестов: 0
+### tests/api/test_api_health_check.py
 
-**Рекомендация:** ПЕРЕПИСАТЬ на `AsyncClient`
-
----
-
-### tests/test_api_health_check.py
-
-**Проблемы:**
-- ❌ Использует `TestClient` (синхронный)
-- ❌ Тесты `def test_` вместо `async def test_`
-
-**Рекомендация:** ПЕРЕПИСАТЬ на `AsyncClient`
+**Статус:** ✅ ИСПРАВЛЕНО
+- ✅ Использует `AsyncClient` (httpx)
 
 ---
 
@@ -324,11 +299,11 @@ async def fetch_data():
 - [x] Все методы `async def`
 
 ### Тесты (tests/)
-- [ ] **API тесты используют AsyncClient** ❌ НУЖНО ИСПРАВИТЬ
+- [x] **API тесты используют AsyncClient** ✅ ИСПРАВЛЕНО
 - [x] ClickHouse тесты асинхронные
 - [x] Kafka тесты асинхронные
-- [ ] **Добавлен pytest-asyncio** ⚠️ Проверить
-- [ ] **Добавлен httpx** ⚠️ Проверить
+- [x] **Добавлен pytest-asyncio** ✅
+- [x] **Добавлен httpx** ✅
 
 ---
 
@@ -465,13 +440,13 @@ pytest tests/ -v --durations=10
 
 ## 🎯 Action Plan
 
-### Немедленно (1-2 часа)
+### Немедленно (1-2 часа) — ✅ ВЫПОЛНЕНО
 
-1. [ ] Установить `pytest-asyncio` и `httpx`
-2. [ ] Создать `tests/conftest.py` с `async_client` fixture
-3. [ ] Переписать `tests/test_api.py` на `AsyncClient`
-4. [ ] Переписать `tests/test_api_health_check.py` на `AsyncClient`
-5. [ ] Запустить тесты и убедиться, что они проходят
+1. [x] Установить `pytest-asyncio` и `httpx`
+2. [x] Создать `tests/api/test_api.py` с `async_client` fixture
+3. [x] Переписать API тесты на `AsyncClient`
+4. [x] Переписать health check тесты на `AsyncClient`
+5. [x] Тесты проходят
 
 ### Краткосрочно (1 неделя)
 
@@ -500,7 +475,8 @@ pytest tests/ -v --durations=10
 
 ---
 
-**Создано:** 2025-11-10  
-**Для:** Music Recommendation System  
-**Статус:** Требуется исправление API тестов
+**Создано:** 2025-11-10
+**Обновлено:** 2026-03-11
+**Для:** Music Recommendation System
+**Статус:** ✅ Все API тесты мигрированы на AsyncClient
 

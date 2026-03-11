@@ -112,10 +112,10 @@ k6 run load_tests/k6_smoke_test.js
 ```
 
 **Параметры:**
-- ⏱️ Длительность: ~2 минуты
-- 👥 Нагрузка: 2 VUs
+- ⏱️ Длительность: 10 секунд
+- 👥 Нагрузка: 3 VUs
 - ✅ Проверяет все критичные endpoints
-- 🎯 Пороги: p95 < 5s, ошибок < 10%
+- 🎯 Пороги: p95 < 2s, ошибок < 10%
 
 ---
 
@@ -197,7 +197,7 @@ k6 run load_tests/k6_soak_test.js
 |------|-----|--------------|------------|--------|
 | **🔍 Diagnostics** | 10 | 1 мин | Выявление узких мест | `make load-test-diagnostics` |
 | **⚡ Quick** | 5 | 30 сек | Быстрая проверка | `make load-test-quick` |
-| **🔥 Smoke** | 2 | 2 мин | Готовность к тестам | `make load-test-smoke` |
+| **🔥 Smoke** | 3 | 10 сек | Готовность к тестам | `make load-test-smoke` |
 | **📊 Basic Load** | 50-200 | 15 мин | Нормальная нагрузка | `make load-test-basic` |
 | **⚡ Spike** | 4→50 | 2 мин | Пиковые нагрузки | `make load-test-spike` |
 | **💥 Spike Extreme** | 10→500 | 1 мин | Экстрим без fail | `make load-test-spike-extreme` |

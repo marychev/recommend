@@ -36,7 +36,7 @@
 
 ### Текущие настройки Docker Desktop
 
-Согласно документации `docs/CLICKHOUSE_OPTIMIZATION.md`, система настроена для работы на компьютерах с ограниченными ресурсами. Рекомендуемые настройки в Docker Desktop:
+Согласно документации `docs/CLICKHOUSE.md`, система настроена для работы на компьютерах с ограниченными ресурсами. Рекомендуемые настройки в Docker Desktop:
 
 ```
 Settings → Resources:
@@ -54,11 +54,11 @@ Settings → Resources:
 - **CPU**: 1-2 ядра (минимум 1, максимум 2)
 - **RAM**: 2-4GB (минимум 2GB, максимум 4GB) - лимит контейнера
 - **Конфигурация памяти** (из `clickhouse-config/users.xml`):
-  - Максимальная память на один запрос: **20GB** (увеличено для запросов рекомендаций)
-  - Максимальная память для всех запросов: **25GB**
-  - Использование диска при превышении памяти: включено (10GB для group_by и sort)
+  - Максимальная память на один запрос: **2GB** (оптимизировано под 4-6GB RAM)
+  - Максимальная память для всех запросов: **3GB**
+  - Использование диска при превышении памяти: включено (500MB для group_by и sort)
   - Максимальные строки в JOIN: 5,000,000
-  - Максимальные байты в JOIN: 8GB
+  - Максимальные байты в JOIN: 1GB
 - **Алгоритм JOIN**: auto (автоматический выбор)
 
 ### Kafka
@@ -89,25 +89,24 @@ Settings → Resources:
 
 ### Настройки памяти (из `clickhouse-config/users.xml`)
 
-**Текущие настройки (актуальные):**
+**Текущие настройки (актуальные, из `clickhouse-config/users.xml`):**
 
 ```xml
-<!-- Увеличенные лимиты памяти для запросов рекомендаций -->
-<!-- Запросы рекомендаций требуют много памяти из-за JOIN операций -->
-<max_memory_usage>20000000000</max_memory_usage> <!-- 20GB -->
-<max_memory_usage_for_all_queries>25000000000</max_memory_usage_for_all_queries> <!-- 25GB -->
+<!-- Лимиты памяти (адаптировано под 4-6GB RAM) -->
+<max_memory_usage>2000000000</max_memory_usage> <!-- 2GB на один запрос -->
+<max_memory_usage_for_all_queries>3000000000</max_memory_usage_for_all_queries> <!-- 3GB на все запросы -->
 
-<!-- Использовать диск при превышении памяти (критично для больших запросов) -->
-<max_bytes_before_external_group_by>10000000000</max_bytes_before_external_group_by> <!-- 10GB -->
-<max_bytes_before_external_sort>10000000000</max_bytes_before_external_sort> <!-- 10GB -->
+<!-- Использовать диск при превышении памяти (раннее срабатывание для экономии RAM) -->
+<max_bytes_before_external_group_by>500000000</max_bytes_before_external_group_by> <!-- 500MB -->
+<max_bytes_before_external_sort>500000000</max_bytes_before_external_sort> <!-- 500MB -->
 
 <!-- Оптимизация для JOIN операций -->
 <join_algorithm>auto</join_algorithm>
 <max_rows_in_join>5000000</max_rows_in_join>
-<max_bytes_in_join>8000000000</max_bytes_in_join> <!-- 8GB -->
+<max_bytes_in_join>1000000000</max_bytes_in_join> <!-- 1GB -->
 ```
 
-**Примечание:** Настройки памяти увеличены по сравнению с базовыми рекомендациями из `docs/CLICKHOUSE_OPTIMIZATION.md`, так как запросы рекомендаций требуют много памяти из-за сложных JOIN операций.
+**Примечание:** Настройки памяти оптимизированы под WSL2 с 5.8GB RAM. Раннее срабатывание external group by/sort (500MB) позволяет избежать OOM при нагрузочных тестах.
 
 ### Дополнительные настройки производительности
 
@@ -231,7 +230,7 @@ docker stats --no-stream
 
 ## 📚 Связанные документы
 
-- `docs/CLICKHOUSE_OPTIMIZATION.md` - Детальная оптимизация ClickHouse
+- `docs/CLICKHOUSE.md` - Детальная оптимизация ClickHouse
 - `docs/TECHNICAL_REQUIREMENTS.md` - Технические требования проекта
 - `load_tests/README.md` - Документация по нагрузочному тестированию
 - `load_tests/DIAGNOSTICS_GUIDE.md` - Руководство по диагностике производительности
