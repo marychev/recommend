@@ -24,27 +24,43 @@ Music Recommendation System - это полнофункциональная ре
 
 ## 🚀 Быстрый старт
 
-### Вариант 1: Makefile (самый быстрый) ⚡
+### Вариант 1: Полная настройка одной командой ⚡
 
 ```bash
-# 🎉 Запустить ВСЁ сразу (backend + frontend)!
-make quickstart
+pip install -r requirements.txt   # Установить зависимости
+make setup                        # Полная настройка проекта
+```
 
-# Или по отдельности:
-make up          # Запустить Docker сервисы
-make db-init     # Создать таблицы
+`make setup` выполняет все шаги автоматически:
+1. Запуск Docker-сервисов (ClickHouse, Kafka, Redis, API)
+2. Создание таблиц в ClickHouse
+3. Генерация тестовых данных (~10M записей)
+4. Добавление индексов для оптимизации
+5. Применение индексов к данным
+6. Запуск тестов (pytest)
+7. Диагностика системы
 
-make help        # Посмотреть все доступные команды
-make down        # Остановить все сервисы
+После `make setup` можно запускать нагрузочные тесты:
+```bash
+make load-test-post-quick     # Быстрый нагрузочный тест (1 мин, 10 VUs)
+make load-test-post           # Полный нагрузочный тест (8 мин, 100 VUs)
+make measure-insert-lag       # Измерение лага вставки в ClickHouse
+```
+
+### Вариант 2: Пошаговый запуск
+
+```bash
+make up              # Запустить Docker сервисы
+make db-init         # Создать таблицы
+make help            # Посмотреть все доступные команды
+make down            # Остановить все сервисы
 ```
 
 **Откройте:**
-- Kafka UI: http://localhost:8081
 - Swagger API: http://localhost:8000/docs
 - ClickHouse: http://localhost:8123/play
 
-
-### Вариант 2: Локальная разработка 💻
+### Вариант 3: Локальная разработка 💻
 
 ```bash
 # 1. Установите зависимости
@@ -276,7 +292,7 @@ final = filter_and_rank(recommendations, exclude_listened=True)
 
 **С помощью Makefile (рекомендуется):**
 ```bash
-make quickstart      # 🚀 Запустить всё сразу!
+make setup           # 🚀 Полная настройка (сервисы + БД + данные + тесты)
 make up              # Запустить все сервисы
 make down            # Остановить все
 make ps              # Статус контейнеров

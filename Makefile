@@ -1,11 +1,11 @@
-.PHONY: help up down build rebuild ps shell \
+.PHONY: help setup up down build rebuild ps shell \
 	logs logs-api logs-clickhouse logs-kafka logs-errors logs-redis \
 	load-test-install load-test-data-generate load-test-diagnostics \
 	load-test-spike-extreme load-test-results \
-	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \ 
+	load-test-quick load-test-smoke load-test-basic load-test-spike load-test-stress load-test-soak \
 	load-test-recommendations load-test-recommendations-quick load-test-post load-test-post-quick \
 	status check-services health diagnose diagnose-system diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
-	clean clean-all \ 
+	clean clean-all \
 	test test-api test-cache test-clickhouse test-kafka   \
 	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
 	lint lint-install format \
@@ -38,13 +38,49 @@ ps: ## Показать статус контейнеров
 	@echo "$(BLUE)🐳 Статус контейнеров:$(NC)"
 	@$(DOCKER_COMPOSE) ps
 
+setup: ## Полная настройка проекта: сервисы + БД + данные + индексы + тесты + диагностика
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  🚀 Полная настройка проекта$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Шаг 1/7: Запуск сервисов...$(NC)"
+	$(MAKE) up
+	@echo ""
+	@echo "$(YELLOW)Шаг 2/7: Создание таблиц...$(NC)"
+	$(MAKE) db-init
+	@echo ""
+	@echo "$(YELLOW)Шаг 3/7: Генерация тестовых данных (~10M записей)...$(NC)"
+	$(MAKE) load-test-data-generate
+	@echo ""
+	@echo "$(YELLOW)Шаг 4/7: Добавление индексов...$(NC)"
+	$(MAKE) db-indexes
+	@echo ""
+	@echo "$(YELLOW)Шаг 5/7: Оптимизация таблиц (применение индексов)...$(NC)"
+	$(MAKE) db-optimize
+	@echo ""
+	@echo "$(YELLOW)Шаг 6/7: Запуск тестов...$(NC)"
+	$(MAKE) test
+	@echo ""
+	@echo "$(YELLOW)Шаг 7/7: Диагностика системы...$(NC)"
+	$(MAKE) diagnose
+	@echo ""
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  ✅ Проект готов к работе и тестированию!$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Следующие шаги:$(NC)"
+	@echo "  make load-test-post-quick    — быстрый нагрузочный тест (1 мин)"
+	@echo "  make load-test-post          — полный нагрузочный тест (8 мин)"
+	@echo "  make measure-insert-lag      — измерение лага вставки"
+	@echo ""
+
 up: ## Запустить все сервисы (включая API)
 	@echo "$(GREEN)🚀 Запуск всех сервисов...$(NC)"
 	$(DOCKER_COMPOSE) up -d
 	@sleep 3
 	@echo "$(GREEN)✅ Сервисы запущены!$(NC)"
 	@echo ""
-	make urls
+	$(MAKE) urls
 
 down: ## Остановить все сервисы
 	@echo "$(RED)🛑 Остановка всех сервисов...$(NC)"

@@ -8,13 +8,13 @@ import sys
 import random
 from pathlib import Path
 
+# Добавляем корневую директорию в PATH
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from faker import Faker
 from datetime import datetime
 from app.db.clickhouse import get_clickhouse_client
 from app.models.schemas import User, Track, UserTrackInteraction
-
-# Добавляем корневую директорию в PATH
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 fake = Faker(['ru_RU', 'en_US'])
@@ -24,8 +24,8 @@ random.seed(42)
 
 class DataGenerator:
     """Генератор тестовых данных"""
-    USERS_COUNT: int = 1_000_000,
-    TRACKS_COUNT: int = 500_000,
+    USERS_COUNT: int = 1_000_000
+    TRACKS_COUNT: int = 500_000
     INTERACTIONS_COUNT: int = 8_500_000
 
     def __init__(self):
