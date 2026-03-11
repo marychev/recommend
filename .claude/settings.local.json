@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl -d Ubuntu -e bash -c \"cd /home/recommend && cat load_tests/k6_smoke_test.js\")"
+    ]
+  }
+}
