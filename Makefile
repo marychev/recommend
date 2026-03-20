@@ -9,7 +9,9 @@
 	test test-api test-cache test-clickhouse test-kafka   \
 	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
 	lint lint-install format \
-	up-clickhouse up-kafka up-redis up-api restart-api
+	up-clickhouse up-kafka up-redis up-api restart-api \
+	up-pipeline-connect down-pipeline-connect up-pipeline-engine down-pipeline-engine \
+	connect-status connect-lag logs-connect pipeline-verify
 
 # Цвета для вывода
 BLUE := \033[0;34m
@@ -54,6 +56,77 @@ restart-api: ## Перезапустить API контейнер
 	@echo "$(YELLOW)🔄 Перезапуск API...$(NC)"
 	$(DOCKER_COMPOSE) restart api
 	@echo "$(GREEN)✅ API перезапущен$(NC)"
+
+# ═══════════════════════════════════════════════
+# 🔬 Pipeline Benchmark — переключение решений
+# ═══════════════════════════════════════════════
+# Решение A (Python Consumer) = обычный make up
+# Решение B (Kafka Connect Sink) = make up-pipeline-connect
+# Решение C (Kafka Table Engine) = make up-pipeline-engine
+# Подробности: ROADMAP.md
+
+DOCKER_COMPOSE_CONNECT := docker compose -f docker-compose.yml -f docker-compose.connect.yml
+
+up-pipeline-connect: ## [Benchmark] Запустить решение B: Kafka Connect Sink
+	@echo "$(BLUE)═══════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  Pipeline B: Kafka Connect Sink$(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Останавливаем текущие сервисы...$(NC)"
+	$(DOCKER_COMPOSE) down 2>/dev/null || true
+	$(DOCKER_COMPOSE_CONNECT) down 2>/dev/null || true
+	@echo "$(YELLOW)Запускаем инфраструктуру + Kafka Connect (Python consumer ОТКЛЮЧЁН)...$(NC)"
+	KAFKA_CONSUMER_ENABLED=false $(DOCKER_COMPOSE_CONNECT) up -d --build
+	@echo "$(YELLOW)Настраиваем коннекторы...$(NC)"
+	@bash scripts/setup_connect.sh
+
+down-pipeline-connect: ## [Benchmark] Остановить Kafka Connect
+	@echo "$(YELLOW)Останавливаем Kafka Connect...$(NC)"
+	$(DOCKER_COMPOSE_CONNECT) down
+	@echo "$(GREEN)✅ Kafka Connect остановлен$(NC)"
+
+up-pipeline-engine: ## [Benchmark] Запустить решение C: Kafka Table Engine
+	@echo "$(BLUE)═══════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  Pipeline C: Kafka Table Engine$(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Останавливаем текущие сервисы...$(NC)"
+	$(DOCKER_COMPOSE) down 2>/dev/null || true
+	@echo "$(YELLOW)Запускаем инфраструктуру (Python consumer ОТКЛЮЧЁН)...$(NC)"
+	KAFKA_CONSUMER_ENABLED=false $(DOCKER_COMPOSE) up -d
+	@sleep 5
+	@echo "$(YELLOW)Создаём Kafka Engine таблицы в ClickHouse...$(NC)"
+	@bash scripts/setup_engine.sh
+
+down-pipeline-engine: ## [Benchmark] Остановить Kafka Table Engine
+	@echo "$(YELLOW)Удаляем Kafka Engine таблицы...$(NC)"
+	@bash scripts/teardown_engine.sh
+	$(DOCKER_COMPOSE) down
+	@echo "$(GREEN)✅ Kafka Table Engine остановлен$(NC)"
+
+connect-status: ## [Benchmark] Статус коннекторов Kafka Connect
+	@echo "$(BLUE)Статус коннекторов:$(NC)"
+	@curl -sf http://localhost:8083/connectors | python3 -m json.tool 2>/dev/null || echo "$(RED)Kafka Connect недоступен$(NC)"
+	@echo ""
+	@for c in clickhouse-sink-users clickhouse-sink-tracks clickhouse-sink-events; do \
+		echo "$(YELLOW)$$c:$(NC)"; \
+		curl -sf "http://localhost:8083/connectors/$$c/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"  connector: {d['connector']['state']}\"); [print(f\"  task {t['id']}: {t['state']}\") for t in d.get('tasks',[])]" 2>/dev/null || echo "  $(RED)недоступен$(NC)"; \
+	done
+
+connect-lag: ## [Benchmark] Consumer lag для Kafka Connect
+	@echo "$(BLUE)Consumer lag (connect-clickhouse):$(NC)"
+	@docker exec music_recommend_kafka kafka-consumer-groups \
+		--bootstrap-server localhost:29092 \
+		--describe --group connect-clickhouse 2>/dev/null || echo "$(RED)Не удалось получить lag$(NC)"
+
+logs-connect: ## [Benchmark] Логи Kafka Connect
+	$(DOCKER_COMPOSE_CONNECT) logs -f kafka-connect
+
+pipeline-verify: ## [Benchmark] Проверка количества записей в таблицах
+	@echo "$(BLUE)Количество записей в таблицах:$(NC)"
+	@docker exec music_recommend_clickhouse clickhouse-client -q "\
+		SELECT 'users' AS tbl, count() AS rows FROM music_recommend.users \
+		UNION ALL SELECT 'tracks', count() FROM music_recommend.tracks \
+		UNION ALL SELECT 'interactions', count() FROM music_recommend.user_track_interactions \
+		FORMAT Pretty"
 
 # ═══════════════════════════════════════════════
 # 🐳 Docker Compose команды

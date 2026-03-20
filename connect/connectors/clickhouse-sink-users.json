@@ -1,0 +1,21 @@
+{
+  "name": "clickhouse-sink-users",
+  "config": {
+    "connector.class": "com.clickhouse.kafka.connect.ClickHouseSinkConnector",
+    "tasks.max": "1",
+    "topics": "users",
+    "hostname": "clickhouse",
+    "port": 8123,
+    "database": "music_recommend",
+    "username": "default",
+    "password": "",
+    "ssl": "false",
+    "topic2TableMap": "users=users",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true"
+  }
+}

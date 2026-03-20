@@ -46,7 +46,8 @@ async def lifespan(_app: FastAPI):
         
         # Запускаем мульти-consumer для обработки всех топиков (users, tracks, events)
         # Consumer будет писать в ClickHouse батчами
-        if clickhouse_connected:
+        # Отключается через KAFKA_CONSUMER_ENABLED=false (для тестирования Kafka Connect / Table Engine)
+        if clickhouse_connected and settings.kafka_consumer_enabled:
             # Ждем, пока Kafka полностью запустится (особенно Group Coordinator)
             # Это предотвращает ошибки CoordinatorNotAvailableError
             # logger.info("Ожидание готовности Kafka (Group Coordinator)...")

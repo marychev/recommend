@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     kafka_topic_users: str = "users"
     kafka_topic_tracks: str = "tracks"
     kafka_consumer_group: str = "recommend_consumer"
+    kafka_consumer_enabled: bool = True
 
     redis_host: str = "localhost"
     redis_port: int = 6379
