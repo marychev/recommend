@@ -78,31 +78,14 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
                 if not success:
                     # Fallback: если Kafka недоступен, пишем напрямую в ClickHouse
                     logger.warning("Kafka недоступен, используем fallback: прямой INSERT в ClickHouse")
-                    track_model = Track(
-                        track_id=new_id,
-                        title=track.title,
-                        artist=track.artist,
-                        album=track.album,
-                        genre=track.genre,
-                        duration_seconds=track.duration_seconds,
-                        release_year=track.release_year,
-                        created_at=created_at,
-                    )
+                    track_model = _prepare_track_model(new_id, track, created_at)
                     await clickhouse.save_track(track_model, new_id)
             except Exception as e:
                 # Fallback: если ошибка при отправке в Kafka, пишем напрямую в ClickHouse
                 logger.warning("Ошибка отправки в Kafka, используем fallback: %s", e)
+
                 try:
-                    track_model = Track(
-                        track_id=new_id,
-                        title=track.title,
-                        artist=track.artist,
-                        album=track.album,
-                        genre=track.genre,
-                        duration_seconds=track.duration_seconds,
-                        release_year=track.release_year,
-                        created_at=created_at,
-                    )
+                    track_model = _prepare_track_model(new_id, track, created_at)
                     await clickhouse.save_track(track_model, new_id)
                 except Exception as fallback_error:
                     logger.error("Ошибка fallback INSERT в ClickHouse: %s", fallback_error)
@@ -113,20 +96,12 @@ async def create_track(track: TrackCreate, background_tasks: BackgroundTasks):
         background_tasks.add_task(invalidate_track_exists_cache, new_id)
 
         # Возвращаем ответ клиенту сразу (не ждем ClickHouse)
-        return Track(
-            track_id=new_id,
-            title=track.title,
-            artist=track.artist,
-            album=track.album,
-            genre=track.genre,
-            duration_seconds=track.duration_seconds,
-            release_year=track.release_year,
-            created_at=created_at,
-        )
+        return _prepare_track_model(new_id, track, created_at)
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при создании трека: {str(e)}",
+            detail=f"Ошибка при создании трека: {e}",
         )
 
 
@@ -140,6 +115,19 @@ def _get_track_by_row(row: tuple) -> Track:
         duration_seconds=row[5],
         release_year=row[6],
         created_at=row[7],
+    )
+
+
+def _prepare_track_model(new_id, track, created_at) -> Track:
+    return Track(
+        track_id=new_id,
+        title=track.title,
+        artist=track.artist,
+        album=track.album,
+        genre=track.genre,
+        duration_seconds=track.duration_seconds,
+        release_year=track.release_year,
+        created_at=created_at,
     )
 
 

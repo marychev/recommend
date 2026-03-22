@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Union
 from aiochclient import ChClient
+from aiochclient.records import Record
 from aiohttp import ClientSession, ClientTimeout
 from fastapi import HTTPException, status
 from app.config import settings
@@ -107,31 +108,31 @@ class ClickHouseClient:
             return False
         return False
 
-    async def _ensure_connected(self) -> None:
-        """Проверяет подключение и пытается переподключиться, если нужно"""
-        if not self.client:
-            try:
-                await self.connect()
-            except Exception as e:
-                raise RuntimeError(f"ClickHouse client not connected: {e}")
-        else:
-            # Проверяем, что подключение действительно работает
-            try:
-                await self.client.execute("SELECT 1")
-            except Exception:
-                # Подключение потеряно, переподключаемся
-                try:
-                    if self.session:
-                        await self.session.close()
-                    self.session = None
-                    self.client = None
-                    await self.connect()
-                except Exception as e:
-                    raise RuntimeError(f"ClickHouse client not connected: {e}")
+    # async def _ensure_connected(self) -> None:
+    #     """Проверяет подключение и пытается переподключиться, если нужно"""
+    #     if not self.client:
+    #         try:
+    #             await self.connect()
+    #         except Exception as e:
+    #             raise RuntimeError(f"ClickHouse client not connected: {e}")
+    #     else:
+    #         # Проверяем, что подключение действительно работает
+    #         try:
+    #             await self.client.execute("SELECT 1")
+    #         except Exception:
+    #             # Подключение потеряно, переподключаемся
+    #             try:
+    #                 if self.session:
+    #                     await self.session.close()
+    #                 self.session = None
+    #                 self.client = None
+    #                 await self.connect()
+    #             except Exception as e:
+    #                 raise RuntimeError(f"ClickHouse client not connected: {e}")
 
     async def execute(
         self, query: str, parameters: Optional[dict] = None
-    ) -> List[dict]:
+    ) -> Union[Any, List[dict]]:
         """Выполнение запроса с возвратом результатов в виде словарей"""
         # await self._ensure_connected() - Optimized
         try:
