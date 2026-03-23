@@ -13,6 +13,7 @@ from app.kafka.constants import (
     PRODUCER_START_TIMEOUT_QUICK,
 )
 from app.config import settings
+from app.utils.datetime_utils import format_datetime_ch
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def serialize_event(event: Dict[str, Any]) -> bytes:
     for key, value in event.items():
         # Конвертируем datetime в ISO string
         if isinstance(value, datetime):
-            serializable_event[key] = value.isoformat()
+            serializable_event[key] = format_datetime_ch(value)
         else:
             serializable_event[key] = value
 

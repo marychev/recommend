@@ -9,6 +9,7 @@ from app.models.schemas import UserTrackInteraction, UserTrackInteractionCreate
 from app.models.schemas.action_type import ActionType
 from app.db.clickhouse import get_clickhouse_client
 from app.config import settings
+from app.utils.datetime_utils import format_datetime_ch
 from app.services.cache import (
     invalidate_cached_user_recommendations,
     exists_user_cached,
@@ -51,8 +52,8 @@ async def process_event_async(event: UserTrackInteraction, clickhouse_client):
         ),
         "listen_duration_seconds": event.listen_duration_seconds,
         "timestamp": (
-            event.timestamp.isoformat()
-            if hasattr(event.timestamp, "isoformat")
+            format_datetime_ch(event.timestamp)
+            if isinstance(event.timestamp, datetime)
             else str(event.timestamp)
         ),
     }
