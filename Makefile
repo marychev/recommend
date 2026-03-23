@@ -7,7 +7,7 @@
 	status check-services health diagnose diagnose-system diagnose-cache test-ttl-optimization test-cache-warmup test-api-health urls \
 	clean clean-all \
 	test test-api test-cache test-clickhouse test-kafka   \
-	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats fix-clickhouse diagnose-performance \
+	db-init db-indexes db-optimize db-reset db-shell db-tables db-stats db-clean-test-data fix-clickhouse diagnose-performance \
 	lint lint-install format \
 	up-clickhouse up-kafka up-redis up-api restart-api \
 	up-pipeline-connect down-pipeline-connect up-pipeline-engine down-pipeline-engine \
@@ -246,6 +246,12 @@ db-optimize: ## Оптимизировать таблицы (применить 
 	@docker exec music_recommend_clickhouse clickhouse-client --query "OPTIMIZE TABLE music_recommend.user_recommendations FINAL" || true
 	@echo "$(GREEN)✅ Таблицы оптимизированы$(NC)"
 
+db-clean-test-data: ## Очистить тестовые данные в ClickHouse (TRUNCATE всех таблиц)
+	@bash scripts/clean_test_data.sh
+
+db-check-test-data: ## Показать количество записей в таблицах (без удаления)
+	@bash scripts/clean_test_data.sh --check-only
+
 db-reset: ## Пересоздать ClickHouse контейнер и таблицы
 	@echo "$(YELLOW)⚠️ Пересоздание ClickHouse (данные будут удалены)...$(NC)"
 	bash scripts/docker-reset-clickhouse.sh
@@ -354,17 +360,17 @@ load-test-basic: ## Базовый нагрузочный тест (~15 мину
 	@echo "$(YELLOW)Длительность: ~15 минут$(NC)"
 	k6 run load_tests/k6_basic_load_test.js
 
-load-test-spike: ## Тест пиковой нагрузки 200 VUs (~2 минуты)
+load-test-spike: db-clean-test-data ## Тест пиковой нагрузки 200 VUs (~2 минуты)
 	@echo "$(BLUE)⚡ Запуск теста пиковой нагрузки (200 VUs)...$(NC)"
 	@echo "$(YELLOW)Длительность: ~2 минуты$(NC)"
 	k6 run load_tests/k6_spike_test.js
 
-load-test-spike-extreme: ## Экстремальный spike test 500 VUs (без thresholds)
+load-test-spike-extreme: db-clean-test-data ## Экстремальный spike test 500 VUs (без thresholds)
 	@echo "$(BLUE)💥 Запуск ЭКСТРЕМАЛЬНОГО spike теста (500 VUs)...$(NC)"
 	@echo "$(YELLOW)Длительность: ~1 минута | БЕЗ строгих критериев прохождения$(NC)"
 	k6 run load_tests/k6_spike_test_extreme.js
 
-load-test-stress: ## Стресс-тест (~30 минут)
+load-test-stress: db-clean-test-data ## Стресс-тест (~30 минут)
 	@echo "$(BLUE)💪 Запуск стресс-теста...$(NC)"
 	@echo "$(YELLOW)Длительность: ~30 минут$(NC)"
 	k6 run load_tests/k6_stress_test.js
@@ -381,14 +387,14 @@ load-test-recommendations: ## Детальный анализ производи
 	k6 run load_tests/k6_recommendations_performance_test.js
 
 
-load-test-post: ## Нагрузочный тест POST запросов (создание пользователей, треков, событий, рекомендации)
+load-test-post: db-clean-test-data ## Нагрузочный тест POST запросов (создание пользователей, треков, событий, рекомендации)
 	@echo "$(BLUE)📝 Запуск нагрузочного теста POST запросов...$(NC)"
 	@echo "$(YELLOW)Тестирует: POST /users, POST /tracks, POST /events, POST /recommendations$(NC)"
 	@echo "$(YELLOW)Длительность: ~11 минут | VUs: 100 (можно изменить через VUS=50 DURATION=5m)$(NC)"
 	@echo "$(GREEN)Пример: make load-test-post VUS=50 DURATION=5m$(NC)"
 	k6 run load_tests/k6_post_load_test.js
 
-load-test-post-quick: ## Быстрый тест POST запросов (1 минута, 10 VUs)
+load-test-post-quick: db-clean-test-data ## Быстрый тест POST запросов (1 минута, 10 VUs)
 	@echo "$(BLUE)⚡ Быстрый тест POST запросов...$(NC)"
 	@echo "$(YELLOW)Длительность: 1 минута | VUs: 10$(NC)"
 	k6 run load_tests/k6_post_load_test.js --vus 10 --duration 1m
@@ -409,7 +415,7 @@ load-test-recommendations-post: ## Тест POST /recommendations (отдель�
 	@echo "$(BLUE)📝 Запуск теста POST /recommendations...$(NC)"
 	k6 run load_tests/k6_test_recommendations_post.js
 
-measure-insert-lag: ## Измерить лаг вставки в ClickHouse (от POST запроса до БД) - использует k6
+measure-insert-lag: db-clean-test-data ## Измерить лаг вставки в ClickHouse (от POST запроса до БД) - использует k6
 	@echo "$(BLUE)⏱️  Измерение лага вставки в ClickHouse...$(NC)"
 	@echo "$(YELLOW)Это измеряет время от создания записи через POST до фактической вставки в ClickHouse$(NC)"
 	@echo "$(BLUE)================================================================================$(NC)"

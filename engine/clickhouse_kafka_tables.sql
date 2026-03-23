@@ -33,7 +33,7 @@ SELECT
     email,
     age,
     country,
-    parseDateTimeBestEffort(created_at) AS created_at
+    parseDateTime(created_at, '%Y-%m-%d %H:%M:%S') AS created_at
 FROM kafka_users;
 
 -- ==================== Tracks ====================
@@ -65,7 +65,7 @@ SELECT
     genre,
     duration_seconds,
     release_year,
-    parseDateTimeBestEffort(created_at) AS created_at
+    parseDateTime(created_at, '%Y-%m-%d %H:%M:%S') AS created_at
 FROM kafka_tracks;
 
 -- ==================== Events (user_track_interactions) ====================
@@ -91,5 +91,5 @@ SELECT
     track_id,
     action_type,
     listen_duration_seconds,
-    parseDateTimeBestEffort(timestamp) AS timestamp
+    parseDateTime(timestamp, '%Y-%m-%d %H:%M:%S') AS timestamp
 FROM kafka_events;
