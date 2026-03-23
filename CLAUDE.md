@@ -51,7 +51,7 @@ make db-stats              # статистика таблиц (размер, с
 make db-reset              # пересоздать ClickHouse (данные удалятся!)
 ```
 
-### Pipeline Benchmark (ROADMAP.md)
+### Pipeline Benchmark (docs/PIPELINE_BENCHMARK.md)
 ```bash
 make up                        # решение A: Python Consumer (текущее)
 make up-pipeline-connect       # решение B: Kafka Connect Sink

@@ -20,6 +20,7 @@
 
 ### Тестирование и диагностика
 - **[TESTING.md](TESTING.md)** - Запуск тестов (unit, Kafka, нагрузочные)
+- **[PIPELINE_BENCHMARK.md](PIPELINE_BENCHMARK.md)** - Бенчмарк Kafka→ClickHouse (3 решения, результаты, баги)
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Решение проблем и диагностика
 
 ### Разработка
@@ -43,6 +44,7 @@ docs/
 ├── KAFKA.md                              # Kafka (объединённый)
 ├── CACHING.md                            # Redis кэширование (объединённый)
 ├── TESTING.md                            # Тестирование (объединённый)
+├── PIPELINE_BENCHMARK.md                 # Бенчмарк Kafka→ClickHouse
 ├── TROUBLESHOOTING.md                    # Диагностика (объединённый)
 ├── PORTS.md                              # Справочник портов
 ├── DB_INIT.md                            # Инициализация БД
